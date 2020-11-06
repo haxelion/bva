@@ -219,6 +219,7 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
             <$st>::MAX >> (Self::CAPACITY - len)
         }
 
+        /// Construct a bit vector made of `len` 0 bits.
         pub fn zeros(len: usize) -> $name {
             assert!(len <= Self::CAPACITY);
             $name {
@@ -227,12 +228,63 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
             }
         }
 
+        /// Construct a bit vector made of `len` 1 bits.
         pub fn ones(len: usize) -> $name {
             assert!(len <= Self::CAPACITY);
             $name {
                 data: <$st>::MAX & Self::mask(len),
                 length: len as u8
             }
+        }
+
+        /// Construct a bit vector from a binary string made of `'0'` and `'1'`.
+        /// Return `None` if the string is invalid or exceed the maximum capacity.
+        pub fn from_binary<S: AsRef<str>>(s: S) -> Option<Self> {
+            let mut data : $st = 0;
+            let mut length = 0;
+            for c in s.as_ref().chars().rev() {
+                if length as usize >= Self::CAPACITY {
+                    return None;
+                }
+                if c == '0' {
+                    data = data << 1;
+                    length += 1;
+                }
+                else if c == '1' {
+                    data = (data << 1) | 1;
+                    length += 1;
+                }
+                else {
+                    return None;
+                }
+            }
+            return Some($name {
+                data,
+                length
+            })
+        }
+
+        /// Construct a bit vector from a hex string made of lower case or upper case hexadecimal characters.
+        /// Return `None` if the string is invalid or exceed the maximum capacity.
+        pub fn from_hex<S: AsRef<str>>(s: S) -> Option<Self> {
+            let mut data : $st = 0;
+            let mut length = 0;
+            for c in s.as_ref().chars().rev() {
+                if length as usize >= Self::CAPACITY {
+                    return None;
+                }
+                if let Some(n) = c.to_digit(16) {
+                    data = (data << 4) | n as $st;
+                    length += 4;
+                }
+                else {
+                    return None;
+                }
+            }
+            return Some($name {
+                data,
+                length
+            })
         }
     }
 
