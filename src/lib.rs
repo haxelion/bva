@@ -1,3 +1,4 @@
+use std::io::{Read, Write};
 use std::ops::Range;
 
 pub mod bit;
@@ -5,8 +6,45 @@ pub mod fixed;
 
 use bit::Bit;
 
+pub enum Endianness {
+    LE,
+    BE
+}
+
 /// A trait representing common bit vector operations
 pub trait BitVector: Sized {
+    /// Construct a bit vector made of `len` 0 bits.
+    /// Will panic if there is not enough capacity and it is a fixed variant.
+    fn zeros(len: usize) -> Self;
+
+    /// Construct a bit vector made of `len` 1 bits.
+    /// Will panic if there is not enough capacity and it is a fixed variant.
+    fn ones(len: usize) -> Self;
+
+    /// Construct a bit vector from a binary string made of `'0'` and `'1'`.
+    /// Return `None` if the string is invalid or exceed the maximum capacity.
+    fn from_binary<S: AsRef<str>>(string: S) -> Option<Self>;
+
+    /// Construct a bit vector from a hex string made of lower case or upper case hexadecimal 
+    /// characters (mixed case is accepted).
+    /// Return `None` if the string is invalid or exceed the maximum capacity.
+    fn from_hex<S: AsRef<str>>(string: S) -> Option<Self>;
+
+    /// Construct a bit vector from `bytes` according to the specified `endianness`.
+    /// Will panic if the length of `bytes` is larger than the maximum capacity.
+    fn from_bytes<B: AsRef<[u8]>>(bytes: B, endianness: Endianness) -> Self;
+
+    /// Construct a bit vector by reading `num_bytes` bytes from a type implementing `Read` and 
+    /// arrange them according to the specified `endianness`. If `length` is not a multiple of 8,
+    /// the bits remaining in the highest weight byte will be dropped.
+    /// Will panic if there is not enough capacity and it is a fixed variant.
+    fn read<R: Read>(reader: &mut R, length: usize, endianness: Endianness) -> std::io::Result<Self>;
+
+    /// Write a bit vector to a type implementing `Write` and according to the specified 
+    /// `endianness`. If the length is not a multiple of 8, he highest weight byte will be padded 
+    /// with `'0'`.
+    fn write<W: Write>(&self, writer: &mut W, endianness: Endianness) -> std::io::Result<()>;
+
     /// Return the bit at `index`.
     /// Will panic if `index` is out of bound.
     fn get(&self, index: usize) -> Bit;

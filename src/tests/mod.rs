@@ -1,3 +1,4 @@
+use crate::BitVector;
 use crate::fixed::{BV8, BV16};
 
 #[test]

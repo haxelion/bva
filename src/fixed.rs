@@ -1,10 +1,11 @@
 use std::convert::From;
 use std::mem::size_of;
 use std::fmt::{Binary, Display, LowerHex, Octal, UpperHex};
+use std::io::{Read, Write};
 use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, 
     Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
 
-use crate::{Bit, BitVector};
+use crate::{Bit, BitVector, Endianness};
 
 // Beware! Here be hardcore macro magic!
 
@@ -218,31 +219,34 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
         fn mask(len: usize) -> $st {
             <$st>::MAX >> (Self::CAPACITY - len)
         }
+    }
 
-        /// Construct a bit vector made of `len` 0 bits.
-        pub fn zeros(len: usize) -> $name {
+    impl BitVector for $name {
+        fn get(&self, index: usize) -> Bit {
+            assert!(index < self.len());
+            (self.data >> index & 1).into()
+        }
+
+        fn zeros(len: usize) -> Self {
             assert!(len <= Self::CAPACITY);
-            $name {
+            Self {
                 data: 0,
                 length: len as u8,
             }
         }
 
-        /// Construct a bit vector made of `len` 1 bits.
-        pub fn ones(len: usize) -> $name {
+        fn ones(len: usize) -> Self {
             assert!(len <= Self::CAPACITY);
-            $name {
+            Self {
                 data: <$st>::MAX & Self::mask(len),
                 length: len as u8
             }
         }
 
-        /// Construct a bit vector from a binary string made of `'0'` and `'1'`.
-        /// Return `None` if the string is invalid or exceed the maximum capacity.
-        pub fn from_binary<S: AsRef<str>>(s: S) -> Option<Self> {
+        fn from_binary<S: AsRef<str>>(string: S) -> Option<Self> {
             let mut data : $st = 0;
             let mut length = 0;
-            for c in s.as_ref().chars().rev() {
+            for c in string.as_ref().chars().rev() {
                 if length as usize >= Self::CAPACITY {
                     return None;
                 }
@@ -258,18 +262,16 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
                     return None;
                 }
             }
-            return Some($name {
+            return Some(Self {
                 data,
                 length
             })
         }
 
-        /// Construct a bit vector from a hex string made of lower case or upper case hexadecimal characters.
-        /// Return `None` if the string is invalid or exceed the maximum capacity.
-        pub fn from_hex<S: AsRef<str>>(s: S) -> Option<Self> {
+        fn from_hex<S: AsRef<str>>(string: S) -> Option<Self> {
             let mut data : $st = 0;
             let mut length = 0;
-            for c in s.as_ref().chars().rev() {
+            for c in string.as_ref().chars().rev() {
                 if length as usize >= Self::CAPACITY {
                     return None;
                 }
@@ -281,17 +283,65 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
                     return None;
                 }
             }
-            return Some($name {
+            return Some(Self {
                 data,
                 length
             })
         }
-    }
 
-    impl BitVector for $name {
-        fn get(&self, index: usize) -> Bit {
-            assert!(index < self.len());
-            (self.data >> index & 1).into()
+        #[allow(arithmetic_overflow)]
+        fn from_bytes<B: AsRef<[u8]>>(bytes: B, endianness: Endianness) -> Self {
+            assert!(bytes.as_ref().len() * 8 <= Self::CAPACITY);
+            let mut data: $st = 0;
+            let mut length = 0;
+            match endianness {
+                Endianness::LE => {
+                    for &b in bytes.as_ref().iter().rev() {       
+                        data = (data << 8) | b as $st;
+                        length += 8;
+                    }
+                },
+                Endianness::BE => {
+                    for &b in bytes.as_ref().iter() {       
+                        data = (data << 8) | b as $st;
+                        length += 8;
+                    }
+                }
+            }
+            return Self {
+                data,
+                length
+            }
+        }
+
+        fn read<R: Read>(reader: &mut R, length: usize, endianness: Endianness) -> std::io::Result<Self> {
+            assert!(length <= Self::CAPACITY);
+            let mut buf = [0u8; size_of::<$st>()];
+            let num_bytes = (length + 7) / 8;
+            reader.read_exact(&mut buf[0..num_bytes])?;
+            let mut bv = Self::from_bytes(&buf[0..num_bytes], endianness);
+            bv.data &= Self::mask(length);
+            bv.length = length as u8;
+            return Ok(bv);
+
+        }
+
+        fn write<W: Write>(&self, writer: &mut W, endianness: Endianness) -> std::io::Result<()> {
+            let mut buf = [0u8; size_of::<$st>()];
+            let num_bytes = (self.length as usize + 7) / 8;
+            match endianness {
+                Endianness::LE => {
+                    for i in 0..num_bytes {
+                        buf[i] = (self.data >> (i * 8) & 0xff) as u8;
+                    }
+                },
+                Endianness::BE => {
+                    for i in 0..num_bytes {
+                        buf[num_bytes - i - 1] = (self.data >> (i * 8) & 0xff) as u8;
+                    }
+                }
+            }
+            return writer.write_all(&buf[0..num_bytes]);
         }
 
         fn set(&mut self, index: usize, bit: Bit){
