@@ -86,7 +86,7 @@ macro_rules! impl_shl {($t:ident, {$($rhs:ty),+}) => {
             type Output = $t;
             fn shl(self, rhs: $rhs) -> $t {
                 $t {
-                    data: self.data.shl(rhs) & <$t>::mask(self.len()),
+                    data: self.data.checked_shl(rhs as u32).unwrap_or(0) & <$t>::mask(self.len()),
                     length: self.length
                 }
             }
@@ -96,7 +96,7 @@ macro_rules! impl_shl {($t:ident, {$($rhs:ty),+}) => {
             type Output = $t;
             fn shl(self, rhs: $rhs) -> $t {
                 $t {
-                    data: self.data.shl(rhs) & <$t>::mask(self.len()),
+                    data: self.data.checked_shl(rhs as u32).unwrap_or(0) & <$t>::mask(self.len()),
                     length: self.length
                 }
             }
@@ -106,7 +106,7 @@ macro_rules! impl_shl {($t:ident, {$($rhs:ty),+}) => {
             type Output = $t;
             fn shl(self, rhs: &'_ $rhs) -> $t {
                 $t {
-                    data: self.data.shl(rhs) & <$t>::mask(self.len()),
+                    data: self.data.checked_shl(*rhs as u32).unwrap_or(0) & <$t>::mask(self.len()),
                     length: self.length
                 }
             }
@@ -116,7 +116,7 @@ macro_rules! impl_shl {($t:ident, {$($rhs:ty),+}) => {
             type Output = $t;
             fn shl(self, rhs: &'_ $rhs) -> $t {
                 $t {
-                    data: self.data.shl(rhs) & <$t>::mask(self.len()),
+                    data: self.data.checked_shl(*rhs as u32).unwrap_or(0) & <$t>::mask(self.len()),
                     length: self.length
                 }
             }
@@ -130,7 +130,7 @@ macro_rules! impl_shr {($t:ident, {$($rhs:ty),+}) => {
             type Output = $t;
             fn shr(self, rhs: $rhs) -> $t {
                 $t {
-                    data: self.data.shr(rhs),
+                    data: self.data.checked_shr(rhs as u32).unwrap_or(0),
                     length: self.length
                 }
             }
@@ -140,7 +140,7 @@ macro_rules! impl_shr {($t:ident, {$($rhs:ty),+}) => {
             type Output = $t;
             fn shr(self, rhs: $rhs) -> $t {
                 $t {
-                    data: self.data.shr(rhs),
+                    data: self.data.checked_shr(rhs as u32).unwrap_or(0),
                     length: self.length
                 }
             }
@@ -150,7 +150,7 @@ macro_rules! impl_shr {($t:ident, {$($rhs:ty),+}) => {
             type Output = $t;
             fn shr(self, rhs: &'_ $rhs) -> $t {
                 $t {
-                    data: self.data.shr(rhs),
+                    data: self.data.checked_shr(*rhs as u32).unwrap_or(0),
                     length: self.length
                 }
             }
@@ -160,7 +160,7 @@ macro_rules! impl_shr {($t:ident, {$($rhs:ty),+}) => {
             type Output = $t;
             fn shr(self, rhs: &'_ $rhs) -> $t {
                 $t {
-                    data: self.data.shr(rhs),
+                    data: self.data.checked_shr(*rhs as u32).unwrap_or(0),
                     length: self.length
                 }
             }
@@ -172,14 +172,14 @@ macro_rules! impl_shl_assign {($t:ident, {$($rhs:ty),+}) => {
     $(
         impl ShlAssign<$rhs> for $t {
             fn shl_assign(&mut self, rhs: $rhs) {
-                self.data = self.data.shl(rhs) & Self::mask(self.len());
+                self.data = self.data.checked_shl(rhs as u32).unwrap_or(0) & Self::mask(self.len());
             }
         }
 
 
         impl ShlAssign<&'_ $rhs> for $t {
             fn shl_assign(&mut self, rhs: &'_ $rhs) {
-                self.data = self.data.shl(rhs) & Self::mask(self.len());
+                self.data = self.data.checked_shl(*rhs as u32).unwrap_or(0) & Self::mask(self.len());
             }
         }
     )+
@@ -189,13 +189,13 @@ macro_rules! impl_shr_assign {($t:ident, {$($rhs:ty),+}) => {
     $(
         impl ShrAssign<$rhs> for $t {
             fn shr_assign(&mut self, rhs: $rhs) {
-                self.data.shr_assign(rhs);
+                self.data = self.data.checked_shr(rhs as u32).unwrap_or(0);
             }
         }
 
         impl ShrAssign<&'_ $rhs> for $t {
             fn shr_assign(&mut self, rhs: &'_ $rhs) {
-                self.data.shr_assign(rhs);
+                self.data = self.data.checked_shr(*rhs as u32).unwrap_or(0);
             }
         }
     )+
@@ -214,7 +214,7 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
     /// Fixed capacity bit vector backed by a single unsigned integer.
     /// Operation exceding the underlying capacity will panic.
     impl $name {
-        const CAPACITY: usize = size_of::<$st>() * 8;
+        pub const CAPACITY: usize = size_of::<$st>() * 8;
 
         fn mask(len: usize) -> $st {
             <$st>::MAX >> (Self::CAPACITY - len)
@@ -246,7 +246,7 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
         fn from_binary<S: AsRef<str>>(string: S) -> Option<Self> {
             let mut data : $st = 0;
             let mut length = 0;
-            for c in string.as_ref().chars().rev() {
+            for c in string.as_ref().chars() {
                 if length as usize >= Self::CAPACITY {
                     return None;
                 }
@@ -271,7 +271,7 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
         fn from_hex<S: AsRef<str>>(string: S) -> Option<Self> {
             let mut data : $st = 0;
             let mut length = 0;
-            for c in string.as_ref().chars().rev() {
+            for c in string.as_ref().chars() {
                 if length as usize >= Self::CAPACITY {
                     return None;
                 }
@@ -297,13 +297,13 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
             match endianness {
                 Endianness::LE => {
                     for &b in bytes.as_ref().iter().rev() {       
-                        data = (data << 8) | b as $st;
+                        data = data.checked_shl(8).unwrap_or(0) | b as $st;
                         length += 8;
                     }
                 },
                 Endianness::BE => {
                     for &b in bytes.as_ref().iter() {       
-                        data = (data << 8) | b as $st;
+                        data = data.checked_shl(8).unwrap_or(0) | b as $st;
                         length += 8;
                     }
                 }

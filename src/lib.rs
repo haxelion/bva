@@ -1,3 +1,4 @@
+use std::fmt::{Binary, Display, Debug, LowerHex, UpperHex};
 use std::io::{Read, Write};
 use std::ops::Range;
 
@@ -12,7 +13,7 @@ pub enum Endianness {
 }
 
 /// A trait representing common bit vector operations
-pub trait BitVector: Sized {
+pub trait BitVector: Sized + Clone + Debug + PartialEq + Eq + Display + Binary + LowerHex + UpperHex {
     /// Construct a bit vector made of `len` 0 bits.
     /// Will panic if there is not enough capacity and it is a fixed variant.
     fn zeros(len: usize) -> Self;
