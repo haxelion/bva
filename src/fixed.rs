@@ -1,7 +1,8 @@
 use std::convert::From;
-use std::mem::size_of;
 use std::fmt::{Binary, Display, LowerHex, Octal, UpperHex};
 use std::io::{Read, Write};
+use std::mem::size_of;
+use std::num::Wrapping;
 use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, 
     Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
 
@@ -18,7 +19,7 @@ macro_rules! impl_op { ($t:ident, $st:ty, $rhs:ty, $trait:ident, $method:ident) 
         fn $method(self, rhs: $rhs) -> $t {
             let length = u8::max(self.length, rhs.length);
             $t {
-                data: self.data.$method(rhs.data as $st) & <$t>::mask(length as usize),
+                data: self.data.$method(Wrapping(rhs.data.0 as $st)) & <$t>::mask(length as usize),
                 length
             }
         }
@@ -29,7 +30,7 @@ macro_rules! impl_op { ($t:ident, $st:ty, $rhs:ty, $trait:ident, $method:ident) 
         fn $method(self, rhs: &'_ $rhs) -> $t {
             let length = u8::max(self.length, rhs.length);
             $t {
-                data: self.data.$method(rhs.data as $st) & <$t>::mask(length as usize),
+                data: self.data.$method(Wrapping(rhs.data.0 as $st)) & <$t>::mask(length as usize),
                 length
             }
         }
@@ -40,7 +41,7 @@ macro_rules! impl_op { ($t:ident, $st:ty, $rhs:ty, $trait:ident, $method:ident) 
         fn $method(self, rhs: $rhs) -> $t {
             let length = u8::max(self.length, rhs.length);
             $t {
-                data: self.data.$method(rhs.data as $st) & <$t>::mask(length as usize),
+                data: self.data.$method(Wrapping(rhs.data.0 as $st)) & <$t>::mask(length as usize),
                 length
             }
         }
@@ -51,7 +52,7 @@ macro_rules! impl_op { ($t:ident, $st:ty, $rhs:ty, $trait:ident, $method:ident) 
         fn $method(self, rhs: &'_ $rhs) -> $t {
             let length = u8::max(self.length, rhs.length);
             $t {
-                data: self.data.$method(rhs.data as $st) & <$t>::mask(length as usize),
+                data: self.data.$method(Wrapping(rhs.data.0 as $st)) & <$t>::mask(length as usize),
                 length
             }
         }
@@ -65,7 +66,7 @@ macro_rules! impl_op_assign { ($t:ident, $st:ty, $rhs:ty, $trait:ident, $method:
     impl $trait<$rhs> for $t {
         fn $method(&mut self, rhs: $rhs) {
             self.length = u8::max(self.length, rhs.length);
-            self.data.$method(rhs.data as $st);
+            self.data.$method(Wrapping(rhs.data.0 as $st));
             self.data &= Self::mask(self.len());
         }
     }
@@ -73,7 +74,7 @@ macro_rules! impl_op_assign { ($t:ident, $st:ty, $rhs:ty, $trait:ident, $method:
     impl $trait<&'_ $rhs> for $t {
         fn $method(&mut self, rhs: &'_ $rhs) {
             self.length = u8::max(self.length, rhs.length);
-            self.data.$method(rhs.data as $st);
+            self.data.$method(Wrapping(rhs.data.0 as $st));
             self.data &= Self::mask(self.len());
 
         }
@@ -86,7 +87,7 @@ macro_rules! impl_shl {($t:ident, {$($rhs:ty),+}) => {
             type Output = $t;
             fn shl(self, rhs: $rhs) -> $t {
                 $t {
-                    data: self.data.checked_shl(rhs as u32).unwrap_or(0) & <$t>::mask(self.len()),
+                    data: Wrapping(self.data.0.checked_shl(rhs as u32).unwrap_or(0)) & <$t>::mask(self.len()),
                     length: self.length
                 }
             }
@@ -96,7 +97,7 @@ macro_rules! impl_shl {($t:ident, {$($rhs:ty),+}) => {
             type Output = $t;
             fn shl(self, rhs: $rhs) -> $t {
                 $t {
-                    data: self.data.checked_shl(rhs as u32).unwrap_or(0) & <$t>::mask(self.len()),
+                    data: Wrapping(self.data.0.checked_shl(rhs as u32).unwrap_or(0)) & <$t>::mask(self.len()),
                     length: self.length
                 }
             }
@@ -106,7 +107,7 @@ macro_rules! impl_shl {($t:ident, {$($rhs:ty),+}) => {
             type Output = $t;
             fn shl(self, rhs: &'_ $rhs) -> $t {
                 $t {
-                    data: self.data.checked_shl(*rhs as u32).unwrap_or(0) & <$t>::mask(self.len()),
+                    data: Wrapping(self.data.0.checked_shl(*rhs as u32).unwrap_or(0)) & <$t>::mask(self.len()),
                     length: self.length
                 }
             }
@@ -116,7 +117,7 @@ macro_rules! impl_shl {($t:ident, {$($rhs:ty),+}) => {
             type Output = $t;
             fn shl(self, rhs: &'_ $rhs) -> $t {
                 $t {
-                    data: self.data.checked_shl(*rhs as u32).unwrap_or(0) & <$t>::mask(self.len()),
+                    data: Wrapping(self.data.0.checked_shl(*rhs as u32).unwrap_or(0)) & <$t>::mask(self.len()),
                     length: self.length
                 }
             }
@@ -130,7 +131,7 @@ macro_rules! impl_shr {($t:ident, {$($rhs:ty),+}) => {
             type Output = $t;
             fn shr(self, rhs: $rhs) -> $t {
                 $t {
-                    data: self.data.checked_shr(rhs as u32).unwrap_or(0),
+                    data: Wrapping(self.data.0.checked_shr(rhs as u32).unwrap_or(0)),
                     length: self.length
                 }
             }
@@ -140,7 +141,7 @@ macro_rules! impl_shr {($t:ident, {$($rhs:ty),+}) => {
             type Output = $t;
             fn shr(self, rhs: $rhs) -> $t {
                 $t {
-                    data: self.data.checked_shr(rhs as u32).unwrap_or(0),
+                    data: Wrapping(self.data.0.checked_shr(rhs as u32).unwrap_or(0)),
                     length: self.length
                 }
             }
@@ -150,7 +151,7 @@ macro_rules! impl_shr {($t:ident, {$($rhs:ty),+}) => {
             type Output = $t;
             fn shr(self, rhs: &'_ $rhs) -> $t {
                 $t {
-                    data: self.data.checked_shr(*rhs as u32).unwrap_or(0),
+                    data: Wrapping(self.data.0.checked_shr(*rhs as u32).unwrap_or(0)),
                     length: self.length
                 }
             }
@@ -160,7 +161,7 @@ macro_rules! impl_shr {($t:ident, {$($rhs:ty),+}) => {
             type Output = $t;
             fn shr(self, rhs: &'_ $rhs) -> $t {
                 $t {
-                    data: self.data.checked_shr(*rhs as u32).unwrap_or(0),
+                    data: Wrapping(self.data.0.checked_shr(*rhs as u32).unwrap_or(0)),
                     length: self.length
                 }
             }
@@ -172,14 +173,14 @@ macro_rules! impl_shl_assign {($t:ident, {$($rhs:ty),+}) => {
     $(
         impl ShlAssign<$rhs> for $t {
             fn shl_assign(&mut self, rhs: $rhs) {
-                self.data = self.data.checked_shl(rhs as u32).unwrap_or(0) & Self::mask(self.len());
+                self.data = Wrapping(self.data.0.checked_shl(rhs as u32).unwrap_or(0)) & Self::mask(self.len());
             }
         }
 
 
         impl ShlAssign<&'_ $rhs> for $t {
             fn shl_assign(&mut self, rhs: &'_ $rhs) {
-                self.data = self.data.checked_shl(*rhs as u32).unwrap_or(0) & Self::mask(self.len());
+                self.data = Wrapping(self.data.0.checked_shl(*rhs as u32).unwrap_or(0)) & Self::mask(self.len());
             }
         }
     )+
@@ -189,13 +190,13 @@ macro_rules! impl_shr_assign {($t:ident, {$($rhs:ty),+}) => {
     $(
         impl ShrAssign<$rhs> for $t {
             fn shr_assign(&mut self, rhs: $rhs) {
-                self.data = self.data.checked_shr(rhs as u32).unwrap_or(0);
+                self.data = Wrapping(self.data.0.checked_shr(rhs as u32).unwrap_or(0));
             }
         }
 
         impl ShrAssign<&'_ $rhs> for $t {
             fn shr_assign(&mut self, rhs: &'_ $rhs) {
-                self.data = self.data.checked_shr(*rhs as u32).unwrap_or(0);
+                self.data = Wrapping(self.data.0.checked_shr(*rhs as u32).unwrap_or(0));
             }
         }
     )+
@@ -207,7 +208,7 @@ macro_rules! impl_shr_assign {($t:ident, {$($rhs:ty),+}) => {
 macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => {
     #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
     pub struct $name {
-        data: $st,
+        data: Wrapping<$st>,
         length: u8
     }
 
@@ -216,21 +217,16 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
     impl $name {
         pub const CAPACITY: usize = size_of::<$st>() * 8;
 
-        fn mask(len: usize) -> $st {
-            <$st>::MAX >> (Self::CAPACITY - len)
+        fn mask(len: usize) -> Wrapping<$st> {
+            Wrapping(<$st>::MAX >> (Self::CAPACITY - len))
         }
     }
 
     impl BitVector for $name {
-        fn get(&self, index: usize) -> Bit {
-            assert!(index < self.len());
-            (self.data >> index & 1).into()
-        }
-
         fn zeros(len: usize) -> Self {
             assert!(len <= Self::CAPACITY);
             Self {
-                data: 0,
+                data: Wrapping(0),
                 length: len as u8,
             }
         }
@@ -238,13 +234,13 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
         fn ones(len: usize) -> Self {
             assert!(len <= Self::CAPACITY);
             Self {
-                data: <$st>::MAX & Self::mask(len),
+                data: Wrapping(<$st>::MAX) & Self::mask(len),
                 length: len as u8
             }
         }
 
         fn from_binary<S: AsRef<str>>(string: S) -> Option<Self> {
-            let mut data : $st = 0;
+            let mut data: Wrapping<$st> = Wrapping(0);
             let mut length = 0;
             for c in string.as_ref().chars() {
                 if length as usize >= Self::CAPACITY {
@@ -255,7 +251,7 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
                     length += 1;
                 }
                 else if c == '1' {
-                    data = (data << 1) | 1;
+                    data = (data << 1) | Wrapping(1);
                     length += 1;
                 }
                 else {
@@ -269,14 +265,14 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
         }
 
         fn from_hex<S: AsRef<str>>(string: S) -> Option<Self> {
-            let mut data : $st = 0;
+            let mut data: Wrapping<$st> = Wrapping(0);
             let mut length = 0;
             for c in string.as_ref().chars() {
                 if length as usize >= Self::CAPACITY {
                     return None;
                 }
                 if let Some(n) = c.to_digit(16) {
-                    data = (data << 4) | n as $st;
+                    data = (data << 4) | Wrapping(n as $st);
                     length += 4;
                 }
                 else {
@@ -292,18 +288,18 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
         #[allow(arithmetic_overflow)]
         fn from_bytes<B: AsRef<[u8]>>(bytes: B, endianness: Endianness) -> Self {
             assert!(bytes.as_ref().len() * 8 <= Self::CAPACITY);
-            let mut data: $st = 0;
+            let mut data: Wrapping<$st> = Wrapping(0);
             let mut length = 0;
             match endianness {
                 Endianness::LE => {
                     for &b in bytes.as_ref().iter().rev() {       
-                        data = data.checked_shl(8).unwrap_or(0) | b as $st;
+                        data = data << 8 | Wrapping(b as $st);
                         length += 8;
                     }
                 },
                 Endianness::BE => {
                     for &b in bytes.as_ref().iter() {       
-                        data = data.checked_shl(8).unwrap_or(0) | b as $st;
+                        data = data << 8 | Wrapping(b as $st);
                         length += 8;
                     }
                 }
@@ -332,25 +328,30 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
             match endianness {
                 Endianness::LE => {
                     for i in 0..num_bytes {
-                        buf[i] = (self.data >> (i * 8) & 0xff) as u8;
+                        buf[i] = (self.data.0 >> (i * 8) & 0xff) as u8;
                     }
                 },
                 Endianness::BE => {
                     for i in 0..num_bytes {
-                        buf[num_bytes - i - 1] = (self.data >> (i * 8) & 0xff) as u8;
+                        buf[num_bytes - i - 1] = (self.data.0 >> (i * 8) & 0xff) as u8;
                     }
                 }
             }
             return writer.write_all(&buf[0..num_bytes]);
         }
 
+        fn get(&self, index: usize) -> Bit {
+            assert!(index < self.len());
+            (self.data.0 >> index & 1).into()
+        }
+
         fn set(&mut self, index: usize, bit: Bit){
             assert!(index < self.len());
-            self.data = (self.data & !(1 << index)) | (bit as $st << index);
+            self.data = (self.data & !(Wrapping(1 as $st) << index)) | (Wrapping(bit as $st) << index);
         }
 
         fn copy_slice(&self, range: Range<usize>) -> Self {
-            assert!(range.start < self.len() && range.end < self.len());
+            assert!(range.start < self.len() && range.end <= self.len());
             let len = range.end - usize::min(range.start, range.end);
             Self {
                 data: self.data >> range.start & Self::mask(len),
@@ -360,14 +361,14 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
 
         fn push(&mut self, bit: Bit) {
             assert!(self.len() < Self::CAPACITY);
-            self.data &= bit as $st << self.len();
+            self.data &= Wrapping(bit as $st) << self.len();
             self.length += 1;
         }
 
         fn pop(&mut self) -> Option<Bit> {
             if self.length > 0 {
                 self.length -= 1;
-                Some((self.data >> self.length & 1).into())
+                Some((self.data.0 >> self.length & 1).into())
             }
             else {
                 None
@@ -376,19 +377,20 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
 
         fn resize(&mut self, new_len: usize, bit: Bit) {
             assert!(new_len <= Self::CAPACITY);
-            self.data = self.data & Self::mask(new_len) & 
-                ((<$st>::MIN.wrapping_sub(bit as $st) >> (Self::CAPACITY - self.len()) << new_len));
+            self.data = self.data & Self::mask(new_len) | 
+                ((Wrapping(<$st>::MIN) - Wrapping(bit as $st) >> (Self::CAPACITY - self.len()) << new_len));
+            self.length = new_len as u8;
         }
 
         fn shl_in(&mut self, bit: Bit) -> Bit {
-            let out = self.data >> (self.length - 1);
-            self.data = (self.data << 1 & Self::mask(self.len())) | (bit as $st);
+            let out = self.data.0 >> (self.length - 1);
+            self.data = (self.data << 1 & Self::mask(self.len())) | Wrapping(bit as $st);
             return out.into();
         }
 
         fn shr_in(&mut self, bit: Bit) -> Bit {
-            let out = self.data & 1;
-            self.data = (self.data >> 1) | (bit as $st << (self.length - 1));
+            let out = self.data.0 & 1;
+            self.data = (self.data >> 1) | (Wrapping(bit as $st) << (self.len() - 1));
             return out.into();
         }
 
@@ -411,7 +413,7 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
         impl From<$rhs> for $name {
             fn from(a: $rhs) -> $name {
                 $name {
-                    data: a.data as $st,
+                    data: Wrapping(a.data.0 as $st),
                     length: a.length
                 }
             }
@@ -422,12 +424,18 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
         impl From<$sst> for $name {
             fn from(a: $sst) -> $name {
                 $name {
-                    data: a as $st,
+                    data: Wrapping(a as $st),
                     length: (std::mem::size_of::<$sst>() * 8) as u8
                 }
             }
         }
     )*
+
+    impl From<$name> for $st {
+        fn from(a: $name) -> $st {
+            a.data.0
+        }
+    }
 
     impl Not for $name {
         type Output = $name;
@@ -439,17 +447,31 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
         }
     }
 
-    $( impl_op!{$name, $st, $rhs, BitAnd, bitand} )*
-    $( impl_op!{$name, $st, $rhs, BitOr, bitor} )*
-    $( impl_op!{$name, $st, $rhs, BitXor, bitxor} )*
-    $( impl_op!{$name, $st, $rhs, Add, add} )*
-    $( impl_op!{$name, $st, $rhs, Sub, sub} )*
+    $(
+        impl_op!{$name, $st, $rhs, BitAnd, bitand}
+        impl_op!{$name, $st, $rhs, BitOr, bitor}
+        impl_op!{$name, $st, $rhs, BitXor, bitxor}
+        impl_op!{$name, $st, $rhs, Add, add}
+        impl_op!{$name, $st, $rhs, Sub, sub}
 
-    $( impl_op_assign!{$name, $st, $rhs, BitAndAssign, bitand_assign} )*
-    $( impl_op_assign!{$name, $st, $rhs, BitOrAssign, bitor_assign} )*
-    $( impl_op_assign!{$name, $st, $rhs, BitXorAssign, bitxor_assign} )*
-    $( impl_op_assign!{$name, $st, $rhs, AddAssign, add_assign} )*
-    $( impl_op_assign!{$name, $st, $rhs, SubAssign, sub_assign} )*
+        impl_op_assign!{$name, $st, $rhs, BitAndAssign, bitand_assign}
+        impl_op_assign!{$name, $st, $rhs, BitOrAssign, bitor_assign}
+        impl_op_assign!{$name, $st, $rhs, BitXorAssign, bitxor_assign}
+        impl_op_assign!{$name, $st, $rhs, AddAssign, add_assign}
+        impl_op_assign!{$name, $st, $rhs, SubAssign, sub_assign}
+    )*
+
+    impl_op!{$name, $st, $name, BitAnd, bitand}
+    impl_op!{$name, $st, $name, BitOr, bitor}
+    impl_op!{$name, $st, $name, BitXor, bitxor}
+    impl_op!{$name, $st, $name, Add, add}
+    impl_op!{$name, $st, $name, Sub, sub}
+
+    impl_op_assign!{$name, $st, $name, BitAndAssign, bitand_assign}
+    impl_op_assign!{$name, $st, $name, BitOrAssign, bitor_assign}
+    impl_op_assign!{$name, $st, $name, BitXorAssign, bitxor_assign}
+    impl_op_assign!{$name, $st, $name, AddAssign, add_assign}
+    impl_op_assign!{$name, $st, $name, SubAssign, sub_assign}
 
     impl_shl!{$name, {u8, u16, u32, u64, u128, usize}}
     impl_shr!{$name, {u8, u16, u32, u64, u128, usize}}
@@ -462,7 +484,7 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
             let len = self.len();
             let mut s = String::with_capacity(len);
             for i in 0..len {
-                match self.data >> (len - i - 1) & 1 {
+                match self.data.0 >> (len - i - 1) & 1 {
                     0 => s.push('0'),
                     1 => s.push('1'),
                     _ => unreachable!()
@@ -495,7 +517,7 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
             let len = (self.len() + 3) / 4;
             let mut s = String::with_capacity(len);
             for i in 0..len {
-                s.push(NIBBLE[(self.data >> ((len - i - 1) * 4) & 0xf) as usize])
+                s.push(NIBBLE[(self.data.0 >> ((len - i - 1) * 4) & 0xf) as usize])
             }
             if f.alternate() {
                 return write!(f, "0x{}", s.as_str());
@@ -512,7 +534,7 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
             let len = (self.len() + 3) / 4;
             let mut s = String::with_capacity(len);
             for i in 0..len {
-                s.push(NIBBLE[(self.data >> ((len - i - 1) * 4) & 0xf) as usize])
+                s.push(NIBBLE[(self.data.0 >> ((len - i - 1) * 4) & 0xf) as usize])
             }
             if f.alternate() {
                 return write!(f, "0x{}", s.as_str());
@@ -529,7 +551,7 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
             let len = (self.len() + 1) / 2;
             let mut s = String::with_capacity(len);
             for i in 0..len {
-                s.push(SEMI_NIBBLE[(self.data >> ((len - i - 1) * 2) & 0x7) as usize])
+                s.push(SEMI_NIBBLE[(self.data.0 >> ((len - i - 1) * 2) & 0x7) as usize])
             }
             if f.alternate() {
                 return write!(f, "0o{}", s.as_str());

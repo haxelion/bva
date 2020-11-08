@@ -1,5 +1,7 @@
 use std::io::Cursor;
 use std::iter::repeat;
+use std::mem::size_of;
+use std::num::Wrapping;
 
 use rand::random;
 
@@ -86,4 +88,128 @@ fn binary() {
     binary_inner::<BV32>(BV32::CAPACITY);
     binary_inner::<BV64>(BV64::CAPACITY);
     binary_inner::<BV128>(BV128::CAPACITY);
+}
+
+macro_rules! decl_op_inner {($name:ident, $bv:ty, $st:ty) => {
+    fn $name() {
+        for i in 1..=(size_of::<$st>() * 8) {
+            let mask = Wrapping(<$st>::MAX) >> (size_of::<$st>() * 8 - i);
+            let a = Wrapping(random::<$st>()) & mask;
+            let mut b = Wrapping(random::<$st>()) & mask;
+            let bva = <$bv>::from(a.0).copy_slice(0..i);
+            let mut bvb = <$bv>::from(b.0).copy_slice(0..i);
+
+            // Test non assign variant first
+            assert_eq!(((!a) & mask).0, <$st>::from(!bva));
+            assert_eq!(((a & b) & mask).0, <$st>::from(bva & bvb));
+            assert_eq!(((a | b) & mask).0, <$st>::from(bva | bvb));
+            assert_eq!(((a ^ b) & mask).0, <$st>::from(bva ^ bvb));
+            assert_eq!(((a + b) & mask).0, <$st>::from(bva + bvb));
+            assert_eq!(((a - b) & mask).0, <$st>::from(bva - bvb));
+            // BitAndAssign
+            b &= a;
+            bvb &= bva;
+            assert_eq!(b.0, <$st>::from(bvb));
+            // AddAssign
+            b += a;
+            b &= mask;
+            bvb += bva;
+            assert_eq!(b.0, <$st>::from(bvb));
+            // BitOrAssign
+            b |= a;
+            bvb |= bva;
+            assert_eq!(b.0, <$st>::from(bvb));
+            // SubAssign
+            b -= a;
+            b &= mask;
+            bvb -= bva;
+            assert_eq!(b.0, <$st>::from(bvb));
+            // BitXorAssign
+            b ^= a;
+            bvb ^= bva;
+            assert_eq!(b.0, <$st>::from(bvb));
+        }
+    }
+}}
+
+decl_op_inner!(op_inner_bv8, BV8, u8);
+decl_op_inner!(op_inner_bv16, BV16, u16);
+decl_op_inner!(op_inner_bv32, BV32, u32);
+decl_op_inner!(op_inner_bv64, BV64, u64);
+decl_op_inner!(op_inner_bv128, BV128, u128);
+
+#[test]
+fn op() {
+    op_inner_bv8();
+    op_inner_bv16();
+    op_inner_bv32();
+    op_inner_bv64();
+    op_inner_bv128();
+}
+
+macro_rules! decl_op_implicit_cast_inner {($name:ident, $bva:ty, $sta:ty, $bvb:ty, $stb:ty) => {
+    fn $name() {
+        for i in 1..=(size_of::<$sta>() * 8) {
+            let mask = Wrapping(<$sta>::MAX) >> (size_of::<$sta>() * 8 - i);
+            let mut a = Wrapping(random::<$sta>()) & mask;
+            let b = Wrapping(random::<$stb>() as $sta) & mask;
+            let mut bva = <$bva>::from(a.0).copy_slice(0..i);
+            let bvb = <$bvb>::from(b.0 as $stb).copy_slice(0..(i.min(size_of::<$stb>() * 8)));
+
+            // Test non assign variant first
+            assert_eq!(((!a) & mask).0, <$sta>::from(!bva));
+            assert_eq!(((a & b) & mask).0, <$sta>::from(bva & bvb));
+            assert_eq!(((a | b) & mask).0, <$sta>::from(bva | bvb));
+            assert_eq!(((a ^ b) & mask).0, <$sta>::from(bva ^ bvb));
+            assert_eq!(((a + b) & mask).0, <$sta>::from(bva + bvb));
+            assert_eq!(((a - b) & mask).0, <$sta>::from(bva - bvb));
+            // BitAndAssign
+            a &= b;
+            bva &= bvb;
+            assert_eq!(a.0, <$sta>::from(bva));
+            // AddAssign
+            a += b;
+            a &= mask;
+            bva += bvb;
+            assert_eq!(a.0, <$sta>::from(bva));
+            // BitOrAssign
+            a |= b;
+            bva |= bvb;
+            assert_eq!(a.0, <$sta>::from(bva));
+            // SubAssign
+            a -= b;
+            a &= mask;
+            bva -= bvb;
+            assert_eq!(a.0, <$sta>::from(bva));
+            // BitXorAssign
+            a ^= b;
+            bva ^= bvb;
+            assert_eq!(a.0, <$sta>::from(bva));
+        }
+    }
+}}
+
+decl_op_implicit_cast_inner!(op_implicit_cast_inner_bv16_bv8, BV16, u16, BV8, u8);
+decl_op_implicit_cast_inner!(op_implicit_cast_inner_bv32_bv8, BV32, u32, BV8, u8);
+decl_op_implicit_cast_inner!(op_implicit_cast_inner_bv32_bv16, BV32, u32, BV16, u16);
+decl_op_implicit_cast_inner!(op_implicit_cast_inner_bv64_bv8, BV64, u64, BV8, u8);
+decl_op_implicit_cast_inner!(op_implicit_cast_inner_bv64_bv16, BV64, u64, BV16, u16);
+decl_op_implicit_cast_inner!(op_implicit_cast_inner_bv64_bv32, BV64, u64, BV32, u32);
+decl_op_implicit_cast_inner!(op_implicit_cast_inner_bv128_bv8, BV128, u128, BV8, u8);
+decl_op_implicit_cast_inner!(op_implicit_cast_inner_bv128_bv16, BV128, u128, BV16, u16);
+decl_op_implicit_cast_inner!(op_implicit_cast_inner_bv128_bv32, BV128, u128, BV32, u32);
+decl_op_implicit_cast_inner!(op_implicit_cast_inner_bv128_bv64, BV128, u128, BV64, u64);
+
+#[test]
+fn op_implicit_cast() {
+    op_implicit_cast_inner_bv16_bv8();
+    op_implicit_cast_inner_bv32_bv8();
+    op_implicit_cast_inner_bv32_bv16();
+    op_implicit_cast_inner_bv64_bv8();
+    op_implicit_cast_inner_bv64_bv16();
+    op_implicit_cast_inner_bv64_bv32();
+    op_implicit_cast_inner_bv128_bv8();
+    op_implicit_cast_inner_bv128_bv16();
+    op_implicit_cast_inner_bv128_bv32();
+    op_implicit_cast_inner_bv128_bv64();
 }
