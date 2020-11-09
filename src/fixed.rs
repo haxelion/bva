@@ -361,7 +361,7 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
 
         fn push(&mut self, bit: Bit) {
             assert!(self.len() < Self::CAPACITY);
-            self.data &= Wrapping(bit as $st) << self.len();
+            self.data |= Wrapping(bit as $st) << self.len();
             self.length += 1;
         }
 

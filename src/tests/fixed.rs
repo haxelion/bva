@@ -3,7 +3,8 @@ use std::iter::repeat;
 use std::mem::size_of;
 use std::num::Wrapping;
 
-use rand::random;
+use rand::{random, thread_rng};
+use rand::seq::SliceRandom;
 
 use crate::{Bit, BitVector, Endianness};
 use crate::fixed::{BV8, BV16, BV32, BV64, BV128};
@@ -14,6 +15,75 @@ fn random_bv<BV: BitVector>(length: usize) -> BV {
         bv.set(i, Bit::from(random::<bool>()));
     }
     return bv;
+}
+
+fn get_set_inner<BV: BitVector>(capacity: usize) {
+    let mut rng = thread_rng();
+
+    for length in 1..capacity {
+        let mut bv = BV::zeros(length);
+        let mut indexes: Vec<usize> = (0..length).collect();
+
+        indexes.shuffle(&mut rng);
+        for &idx in &indexes {
+            assert_eq!(Bit::Zero, bv.get(idx));
+            bv.set(idx, Bit::One);
+            assert_eq!(Bit::One, bv.get(idx));
+        }
+        assert_eq!(BV::ones(length), bv);
+
+        indexes.shuffle(&mut rng);
+        for &idx in &indexes {
+            assert_eq!(Bit::One, bv.get(idx));
+            bv.set(idx, Bit::Zero);
+            assert_eq!(Bit::Zero, bv.get(idx));
+        }
+        assert_eq!(BV::zeros(length), bv);
+    }
+}
+
+#[test]
+fn get_set() {
+    get_set_inner::<BV8>(BV8::CAPACITY);
+    get_set_inner::<BV16>(BV16::CAPACITY);
+    get_set_inner::<BV32>(BV32::CAPACITY);
+    get_set_inner::<BV64>(BV64::CAPACITY);
+    get_set_inner::<BV128>(BV128::CAPACITY);
+}
+
+macro_rules! decl_push_pop_inner {($name:ident, $bv:ty, $st:ty) => {
+    fn $name(capacity: usize) {
+        let mut bv = <$bv>::zeros(0);
+        let mut int: $st = 0;
+
+        for i in 0..capacity {
+            let b = Bit::from(random::<bool>());
+            int |= <$st>::from(b) << i;
+            bv.push(b);
+            assert_eq!(b, bv.get(i));
+            assert_eq!(int, <$st>::from(bv));
+        }
+
+        for i in (0..capacity).rev() {
+            let b = Bit::from((int >> i) & 1);
+            assert_eq!(b, bv.pop().unwrap());
+        }
+    }
+}}
+
+decl_push_pop_inner!(push_pop_inner_bv8, BV8, u8);
+decl_push_pop_inner!(push_pop_inner_bv16, BV16, u16);
+decl_push_pop_inner!(push_pop_inner_bv32, BV32, u32);
+decl_push_pop_inner!(push_pop_inner_bv64, BV64, u64);
+decl_push_pop_inner!(push_pop_inner_bv128, BV128, u128);
+
+#[test]
+fn push_pop() {
+    push_pop_inner_bv8(BV8::CAPACITY);
+    push_pop_inner_bv16(BV16::CAPACITY);
+    push_pop_inner_bv32(BV32::CAPACITY);
+    push_pop_inner_bv64(BV64::CAPACITY);
+    push_pop_inner_bv128(BV128::CAPACITY);
 }
 
 fn read_write_inner<BV: BitVector>(max_length: usize) {
