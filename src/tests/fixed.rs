@@ -86,6 +86,79 @@ fn push_pop() {
     push_pop_inner_bv128(BV128::CAPACITY);
 }
 
+macro_rules! decl_shift_rot_inner {($name:ident, $bv:ty, $st:ty) => {
+    fn $name(capacity: usize) {
+        for length in 1..capacity {
+            let mut bv = <$bv>::zeros(length);
+            bv.set(0, Bit::One);
+            let one = bv.clone();
+
+            for r in 1..length {
+                bv <<= r;
+                assert_eq!(bv, one << r);
+                assert_eq!(1 << r, <$st>::from(bv));
+                bv.rotl(length - r);
+                assert_eq!(1, <$st>::from(bv));
+                bv.rotr(r);
+                assert_eq!(1 << (length - r), <$st>::from(bv));
+                assert_eq!(bv >> (length - r), one);
+                bv >>= length - r;
+                assert_eq!(1, <$st>::from(bv));
+            }
+        }
+    }
+}}
+
+decl_shift_rot_inner!(shift_rot_inner_bv8, BV8, u8);
+decl_shift_rot_inner!(shift_rot_inner_bv16, BV16, u16);
+decl_shift_rot_inner!(shift_rot_inner_bv32, BV32, u32);
+decl_shift_rot_inner!(shift_rot_inner_bv64, BV64, u64);
+decl_shift_rot_inner!(shift_rot_inner_bv128, BV128, u128);
+
+#[test]
+fn shift_rot() {
+    shift_rot_inner_bv8(BV8::CAPACITY);
+    shift_rot_inner_bv16(BV16::CAPACITY);
+    shift_rot_inner_bv32(BV32::CAPACITY);
+    shift_rot_inner_bv64(BV64::CAPACITY);
+    shift_rot_inner_bv128(BV128::CAPACITY);
+}
+
+macro_rules! decl_resize_slice_inner {($name:ident, $bv:ty, $st:ty) => {
+    fn $name(capacity: usize) {
+        let mut bv = <$bv>::zeros(0);
+        let mut length = 1;
+        while bv.len() + length <= capacity {
+            let bit = match length % 2 {
+                0 => Bit::Zero,
+                1 => Bit::One,
+                _ => unreachable!()
+            };
+            bv.resize(bv.len() + length, bit);
+            match bit {
+                Bit::Zero => assert_eq!(<$bv>::zeros(length), bv.copy_slice((bv.len() - length)..bv.len())),
+                Bit::One => assert_eq!(<$bv>::ones(length), bv.copy_slice((bv.len() - length)..bv.len())),
+            }
+            length += 1;
+        }
+    }
+}}
+
+decl_resize_slice_inner!(resize_slice_inner_bv8, BV8, u8);
+decl_resize_slice_inner!(resize_slice_inner_bv16, BV16, u16);
+decl_resize_slice_inner!(resize_slice_inner_bv32, BV32, u32);
+decl_resize_slice_inner!(resize_slice_inner_bv64, BV64, u64);
+decl_resize_slice_inner!(resize_slice_inner_bv128, BV128, u128);
+
+#[test]
+fn resize_slice() {
+    resize_slice_inner_bv8(BV8::CAPACITY);
+    resize_slice_inner_bv16(BV16::CAPACITY);
+    resize_slice_inner_bv32(BV32::CAPACITY);
+    resize_slice_inner_bv64(BV64::CAPACITY);
+    resize_slice_inner_bv128(BV128::CAPACITY);
+}
+
 fn read_write_inner<BV: BitVector>(max_length: usize) {
     let num_bytes = max_length / 8;
     let mut buf: Cursor<Vec<u8>> = Cursor::new(repeat(0u8).take(num_bytes).collect());
@@ -106,6 +179,8 @@ fn read_write_inner<BV: BitVector>(max_length: usize) {
         assert_eq!(bv, bv2);
     }
 }
+
+
 
 #[test]
 fn read_write() {

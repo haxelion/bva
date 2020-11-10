@@ -218,7 +218,7 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
         pub const CAPACITY: usize = size_of::<$st>() * 8;
 
         fn mask(len: usize) -> Wrapping<$st> {
-            Wrapping(<$st>::MAX >> (Self::CAPACITY - len))
+            Wrapping(<$st>::MAX.checked_shr((Self::CAPACITY - len) as u32).unwrap_or(0))
         }
     }
 
@@ -377,8 +377,8 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
 
         fn resize(&mut self, new_len: usize, bit: Bit) {
             assert!(new_len <= Self::CAPACITY);
-            self.data = self.data & Self::mask(new_len) | 
-                ((Wrapping(<$st>::MIN) - Wrapping(bit as $st) >> (Self::CAPACITY - self.len()) << new_len));
+            let sign_mask = <$st>::MIN.wrapping_sub(<$st>::from(bit)).checked_shr((Self::CAPACITY + self.len() - new_len) as u32).unwrap_or(0) << self.len();
+            self.data = self.data & Self::mask(new_len) | Wrapping(sign_mask);
             self.length = new_len as u8;
         }
 
