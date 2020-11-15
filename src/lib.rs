@@ -4,6 +4,7 @@ use std::ops::Range;
 
 pub mod bit;
 pub mod fixed;
+pub mod dynamic;
 
 use bit::Bit;
 
