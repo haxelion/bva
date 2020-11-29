@@ -2,7 +2,6 @@ use std::fmt::{Binary, Display, LowerHex, Octal, UpperHex};
 use std::io::{Read, Write};
 use std::iter::repeat;
 use std::mem::size_of;
-use std::num::Wrapping;
 
 use crate::{Bit, BitVector, Endianness};
 
@@ -14,6 +13,8 @@ pub struct BVN {
 
 impl BVN {
     const BYTE_UNIT: usize = size_of::<usize>();
+    const NIBBLE_UNIT: usize = size_of::<usize>() * 2;
+    const SEMI_NIBBLE_UNIT: usize = size_of::<usize>() * 4;
     const BIT_UNIT: usize = size_of::<usize>() * 8;
 
     fn capacity_from_byte_len(byte_len: usize) -> usize {
@@ -70,7 +71,21 @@ impl BitVector for BVN {
     }
 
     fn from_hex<S: AsRef<str>>(string: S) -> Option<Self> {
-        todo!()
+        let length = string.as_ref().chars().count();
+        let offset = (Self::NIBBLE_UNIT - length % Self::NIBBLE_UNIT) % Self::NIBBLE_UNIT;
+        let mut data: Vec<usize> = repeat(0usize).take(Self::capacity_from_byte_len((length + 1) / 2)).collect();
+
+        for (i, c) in string.as_ref().chars().enumerate() {
+            let j = data.len() - 1 - (i + offset) / Self::NIBBLE_UNIT;
+            data[j] = (data[j] << 4) | match c.to_digit(16) {
+                Some(d) => d as usize,
+                None => return None
+            };
+        }  
+        Some(BVN {
+            data: data.into_boxed_slice(),
+            length: length * 4
+        })
     }
 
     fn from_bytes<B: AsRef<[u8]>>(bytes: B, endianness: Endianness) -> Self {
@@ -178,18 +193,51 @@ impl Display for BVN {
 
 impl LowerHex for BVN {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        const NIBBLE: [char;16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'];
+        let len = (self.length + 3) / 4;
+        let mut s = String::with_capacity(len);
+        for i in (0..len).rev() {
+            s.push(NIBBLE[(self.data[i / Self::NIBBLE_UNIT] >> ((i % Self::NIBBLE_UNIT) * 4) & 0xf) as usize]);
+        }
+        if f.alternate() {
+            return write!(f, "0x{}", s.as_str());
+        }
+        else {
+            return write!(f, "{}", s.as_str());
+        }
     }
 }
 
 impl UpperHex for BVN {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        const NIBBLE: [char;16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'];
+        let len = (self.length + 3) / 4;
+        let mut s = String::with_capacity(len);
+        for i in (0..len).rev() {
+            s.push(NIBBLE[(self.data[i / Self::NIBBLE_UNIT] >> ((i % Self::NIBBLE_UNIT) * 4) & 0xf) as usize]);
+        }
+        if f.alternate() {
+            return write!(f, "0x{}", s.as_str());
+        }
+        else {
+            return write!(f, "{}", s.as_str());
+        }
     }
 }
 
 impl Octal for BVN {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        const SEMI_NIBBLE: [char;8] = ['0', '1', '2', '3', '4', '5', '6', '7'];
+        let len = (self.length + 2) / 3;
+        let mut s = String::with_capacity(len);
+        for i in (0..len).rev() {
+            s.push(SEMI_NIBBLE[(self.data[i / Self::SEMI_NIBBLE_UNIT] >> ((i % Self::SEMI_NIBBLE_UNIT) * 4) & 0xf) as usize]);
+        }
+        if f.alternate() {
+            return write!(f, "0x{}", s.as_str());
+        }
+        else {
+            return write!(f, "{}", s.as_str());
+        }
     }
 }

@@ -516,8 +516,8 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
             const NIBBLE: [char;16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'];
             let len = (self.len() + 3) / 4;
             let mut s = String::with_capacity(len);
-            for i in 0..len {
-                s.push(NIBBLE[(self.data.0 >> ((len - i - 1) * 4) & 0xf) as usize])
+            for i in (0..len).rev() {
+                s.push(NIBBLE[(self.data.0 >> (i * 4) & 0xf) as usize])
             }
             if f.alternate() {
                 return write!(f, "0x{}", s.as_str());
@@ -533,8 +533,8 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
             const NIBBLE: [char;16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'];
             let len = (self.len() + 3) / 4;
             let mut s = String::with_capacity(len);
-            for i in 0..len {
-                s.push(NIBBLE[(self.data.0 >> ((len - i - 1) * 4) & 0xf) as usize])
+            for i in (0..len).rev() {
+                s.push(NIBBLE[(self.data.0 >> (i * 4) & 0xf) as usize])
             }
             if f.alternate() {
                 return write!(f, "0x{}", s.as_str());
@@ -548,10 +548,10 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
     impl Octal for $name {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
             const SEMI_NIBBLE: [char;8] = ['0', '1', '2', '3', '4', '5', '6', '7'];
-            let len = (self.len() + 1) / 2;
+            let len = (self.len() + 2) / 3;
             let mut s = String::with_capacity(len);
-            for i in 0..len {
-                s.push(SEMI_NIBBLE[(self.data.0 >> ((len - i - 1) * 2) & 0x7) as usize])
+            for i in (0..len).rev() {
+                s.push(SEMI_NIBBLE[(self.data.0 >> (i * 3) & 0x7) as usize])
             }
             if f.alternate() {
                 return write!(f, "0o{}", s.as_str());
