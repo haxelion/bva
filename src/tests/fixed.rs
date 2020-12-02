@@ -159,11 +159,36 @@ fn resize_slice() {
     resize_slice_inner_bv128(BV128::CAPACITY);
 }
 
+fn from_to_bytes_inner<BV: BitVector>(max_length: usize) {
+    let num_bytes = max_length / 8;
+
+    for length in (8..=max_length).step_by(8) {
+        let bv = random_bv::<BV>(length);
+
+        let buf1 = bv.to_vec(Endianness::LE);
+        let bv1 = BV::from_bytes(&buf1, Endianness::LE);
+        assert_eq!(bv, bv1);
+
+        let buf2 = bv.to_vec(Endianness::BE);
+        let bv2 = BV::from_bytes(&buf2, Endianness::BE);
+        assert_eq!(bv, bv2);
+    }
+}
+
+#[test]
+fn from_to_bytes() {
+    from_to_bytes_inner::<BV8>(BV8::CAPACITY);
+    from_to_bytes_inner::<BV16>(BV16::CAPACITY);
+    from_to_bytes_inner::<BV32>(BV32::CAPACITY);
+    from_to_bytes_inner::<BV64>(BV64::CAPACITY);
+    from_to_bytes_inner::<BV128>(BV128::CAPACITY);
+}
+
 fn read_write_inner<BV: BitVector>(max_length: usize) {
     let num_bytes = max_length / 8;
     let mut buf: Cursor<Vec<u8>> = Cursor::new(repeat(0u8).take(num_bytes).collect());
 
-    for length in 1..=max_length {
+    for length in (1..=max_length).rev() {
         let bv = random_bv::<BV>(length);
 
         buf.set_position(0);
@@ -179,8 +204,6 @@ fn read_write_inner<BV: BitVector>(max_length: usize) {
         assert_eq!(bv, bv2);
     }
 }
-
-
 
 #[test]
 fn read_write() {

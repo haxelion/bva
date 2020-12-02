@@ -42,7 +42,7 @@ impl BitVector for BVN {
     fn ones(len: usize) -> Self {
         let mut v: Vec<usize> = repeat(usize::MAX).take(Self::capacity_from_bit_len(len)).collect();
         if let Some(l) = v.last_mut() {
-            *l &= Self::mask(len % Self::BIT_UNIT);
+            *l &= Self::mask((Self::BIT_UNIT - len % Self::BIT_UNIT) % Self::BIT_UNIT);
         }
 
         BVN {
@@ -113,12 +113,39 @@ impl BitVector for BVN {
         }
     }
 
+    fn to_vec(&self, endianness: Endianness) -> Vec<u8> {
+        let num_bytes = (self.length + 7) / 8;
+        let mut buf: Vec<u8> = repeat(0u8).take(num_bytes).collect();
+        match endianness {
+            Endianness::LE => {
+                for i in 0..num_bytes {
+                    buf[i] = (self.data[i / Self::BYTE_UNIT] >> ((i % Self::BYTE_UNIT) * 8) & 0xff) as u8;
+                }
+            },
+            Endianness::BE => {
+                for i in 0..num_bytes {
+                    buf[num_bytes - i - 1] = (self.data[i / Self::BYTE_UNIT] >> ((i % Self::BYTE_UNIT) * 8) & 0xff) as u8;
+                }
+            }
+        }
+        return buf;
+    }
+
     fn read<R: Read>(reader: &mut R, length: usize, endianness: Endianness) -> std::io::Result<Self> {
-        todo!()
+        // TODO: double allocation could be reduced to a single one with endianness switch in place
+        let num_bytes = (length + 7) / 8;
+        let mut buf: Vec<u8> = repeat(0u8).take(num_bytes).collect();
+        reader.read_exact(&mut buf[..])?;
+        let mut bv = Self::from_bytes(&buf[..], endianness);
+        if let Some(l) = bv.data.last_mut() {
+            *l &= Self::mask(length.wrapping_sub(1) % Self::BIT_UNIT + 1);
+        }
+        bv.length = length ;
+        return Ok(bv);
     }
 
     fn write<W: Write>(&self, writer: &mut W, endianness: Endianness) -> std::io::Result<()> {
-        todo!()
+        return writer.write_all(self.to_vec(endianness).as_slice());
     }
 
     fn get(&self, index: usize) -> Bit {

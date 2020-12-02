@@ -1,6 +1,7 @@
 use std::convert::From;
 use std::fmt::{Binary, Display, LowerHex, Octal, UpperHex};
 use std::io::{Read, Write};
+use std::iter::repeat;
 use std::mem::size_of;
 use std::num::Wrapping;
 use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, 
@@ -308,6 +309,24 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
                 data,
                 length
             }
+        }
+
+        fn to_vec(&self, endianness: Endianness) -> Vec<u8> {
+            let num_bytes = (self.length as usize + 7) / 8;
+            let mut buf: Vec<u8> = repeat(0u8).take(num_bytes).collect();
+            match endianness {
+                Endianness::LE => {
+                    for i in 0..num_bytes {
+                        buf[i] = (self.data.0 >> (i * 8) & 0xff) as u8;
+                    }
+                },
+                Endianness::BE => {
+                    for i in 0..num_bytes {
+                        buf[num_bytes - i - 1] = (self.data.0 >> (i * 8) & 0xff) as u8;
+                    }
+                }
+            }
+            return buf;
         }
 
         fn read<R: Read>(reader: &mut R, length: usize, endianness: Endianness) -> std::io::Result<Self> {
