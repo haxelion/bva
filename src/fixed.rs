@@ -225,7 +225,7 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
 
     impl BitVector for $name {
         fn zeros(len: usize) -> Self {
-            assert!(len <= Self::CAPACITY);
+            debug_assert!(len <= Self::CAPACITY);
             Self {
                 data: Wrapping(0),
                 length: len as u8,
@@ -233,7 +233,7 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
         }
 
         fn ones(len: usize) -> Self {
-            assert!(len <= Self::CAPACITY);
+            debug_assert!(len <= Self::CAPACITY);
             Self {
                 data: Wrapping(<$st>::MAX) & Self::mask(len),
                 length: len as u8
@@ -288,7 +288,7 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
 
         #[allow(arithmetic_overflow)]
         fn from_bytes<B: AsRef<[u8]>>(bytes: B, endianness: Endianness) -> Self {
-            assert!(bytes.as_ref().len() * 8 <= Self::CAPACITY);
+            debug_assert!(bytes.as_ref().len() * 8 <= Self::CAPACITY);
             let mut data: Wrapping<$st> = Wrapping(0);
             let mut length = 0;
             match endianness {
@@ -330,7 +330,7 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
         }
 
         fn read<R: Read>(reader: &mut R, length: usize, endianness: Endianness) -> std::io::Result<Self> {
-            assert!(length <= Self::CAPACITY);
+            debug_assert!(length <= Self::CAPACITY);
             let mut buf = [0u8; size_of::<$st>()];
             let num_bytes = (length + 7) / 8;
             reader.read_exact(&mut buf[0..num_bytes])?;
@@ -360,17 +360,17 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
         }
 
         fn get(&self, index: usize) -> Bit {
-            assert!(index < self.len());
+            debug_assert!(index < self.len());
             (self.data.0 >> index & 1).into()
         }
 
         fn set(&mut self, index: usize, bit: Bit){
-            assert!(index < self.len());
+            debug_assert!(index < self.len());
             self.data = (self.data & !(Wrapping(1 as $st) << index)) | (Wrapping(bit as $st) << index);
         }
 
         fn copy_slice(&self, range: Range<usize>) -> Self {
-            assert!(range.start < self.len() && range.end <= self.len());
+            debug_assert!(range.start < self.len() && range.end <= self.len());
             let len = range.end - usize::min(range.start, range.end);
             Self {
                 data: self.data >> range.start & Self::mask(len),
@@ -379,7 +379,7 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
         }
 
         fn push(&mut self, bit: Bit) {
-            assert!(self.len() < Self::CAPACITY);
+            debug_assert!(self.len() < Self::CAPACITY);
             self.data |= Wrapping(bit as $st) << self.len();
             self.length += 1;
         }
@@ -395,7 +395,7 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
         }
 
         fn resize(&mut self, new_len: usize, bit: Bit) {
-            assert!(new_len <= Self::CAPACITY);
+            debug_assert!(new_len <= Self::CAPACITY);
             let sign_mask = <$st>::MIN.wrapping_sub(<$st>::from(bit)).checked_shr((Self::CAPACITY + self.len() - new_len) as u32).unwrap_or(0) << self.len();
             self.data = self.data & Self::mask(new_len) | Wrapping(sign_mask);
             self.length = new_len as u8;
@@ -414,12 +414,12 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
         }
 
         fn rotl(&mut self, rot: usize) {
-            assert!(rot <= self.len());
+            debug_assert!(rot <= self.len());
             self.data = (self.data << rot & Self::mask(self.len())) | (self.data >> (self.len() - rot));
         }
 
         fn rotr(&mut self, rot: usize) {
-            assert!(rot <= self.len());
+            debug_assert!(rot <= self.len());
             self.data = (self.data >> rot) | (self.data << (self.len() - rot) & Self::mask(self.len()));
         }
 
