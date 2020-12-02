@@ -28,6 +28,18 @@ impl BVN {
     fn mask(length: usize) -> usize {
         usize::MAX.checked_shr((Self::BIT_UNIT - length) as u32).unwrap_or(0)
     }
+
+    pub fn reserve(&mut self, additional: usize) {
+        let new_length = self.length + additional;
+        if Self::capacity_from_bit_len(new_length) > self.data.len() {
+            // TODO: in place reallocation
+            let mut new_data: Vec<usize> = repeat(0usize).take(Self::capacity_from_bit_len(new_length)).collect();
+            for i in 0..self.data.len() {
+                new_data[i] = self.data[i];
+            }
+            self.data = new_data.into_boxed_slice();
+        }
+    }
 }
 
 impl BitVector for BVN {
@@ -161,19 +173,68 @@ impl BitVector for BVN {
     }
 
     fn copy_slice(&self, range: std::ops::Range<usize>) -> Self {
-        todo!()
+        debug_assert!(range.start < self.len() && range.end <= self.len());
+        let length = range.end - usize::min(range.start, range.end);
+        let mut data: Vec<usize> = repeat(0usize).take(Self::capacity_from_bit_len(length)).collect();
+        let offset = range.start / Self::BIT_UNIT;
+        let slide = range.start % Self::BIT_UNIT;
+
+        for i in 0..data.len() {
+            data[i] = (self.data[i + offset] >> slide) | 
+                self.data.get(i + offset + 1).unwrap_or(&0).checked_shl((Self::BIT_UNIT - slide) as u32).unwrap_or(0);
+        }
+        if let Some(l) = data.last_mut() {
+            *l &= Self::mask(length.wrapping_sub(1) % Self::BIT_UNIT + 1);
+        }
+
+        BVN {
+            data: data.into_boxed_slice(),
+            length
+        }
     }
 
     fn push(&mut self, bit: Bit) {
-        todo!()
+        self.reserve(1);
+        self.length += 1;
+        self.set(self.length - 1, bit);
     }
 
     fn pop(&mut self) -> Option<Bit> {
-        todo!()
+        if self.length == 0 {
+            return None;
+        }
+        let bit = self.get(self.length - 1);
+        self.length -= 1;
+        return Some(bit);
     }
 
-    fn resize(&mut self, new_len: usize, bit: Bit) {
-        todo!()
+    fn resize(&mut self, new_length: usize, bit: Bit) {
+        if new_length < self.length {
+            for i in (new_length / Self::BIT_UNIT + 1)..Self::capacity_from_bit_len(self.length) {
+                self.data[i] = 0;
+            }
+            if let Some(l) = self.data.get_mut(new_length / Self::BIT_UNIT) {
+                *l &= Self::mask(new_length % Self::BIT_UNIT);
+            }
+            self.length = new_length;
+        }
+        else if new_length > self.length {
+            let sign_pattern = match bit {
+                Bit::Zero => usize::MIN,
+                Bit::One  => usize::MAX,
+            };
+            self.reserve(new_length - self.length);
+            if let Some(l) = self.data.get_mut(self.length / Self::BIT_UNIT) {
+                *l |= sign_pattern & !Self::mask(self.length % Self::BIT_UNIT);
+            }
+            for i in (self.length / Self::BIT_UNIT + 1)..Self::capacity_from_bit_len(new_length) {
+                self.data[i] = sign_pattern;
+            }
+            if let Some(l) = self.data.get_mut(new_length / Self::BIT_UNIT) {
+                *l &= Self::mask(new_length % Self::BIT_UNIT);
+            }
+            self.length = new_length;
+        }
     }
 
     fn shl_in(&mut self, bit: Bit) -> Bit {

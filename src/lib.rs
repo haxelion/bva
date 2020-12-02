@@ -15,13 +15,13 @@ pub enum Endianness {
 
 /// A trait representing common bit vector operations
 pub trait BitVector: Sized + Clone + Debug + PartialEq + Eq + Display + Binary + LowerHex + UpperHex {
-    /// Construct a bit vector made of `len` 0 bits.
+    /// Construct a bit vector made of `length` 0 bits.
     /// Will panic if there is not enough capacity and it is a fixed variant.
-    fn zeros(len: usize) -> Self;
+    fn zeros(length: usize) -> Self;
 
-    /// Construct a bit vector made of `len` 1 bits.
+    /// Construct a bit vector made of `length` 1 bits.
     /// Will panic if there is not enough capacity and it is a fixed variant.
-    fn ones(len: usize) -> Self;
+    fn ones(length: usize) -> Self;
 
     /// Construct a bit vector from a binary string made of `'0'` and `'1'`.
     /// Return `None` if the string is invalid or exceed the maximum capacity.
@@ -71,11 +71,11 @@ pub trait BitVector: Sized + Clone + Debug + PartialEq + Eq + Display + Binary +
     /// Return None if the bit vector is empty.
     fn pop(&mut self) -> Option<Bit>;
 
-    /// Resize the bit vector in place so that its length is equal to `new_len`.
+    /// Resize the bit vector in place so that its length is equal to `new_length`.
     /// This will either truncate or extend the bit vector. If it is extended, new bits are filled 
     /// with `bit`.
     /// Will panic if there is not enough capacity and it is a fixed variant.
-    fn resize(&mut self, new_len: usize, bit: Bit);
+    fn resize(&mut self, new_length: usize, bit: Bit);
 
     /// Shift the bits by one to the left.
     /// The rightmost bit is set to `bit` and the leftmost bit is returned.

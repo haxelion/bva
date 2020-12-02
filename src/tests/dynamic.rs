@@ -9,18 +9,20 @@ use crate::dynamic::BVN;
 
 const MAX_TESTED_SIZE: usize = 1024;
 
-// TODO: fix for arbitrary size
+
 fn random_bvn(length: usize) -> BVN {
     let byte_length = (length + 7) / 8;
     let mut bytes: Vec<u8> = repeat(0u8).take(byte_length).collect();
     thread_rng().fill_bytes(&mut bytes[..]);
-    return BVN::from_bytes(&bytes, Endianness::LE);
+    let mut bvn = BVN::from_bytes(&bytes, Endianness::LE);
+    bvn.resize(length, Bit::Zero);
+    return bvn;
 }
 
 #[test]
 fn binary() {
-    // TODO: Implement arbitrary size
-    for length in (8..=MAX_TESTED_SIZE).step_by(8) {
+    
+    for length in 1..=MAX_TESTED_SIZE {
         let bv = random_bvn(length);
         let s1 = format!("{:b}", bv);
         let bv1 = BVN::from_binary(s1).unwrap();
@@ -30,8 +32,7 @@ fn binary() {
 
 #[test]
 fn hex() {
-    // TODO: Implement arbitrary size
-    for length in (8..=MAX_TESTED_SIZE).step_by(8) {
+    for length in (4..=MAX_TESTED_SIZE).step_by(4) {
         let bv = random_bvn(length);
 
         let s1 = format!("{:x}", bv);
@@ -73,8 +74,7 @@ fn from_to_bytes() {
 fn read_write() {
     let mut buf: Cursor<Vec<u8>> = Cursor::new(repeat(0u8).take(MAX_TESTED_SIZE).collect());
 
-    // TODO: Implement arbitrary size
-    for length in (8..=MAX_TESTED_SIZE).step_by(8) {
+    for length in 1..=MAX_TESTED_SIZE {
         let bv = random_bvn(length);
 
         buf.set_position(0);
@@ -114,5 +114,24 @@ fn get_set() {
             assert_eq!(Bit::Zero, bv.get(idx));
         }
         assert_eq!(BVN::zeros(length), bv);
+    }
+}
+
+#[test]
+fn resize_slice() {
+    let mut bvn = BVN::zeros(0);
+    let mut length = 1;
+    while bvn.len() + length <= MAX_TESTED_SIZE {
+        let bit = match length % 2 {
+            0 => Bit::Zero,
+            1 => Bit::One,
+            _ => unreachable!()
+        };
+        bvn.resize(bvn.len() + length, bit);
+        match bit {
+            Bit::Zero => assert_eq!(BVN::zeros(length), bvn.copy_slice((bvn.len() - length)..bvn.len())),
+            Bit::One => assert_eq!(BVN::ones(length), bvn.copy_slice((bvn.len() - length)..bvn.len())),
+        }
+        length += 1;
     }
 }
