@@ -2,6 +2,7 @@ use std::io::Cursor;
 use std::iter::repeat;
 
 use rand::{random, thread_rng, RngCore};
+use rand::seq::SliceRandom;
 
 use crate::{Bit, BitVector, Endianness};
 use crate::dynamic::BVN;
@@ -87,5 +88,31 @@ fn read_write() {
         buf.set_position(0);
         let bv2 = BVN::read(&mut buf, length, Endianness::BE).unwrap();
         assert_eq!(bv, bv2);
+    }
+}
+
+#[test]
+fn get_set() {
+    let mut rng = thread_rng();
+
+    for length in 1..MAX_TESTED_SIZE {
+        let mut bv = BVN::zeros(length);
+        let mut indexes: Vec<usize> = (0..length).collect();
+
+        indexes.shuffle(&mut rng);
+        for &idx in &indexes {
+            assert_eq!(Bit::Zero, bv.get(idx));
+            bv.set(idx, Bit::One);
+            assert_eq!(Bit::One, bv.get(idx));
+        }
+        assert_eq!(BVN::ones(length), bv);
+
+        indexes.shuffle(&mut rng);
+        for &idx in &indexes {
+            assert_eq!(Bit::One, bv.get(idx));
+            bv.set(idx, Bit::Zero);
+            assert_eq!(Bit::Zero, bv.get(idx));
+        }
+        assert_eq!(BVN::zeros(length), bv);
     }
 }

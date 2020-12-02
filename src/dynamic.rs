@@ -17,37 +17,37 @@ impl BVN {
     const SEMI_NIBBLE_UNIT: usize = size_of::<usize>() * 4;
     const BIT_UNIT: usize = size_of::<usize>() * 8;
 
-    fn capacity_from_byte_len(byte_len: usize) -> usize {
-        (byte_len + size_of::<usize>() - 1) / size_of::<usize>()
+    fn capacity_from_byte_len(byte_length: usize) -> usize {
+        (byte_length + size_of::<usize>() - 1) / size_of::<usize>()
     }
 
-    fn capacity_from_bit_len(bit_len: usize) -> usize {
-        Self::capacity_from_byte_len((bit_len + 7) / 8)
+    fn capacity_from_bit_len(bit_length: usize) -> usize {
+        Self::capacity_from_byte_len((bit_length + 7) / 8)
     }
 
-    fn mask(len: usize) -> usize {
-        usize::MAX.checked_shr((Self::BIT_UNIT - len) as u32).unwrap_or(0)
+    fn mask(length: usize) -> usize {
+        usize::MAX.checked_shr((Self::BIT_UNIT - length) as u32).unwrap_or(0)
     }
 }
 
 impl BitVector for BVN {
-    fn zeros(len: usize) -> Self {
-        let mut v: Vec<usize> = repeat(0).take(Self::capacity_from_bit_len(len)).collect();
+    fn zeros(length: usize) -> Self {
+        let mut v: Vec<usize> = repeat(0).take(Self::capacity_from_bit_len(length)).collect();
         BVN {
             data: v.into_boxed_slice(),
-            length: len
+            length
         }
     }
 
-    fn ones(len: usize) -> Self {
-        let mut v: Vec<usize> = repeat(usize::MAX).take(Self::capacity_from_bit_len(len)).collect();
+    fn ones(length: usize) -> Self {
+        let mut v: Vec<usize> = repeat(usize::MAX).take(Self::capacity_from_bit_len(length)).collect();
         if let Some(l) = v.last_mut() {
-            *l &= Self::mask((Self::BIT_UNIT - len % Self::BIT_UNIT) % Self::BIT_UNIT);
+            *l &= Self::mask(length.wrapping_sub(1) % Self::BIT_UNIT + 1);
         }
 
         BVN {
             data: v.into_boxed_slice(),
-            length: len
+            length
         }
     }
 
@@ -149,11 +149,15 @@ impl BitVector for BVN {
     }
 
     fn get(&self, index: usize) -> Bit {
-        todo!()
+        debug_assert!(index < self.length);
+        (self.data[index / Self::BIT_UNIT] >> (index % Self::BIT_UNIT) & 1).into()
     }
 
     fn set(&mut self, index: usize, bit: Bit) {
-        todo!()
+        debug_assert!(index < self.length);
+        self.data[index / Self::BIT_UNIT] = 
+            (self.data[index / Self::BIT_UNIT] & !(1 << (index % Self::BIT_UNIT))) | 
+            ((bit as usize) << (index % Self::BIT_UNIT));
     }
 
     fn copy_slice(&self, range: std::ops::Range<usize>) -> Self {
@@ -221,9 +225,9 @@ impl Display for BVN {
 impl LowerHex for BVN {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         const NIBBLE: [char;16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'];
-        let len = (self.length + 3) / 4;
-        let mut s = String::with_capacity(len);
-        for i in (0..len).rev() {
+        let length = (self.length + 3) / 4;
+        let mut s = String::with_capacity(length);
+        for i in (0..length).rev() {
             s.push(NIBBLE[(self.data[i / Self::NIBBLE_UNIT] >> ((i % Self::NIBBLE_UNIT) * 4) & 0xf) as usize]);
         }
         if f.alternate() {
@@ -238,9 +242,9 @@ impl LowerHex for BVN {
 impl UpperHex for BVN {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         const NIBBLE: [char;16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'];
-        let len = (self.length + 3) / 4;
-        let mut s = String::with_capacity(len);
-        for i in (0..len).rev() {
+        let length = (self.length + 3) / 4;
+        let mut s = String::with_capacity(length);
+        for i in (0..length).rev() {
             s.push(NIBBLE[(self.data[i / Self::NIBBLE_UNIT] >> ((i % Self::NIBBLE_UNIT) * 4) & 0xf) as usize]);
         }
         if f.alternate() {
@@ -255,9 +259,9 @@ impl UpperHex for BVN {
 impl Octal for BVN {
 fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         const SEMI_NIBBLE: [char;8] = ['0', '1', '2', '3', '4', '5', '6', '7'];
-        let len = (self.length + 2) / 3;
-        let mut s = String::with_capacity(len);
-        for i in (0..len).rev() {
+        let length = (self.length + 2) / 3;
+        let mut s = String::with_capacity(length);
+        for i in (0..length).rev() {
             s.push(SEMI_NIBBLE[(self.data[i / Self::SEMI_NIBBLE_UNIT] >> ((i % Self::SEMI_NIBBLE_UNIT) * 4) & 0xf) as usize]);
         }
         if f.alternate() {

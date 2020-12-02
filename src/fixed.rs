@@ -218,25 +218,25 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
     impl $name {
         pub const CAPACITY: usize = size_of::<$st>() * 8;
 
-        fn mask(len: usize) -> Wrapping<$st> {
-            Wrapping(<$st>::MAX.checked_shr((Self::CAPACITY - len) as u32).unwrap_or(0))
+        fn mask(length: usize) -> Wrapping<$st> {
+            Wrapping(<$st>::MAX.checked_shr((Self::CAPACITY - length) as u32).unwrap_or(0))
         }
     }
 
     impl BitVector for $name {
-        fn zeros(len: usize) -> Self {
-            debug_assert!(len <= Self::CAPACITY);
+        fn zeros(length: usize) -> Self {
+            debug_assert!(length <= Self::CAPACITY);
             Self {
                 data: Wrapping(0),
-                length: len as u8,
+                length: length as u8,
             }
         }
 
-        fn ones(len: usize) -> Self {
-            debug_assert!(len <= Self::CAPACITY);
+        fn ones(length: usize) -> Self {
+            debug_assert!(length <= Self::CAPACITY);
             Self {
-                data: Wrapping(<$st>::MAX) & Self::mask(len),
-                length: len as u8
+                data: Wrapping(<$st>::MAX) & Self::mask(length),
+                length: length as u8
             }
         }
 
@@ -394,11 +394,11 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
             }
         }
 
-        fn resize(&mut self, new_len: usize, bit: Bit) {
-            debug_assert!(new_len <= Self::CAPACITY);
-            let sign_mask = <$st>::MIN.wrapping_sub(<$st>::from(bit)).checked_shr((Self::CAPACITY + self.len() - new_len) as u32).unwrap_or(0) << self.len();
-            self.data = self.data & Self::mask(new_len) | Wrapping(sign_mask);
-            self.length = new_len as u8;
+        fn resize(&mut self, new_length: usize, bit: Bit) {
+            debug_assert!(new_length <= Self::CAPACITY);
+            let sign_mask = <$st>::MIN.wrapping_sub(<$st>::from(bit)).checked_shr((Self::CAPACITY + self.len() - new_length) as u32).unwrap_or(0) << self.len();
+            self.data = self.data & Self::mask(new_length) | Wrapping(sign_mask);
+            self.length = new_length as u8;
         }
 
         fn shl_in(&mut self, bit: Bit) -> Bit {
@@ -500,10 +500,10 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
 
     impl Binary for $name {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-            let len = self.len();
-            let mut s = String::with_capacity(len);
-            for i in 0..len {
-                match self.data.0 >> (len - i - 1) & 1 {
+            let length = self.len();
+            let mut s = String::with_capacity(length);
+            for i in 0..length {
+                match self.data.0 >> (length - i - 1) & 1 {
                     0 => s.push('0'),
                     1 => s.push('1'),
                     _ => unreachable!()
@@ -533,9 +533,9 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
     impl LowerHex for $name {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
             const NIBBLE: [char;16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'];
-            let len = (self.len() + 3) / 4;
-            let mut s = String::with_capacity(len);
-            for i in (0..len).rev() {
+            let length = (self.len() + 3) / 4;
+            let mut s = String::with_capacity(length);
+            for i in (0..length).rev() {
                 s.push(NIBBLE[(self.data.0 >> (i * 4) & 0xf) as usize])
             }
             if f.alternate() {
@@ -550,9 +550,9 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
     impl UpperHex for $name {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
             const NIBBLE: [char;16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'];
-            let len = (self.len() + 3) / 4;
-            let mut s = String::with_capacity(len);
-            for i in (0..len).rev() {
+            let length = (self.len() + 3) / 4;
+            let mut s = String::with_capacity(length);
+            for i in (0..length).rev() {
                 s.push(NIBBLE[(self.data.0 >> (i * 4) & 0xf) as usize])
             }
             if f.alternate() {
@@ -567,9 +567,9 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
     impl Octal for $name {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
             const SEMI_NIBBLE: [char;8] = ['0', '1', '2', '3', '4', '5', '6', '7'];
-            let len = (self.len() + 2) / 3;
-            let mut s = String::with_capacity(len);
-            for i in (0..len).rev() {
+            let length = (self.len() + 2) / 3;
+            let mut s = String::with_capacity(length);
+            for i in (0..length).rev() {
                 s.push(SEMI_NIBBLE[(self.data.0 >> (i * 3) & 0x7) as usize])
             }
             if f.alternate() {
