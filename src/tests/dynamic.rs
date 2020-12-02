@@ -95,7 +95,7 @@ fn read_write() {
 fn get_set() {
     let mut rng = thread_rng();
 
-    for length in 1..MAX_TESTED_SIZE {
+    for length in 1..=MAX_TESTED_SIZE {
         let mut bv = BVN::zeros(length);
         let mut indexes: Vec<usize> = (0..length).collect();
 
@@ -133,5 +133,25 @@ fn resize_slice() {
             Bit::One => assert_eq!(BVN::ones(length), bvn.copy_slice((bvn.len() - length)..bvn.len())),
         }
         length += 1;
+    }
+}
+
+#[test]
+fn push_pop() {
+    let mut bv = BVN::zeros(0);
+    let mut bits = Vec::<Bit>::with_capacity(MAX_TESTED_SIZE); 
+
+    for i in 0..MAX_TESTED_SIZE {
+        let b = Bit::from(random::<bool>());
+        bv.push(b);
+        bits.push(b);
+        assert_eq!(b, bv.get(i));
+        assert_eq!(i + 1, bv.len());
+    }
+
+    for i in (0..MAX_TESTED_SIZE).rev() {
+        let b = bits.pop().unwrap();
+        assert_eq!(b, bv.get(i));
+        assert_eq!(b, bv.pop().unwrap());
     }
 }

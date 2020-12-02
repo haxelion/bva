@@ -88,7 +88,7 @@ fn push_pop() {
 
 macro_rules! decl_shift_rot_inner {($name:ident, $bv:ty, $st:ty) => {
     fn $name(capacity: usize) {
-        for length in 1..capacity {
+        for length in 1..=capacity {
             let mut bv = <$bv>::zeros(length);
             bv.set(0, Bit::One);
             let one = bv.clone();
