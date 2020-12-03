@@ -188,3 +188,27 @@ fn shift_in() {
         }
     }
 }
+
+#[test]
+fn shift_rot() {
+    for length in 1..=MAX_TESTED_SIZE {
+        let mut bv = BVN::zeros(length);
+        bv.set(0, Bit::One);
+        let one = bv.clone();
+
+        for r in 1..length {
+            bv <<= r;
+            assert_eq!(bv, &one << r);
+            assert_eq!(bv, one.clone() << r);
+            assert_eq!(Bit::One, bv.get(r));
+            bv.rotl(length - r);
+            assert_eq!(Bit::One, bv.get(0));
+            bv.rotr(r);
+            assert_eq!(Bit::One, bv.get(length - r));
+            assert_eq!(&bv >> (length - r), one);
+            assert_eq!(bv.clone() >> (length - r), one);
+            bv >>= length - r;
+            assert_eq!(Bit::One, bv.get(0));
+        }
+    }
+}

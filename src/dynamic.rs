@@ -2,6 +2,8 @@ use std::fmt::{Binary, Display, LowerHex, Octal, UpperHex};
 use std::io::{Read, Write};
 use std::iter::repeat;
 use std::mem::size_of;
+use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, 
+    Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
 
 use crate::{Bit, BitVector, Endianness};
 
@@ -270,11 +272,35 @@ impl BitVector for BVN {
     }
 
     fn rotl(&mut self, rot: usize) {
-        todo!()
+        // TODO: optimize to do it in place
+        let mut new_data: Vec<usize> = repeat(0).take(self.data.len()).collect();
+        let mut old_idx = 0;
+        while old_idx < self.length {
+            let new_idx = (old_idx + rot) % self.length;
+            let l = (Self::BIT_UNIT - new_idx % Self::BIT_UNIT)
+                    .min(Self::BIT_UNIT - old_idx % Self::BIT_UNIT)
+                    .min(self.length - new_idx)
+                    .min(self.length - old_idx);
+            new_data[new_idx / Self::BIT_UNIT] |= ((self.data[old_idx / Self::BIT_UNIT] >> (old_idx % Self::BIT_UNIT)) & Self::mask(l)) << (new_idx % Self::BIT_UNIT);
+            old_idx += l;
+        }
+        self.data = new_data.into_boxed_slice();
     }
 
     fn rotr(&mut self, rot: usize) {
-        todo!()
+        // TODO: optimize to do it in place
+        let mut new_data: Vec<usize> = repeat(0).take(self.data.len()).collect();
+        let mut new_idx = 0;
+        while new_idx < self.length {
+            let old_idx = (new_idx + rot) % self.length;
+            let l = (Self::BIT_UNIT - new_idx % Self::BIT_UNIT)
+                    .min(Self::BIT_UNIT - old_idx % Self::BIT_UNIT)
+                    .min(self.length - new_idx)
+                    .min(self.length - old_idx);
+            new_data[new_idx / Self::BIT_UNIT] |= ((self.data[old_idx / Self::BIT_UNIT] >> (old_idx % Self::BIT_UNIT)) & Self::mask(l)) << (new_idx % Self::BIT_UNIT);
+            new_idx += l;
+        }
+        self.data = new_data.into_boxed_slice();
     }
 
     fn len(&self) -> usize {
@@ -357,3 +383,155 @@ fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         }
     }
 }
+
+macro_rules! impl_shifts {({$($rhs:ty),+}) => {
+    $(
+        impl ShlAssign<$rhs> for BVN {
+            fn shl_assign(&mut self, rhs: $rhs) {
+                if rhs == 0 {
+                    return;
+                }
+                let shift = rhs as usize;
+                let mut new_idx = self.length;
+                while new_idx - shift > 0 {
+                    let l = (new_idx.wrapping_sub(1) % Self::BIT_UNIT + 1)
+                            .min((new_idx - shift).wrapping_sub(1) % Self::BIT_UNIT + 1);
+                    new_idx -= l;
+                    let old_idx = new_idx - shift;
+                    let d = (self.data[old_idx / Self::BIT_UNIT] >> (old_idx % Self::BIT_UNIT)) & Self::mask(l);
+                    self.data[new_idx / Self::BIT_UNIT] &= !(Self::mask(l) << (new_idx % Self::BIT_UNIT));
+                    self.data[new_idx / Self::BIT_UNIT] |=  d << (new_idx % Self::BIT_UNIT);
+                }
+                while new_idx > 0 {
+                    let l = (new_idx.wrapping_sub(1) % Self::BIT_UNIT) + 1;
+                    new_idx -= l;
+                    self.data[new_idx / Self::BIT_UNIT] &= !(Self::mask(l) << (new_idx % Self::BIT_UNIT));
+                }
+            }
+        }
+
+        impl ShlAssign<&'_ $rhs> for BVN {
+            fn shl_assign(&mut self, rhs: &'_ $rhs) {
+                self.shl_assign(*rhs);
+            }
+        }
+
+        impl Shl<$rhs> for BVN {
+            type Output = BVN;
+            fn shl(mut self, rhs: $rhs) -> BVN {
+                self.shl_assign(rhs);
+                return self;
+            }
+        }
+
+        impl Shl<&'_ $rhs> for BVN {
+            type Output = BVN;
+            fn shl(mut self, rhs: &'_ $rhs) -> BVN {
+                self.shl_assign(rhs);
+                return self;
+            }
+        }
+
+        impl Shl<$rhs> for &'_ BVN {
+            type Output = BVN;
+            fn shl(self, rhs: $rhs) -> BVN {
+                let shift = rhs as usize;
+                let mut new_data: Vec<usize> = repeat(0).take(BVN::capacity_from_bit_len(self.length)).collect();
+                let mut new_idx = self.length;
+                while new_idx - shift > 0 {
+                    let l = (new_idx.wrapping_sub(1) % BVN::BIT_UNIT + 1)
+                            .min((new_idx - shift).wrapping_sub(1) % BVN::BIT_UNIT + 1);
+                    new_idx -= l;
+                    let old_idx = new_idx - shift;
+                    new_data[new_idx / BVN::BIT_UNIT] |= ((self.data[old_idx / BVN::BIT_UNIT] >> (old_idx % BVN::BIT_UNIT)) & BVN::mask(l)) << (new_idx % BVN::BIT_UNIT);
+                }
+                BVN {
+                    data: new_data.into_boxed_slice(),
+                    length: self.length
+                }
+            }
+        }
+
+        impl Shl<&'_ $rhs> for &'_ BVN {
+            type Output = BVN;
+            fn shl(self, rhs: &'_ $rhs) -> BVN {
+                self.shl(*rhs)
+            }
+        }
+
+        impl ShrAssign<$rhs> for BVN {
+            fn shr_assign(&mut self, rhs: $rhs) {
+                if rhs == 0 {
+                    return;
+                }
+                let shift = rhs as usize;
+                let mut new_idx = 0;
+                while new_idx + shift < self.length {
+                    let old_idx = new_idx + shift;
+                    let l = (Self::BIT_UNIT - new_idx % Self::BIT_UNIT)
+                            .min(Self::BIT_UNIT - old_idx % Self::BIT_UNIT);
+                    let d = (self.data[old_idx / Self::BIT_UNIT] >> (old_idx % Self::BIT_UNIT)) & Self::mask(l);
+                    self.data[new_idx / Self::BIT_UNIT] &= !(Self::mask(l) << (new_idx % Self::BIT_UNIT));
+                    self.data[new_idx / Self::BIT_UNIT] |= d << (new_idx % Self::BIT_UNIT);
+                    new_idx += l;
+                }
+                while new_idx < self.length {
+                    let l = Self::BIT_UNIT - new_idx % Self::BIT_UNIT;
+                    self.data[new_idx / Self::BIT_UNIT] &= !(Self::mask(l) << (new_idx % Self::BIT_UNIT));
+                    new_idx += l;
+                }
+            }
+        }
+
+        impl ShrAssign<&'_ $rhs> for BVN {
+            fn shr_assign(&mut self, rhs: &'_ $rhs) {
+                self.shr_assign(*rhs);
+            }
+        }
+
+        impl Shr<$rhs> for BVN {
+            type Output = BVN;
+            fn shr(mut self, rhs: $rhs) -> BVN {
+                self.shr_assign(rhs);
+                return self;
+            }
+        }
+
+        impl Shr<&'_ $rhs> for BVN {
+            type Output = BVN;
+            fn shr(mut self, rhs: &'_ $rhs) -> BVN {
+                self.shr_assign(rhs);
+                return self;
+            }
+        }
+
+        impl Shr<$rhs> for &'_ BVN {
+            type Output = BVN;
+            fn shr(self, rhs: $rhs) -> BVN {
+                let shift = rhs as usize;
+                let mut new_data: Vec<usize> = repeat(0).take(BVN::capacity_from_bit_len(self.length)).collect();
+                let mut new_idx = 0;
+                while new_idx + shift < self.length {
+                    let old_idx = new_idx + shift;
+                    let l = (BVN::BIT_UNIT - new_idx % BVN::BIT_UNIT)
+                            .min(BVN::BIT_UNIT - old_idx % BVN::BIT_UNIT);
+                    new_data[new_idx / BVN::BIT_UNIT] |= ((self.data[old_idx / BVN::BIT_UNIT] >> (old_idx % BVN::BIT_UNIT)) & BVN::mask(l)) << (new_idx % BVN::BIT_UNIT);
+                    new_idx += l;
+                }
+                BVN {
+                    data: new_data.into_boxed_slice(),
+                    length: self.length
+                }
+            }
+        }
+
+        impl Shr<&'_ $rhs> for &'_ BVN {
+            type Output = BVN;
+            fn shr(self, rhs: &'_ $rhs) -> BVN {
+                self.shr(*rhs)
+            }
+        }
+    )+
+}}
+
+impl_shifts!({u8, u16, u32, u64, u128, usize});
