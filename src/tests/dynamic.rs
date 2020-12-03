@@ -7,7 +7,7 @@ use rand::seq::SliceRandom;
 use crate::{Bit, BitVector, Endianness};
 use crate::dynamic::BVN;
 
-const MAX_TESTED_SIZE: usize = 1024;
+const MAX_TESTED_SIZE: usize = 256;
 
 
 fn random_bvn(length: usize) -> BVN {
@@ -119,18 +119,18 @@ fn get_set() {
 
 #[test]
 fn resize_slice() {
-    let mut bvn = BVN::zeros(0);
+    let mut bv = BVN::zeros(0);
     let mut length = 1;
-    while bvn.len() + length <= MAX_TESTED_SIZE {
+    while bv.len() + length <= MAX_TESTED_SIZE {
         let bit = match length % 2 {
             0 => Bit::Zero,
             1 => Bit::One,
             _ => unreachable!()
         };
-        bvn.resize(bvn.len() + length, bit);
+        bv.resize(bv.len() + length, bit);
         match bit {
-            Bit::Zero => assert_eq!(BVN::zeros(length), bvn.copy_slice((bvn.len() - length)..bvn.len())),
-            Bit::One => assert_eq!(BVN::ones(length), bvn.copy_slice((bvn.len() - length)..bvn.len())),
+            Bit::Zero => assert_eq!(BVN::zeros(length), bv.copy_slice((bv.len() - length)..bv.len())),
+            Bit::One => assert_eq!(BVN::ones(length), bv.copy_slice((bv.len() - length)..bv.len())),
         }
         length += 1;
     }
@@ -153,5 +153,38 @@ fn push_pop() {
         let b = bits.pop().unwrap();
         assert_eq!(b, bv.get(i));
         assert_eq!(b, bv.pop().unwrap());
+    }
+}
+
+#[test]
+fn shift_in() {
+    for length in 1..=MAX_TESTED_SIZE {
+        let mut bv = BVN::zeros(length);
+        // SHL
+        for i in 0..length {
+            assert_eq!(Bit::Zero, bv.shl_in(Bit::from((i + 1) % 2)));
+            for j in 0..=i {
+                assert_eq!(Bit::from((j + i + 1) % 2), bv.get(j));
+            }
+        }
+        for i in 0..length {
+            assert_eq!(Bit::from((i + 1) % 2), bv.shl_in(Bit::Zero));
+            for j in 0..=i {
+                assert_eq!(Bit::Zero, bv.get(j));
+            }
+        }
+        // SHR
+        for i in 0..length {
+            assert_eq!(Bit::Zero, bv.shr_in(Bit::from((i + 1) % 2)));
+            for j in 0..=i {
+                assert_eq!(Bit::from((j + i + 1) % 2), bv.get(bv.len() - 1 - j));
+            }
+        }
+        for i in 0..length {
+            assert_eq!(Bit::from((i + 1) % 2), bv.shr_in(Bit::Zero));
+            for j in 0..=i {
+                assert_eq!(Bit::Zero, bv.get(bv.len() - 1 - j));
+            }
+        }
     }
 }

@@ -238,11 +238,35 @@ impl BitVector for BVN {
     }
 
     fn shl_in(&mut self, bit: Bit) -> Bit {
-        todo!()
+        let mut carry = bit;
+        for i in 0..(self.length / Self::BIT_UNIT) {
+            let b = self.data[i] >> (Self::BIT_UNIT - 1) & 1;
+            self.data[i] = self.data[i] << 1 | carry as usize;
+            carry = b.into();
+        }
+        if self.length % Self::BIT_UNIT != 0 {
+            let i = self.length / Self::BIT_UNIT;
+            let b = self.data[i] >> (self.length % Self::BIT_UNIT - 1) & 1;
+            self.data[i] = (self.data[i] << 1 | carry as usize) & Self::mask(self.length % Self::BIT_UNIT);
+            carry = b.into();
+        }
+        return carry;
     }
 
     fn shr_in(&mut self, bit: Bit) -> Bit {
-        todo!()
+        let mut carry = bit;
+        if self.length % Self::BIT_UNIT != 0 {
+            let i = self.length / Self::BIT_UNIT;
+            let b = self.data[i] & 1;
+            self.data[i] = self.data[i] >> 1 | (carry as usize) << (self.length % Self::BIT_UNIT - 1);
+            carry = b.into();
+        }
+        for i in (0..(self.length / Self::BIT_UNIT)).rev() {
+            let b = self.data[i] & 1;
+            self.data[i] = self.data[i] >> 1 | (carry as usize) << (Self::BIT_UNIT - 1);
+            carry = b.into();
+        }
+        return carry;
     }
 
     fn rotl(&mut self, rot: usize) {

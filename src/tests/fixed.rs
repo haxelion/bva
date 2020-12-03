@@ -391,3 +391,44 @@ fn op_implicit_cast() {
     op_implicit_cast_inner_bv128_bv32();
     op_implicit_cast_inner_bv128_bv64();
 }
+
+fn shift_in_inner<BV: BitVector>(capacity: usize) {
+    for length in 1..=capacity {
+        let mut bv = BV::zeros(length);
+        // SHL
+        for i in 0..length {
+            assert_eq!(Bit::Zero, bv.shl_in(Bit::from((i + 1) % 2)));
+            for j in 0..=i {
+                assert_eq!(Bit::from((j + i + 1) % 2), bv.get(j));
+            }
+        }
+        for i in 0..length {
+            assert_eq!(Bit::from((i + 1) % 2), bv.shl_in(Bit::Zero));
+            for j in 0..=i {
+                assert_eq!(Bit::Zero, bv.get(j));
+            }
+        }
+        // SHR
+        for i in 0..length {
+            assert_eq!(Bit::Zero, bv.shr_in(Bit::from((i + 1) % 2)));
+            for j in 0..=i {
+                assert_eq!(Bit::from((j + i + 1) % 2), bv.get(bv.len() - 1 - j));
+            }
+        }
+        for i in 0..length {
+            assert_eq!(Bit::from((i + 1) % 2), bv.shr_in(Bit::Zero));
+            for j in 0..=i {
+                assert_eq!(Bit::Zero, bv.get(bv.len() - 1 - j));
+            }
+        }
+    }
+}
+
+#[test]
+fn shift_in() {
+    shift_in_inner::<BV8>(BV8::CAPACITY);
+    shift_in_inner::<BV16>(BV16::CAPACITY);
+    shift_in_inner::<BV32>(BV32::CAPACITY);
+    shift_in_inner::<BV64>(BV64::CAPACITY);
+    shift_in_inner::<BV128>(BV128::CAPACITY);
+}
