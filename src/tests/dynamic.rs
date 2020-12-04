@@ -212,3 +212,15 @@ fn shift_rot() {
         }
     }
 }
+
+#[test]
+fn not() {
+    for length in 1..=MAX_TESTED_SIZE {
+        assert_eq!(BVN::ones(length), !BVN::zeros(length));
+        assert_eq!(BVN::zeros(length), !BVN::ones(length));
+        let bvo = BVN::ones(length);
+        let bvz = BVN::zeros(length);
+        assert_eq!(BVN::ones(length), !(&bvz));
+        assert_eq!(BVN::zeros(length), !(&bvo));
+    }
+}

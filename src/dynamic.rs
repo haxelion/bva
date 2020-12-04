@@ -534,4 +534,32 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
     )+
 }}
 
+impl Not for BVN {
+    type Output = BVN;
+    fn not(mut self) -> Self::Output {
+        for i in 0..Self::capacity_from_bit_len(self.length) {
+            self.data[i] = !self.data[i];
+        }
+        if let Some(l) = self.data.get_mut(self.length / Self::BIT_UNIT) {
+            *l &= Self::mask(self.length % Self::BIT_UNIT);
+        }
+        return self;
+    }
+}
+
+impl Not for &'_ BVN {
+    type Output = BVN;
+    fn not(self) -> Self::Output {
+        let mut new_data: Vec<usize> = self.data[0..BVN::capacity_from_bit_len(self.length)]
+                                       .iter().map(|d| !d).collect();
+        if let Some(l) = new_data.get_mut(self.length / BVN::BIT_UNIT) {
+            *l &= BVN::mask(self.length % BVN::BIT_UNIT);
+        }
+        BVN {
+            data: new_data.into_boxed_slice(),
+            length: self.length
+        }
+    }
+}
+
 impl_shifts!({u8, u16, u32, u64, u128, usize});
