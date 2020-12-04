@@ -44,7 +44,7 @@ pub struct USizeStream<T> where T: Streamable {
 }
 
 impl<T: Streamable> USizeStream<T> {
-    const LENGTH: usize = (size_of::<T>() + size_of::<usize>() - 1) / size_of::<usize>();
+    pub const LENGTH: usize = (size_of::<T>() + size_of::<usize>() - 1) / size_of::<usize>();
 
     pub fn new(t: T) -> USizeStream<T> {
         USizeStream::<T> {

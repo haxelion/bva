@@ -585,7 +585,11 @@ macro_rules! impl_froms {({$(($rhs:ty, $st:ty)),+}) => {
 
         impl From<$rhs> for BVN {
             fn from(rhs: $rhs) -> BVN {
-                BVN::from(<$st>::from(rhs))
+                let it = USizeStream::new(<$st>::from(rhs));
+                BVN {
+                    length: rhs.len(),
+                    data: it.collect(),
+                }
             }
         }
 
@@ -616,3 +620,189 @@ macro_rules! impl_froms {({$(($rhs:ty, $st:ty)),+}) => {
 }}
 
 impl_froms!({(BV8, u8), (BV16, u16), (BV32, u32), (BV64, u64), (BV128, u128)});
+
+
+macro_rules! impl_binop_assign { ($trait:ident, $method:ident, {$(($rhs:ty, $st:ty)),+}) => {
+    impl $trait<&'_ BVN> for BVN {
+        fn $method(&mut self, rhs: &'_ BVN) {
+            if rhs.length > self.length {
+                self.resize(rhs.length, Bit::Zero);
+            }
+            for i in 0..Self::capacity_from_bit_len(rhs.length) {
+                self.data[i].$method(rhs.data[i]);
+            }
+            for i in Self::capacity_from_bit_len(rhs.length)..Self::capacity_from_bit_len(self.length) {
+                self.data[i].$method(0);
+            }
+        }
+    }
+
+    impl $trait<BVN> for BVN {
+        fn $method(&mut self, rhs: BVN) {
+            self.$method(&rhs);
+        }
+    }
+
+    $(
+        impl $trait<&'_ $rhs> for BVN {
+            fn $method(&mut self, rhs: &'_ $rhs) {
+                if rhs.len() > self.length {
+                    self.resize(rhs.len(), Bit::Zero);
+                }
+                let mut it = USizeStream::new(<$st>::from(*rhs));
+                for i in 0..Self::capacity_from_bit_len(rhs.len()) {
+                    self.data[i].$method(it.next().unwrap());
+                }
+                for i in Self::capacity_from_bit_len(rhs.len())..Self::capacity_from_bit_len(self.length) {
+                    self.data[i].$method(0);
+                }
+            }
+        }
+
+        impl $trait<$rhs> for BVN {
+            fn $method(&mut self, rhs: $rhs) {
+                self.$method(&rhs);
+            }
+        }
+    )+
+}}
+
+impl_binop_assign!(BitAndAssign, bitand_assign, {(BV8, u8), (BV16, u16), (BV32, u32), (BV64, u64), (BV128, u128)});
+impl_binop_assign!(BitOrAssign, bitor_assign, {(BV8, u8), (BV16, u16), (BV32, u32), (BV64, u64), (BV128, u128)});
+impl_binop_assign!(BitXorAssign, bitxor_assign, {(BV8, u8), (BV16, u16), (BV32, u32), (BV64, u64), (BV128, u128)});
+
+macro_rules! impl_addsub_assign { ($trait:ident, $method:ident, $overflowing_method:ident, {$(($rhs:ty, $st:ty)),+}) => {
+    impl $trait<&'_ BVN> for BVN {
+        fn $method(&mut self, rhs: &'_ BVN) {
+            if rhs.length > self.length {
+                self.resize(rhs.length, Bit::Zero);
+            }
+            let mut carry = 0;
+            for i in 0..Self::capacity_from_bit_len(rhs.length) {
+                let (d1, c1) = self.data[i].$overflowing_method(carry);
+                let (d2, c2) = d1.$overflowing_method(rhs.data[i]);
+                self.data[i] = d2;
+                carry = (c1 | c2) as usize;
+            }
+            for i in Self::capacity_from_bit_len(rhs.length)..Self::capacity_from_bit_len(self.length) {
+                let (d, c) = self.data[i].$overflowing_method(carry);
+                self.data[i] = d;
+                carry = c as usize;
+            }
+            if let Some(l) = self.data.get_mut(self.length / BVN::BIT_UNIT) {
+                *l &= Self::mask(self.length % BVN::BIT_UNIT);
+            }
+        }
+    }
+
+    impl $trait<BVN> for BVN {
+        fn $method(&mut self, rhs: BVN) {
+            self.$method(&rhs);
+        }
+    }
+
+    $(
+        impl $trait<&'_ $rhs> for BVN {
+            fn $method(&mut self, rhs: &'_ $rhs) {
+                if rhs.len() > self.length {
+                    self.resize(rhs.len(), Bit::Zero);
+                }
+                let mut carry = 0;
+                let mut it = USizeStream::new(<$st>::from(*rhs));
+                for i in 0..Self::capacity_from_bit_len(rhs.len()) {
+                    let (d1, c1) = self.data[i].$overflowing_method(carry);
+                    let (d2, c2) = d1.$overflowing_method(it.next().unwrap());
+                    self.data[i] = d2;
+                    carry = (c1 | c2) as usize;
+                }
+                for i in Self::capacity_from_bit_len(rhs.len())..Self::capacity_from_bit_len(self.length) {
+                    let (d, c) = self.data[i].$overflowing_method(carry);
+                    self.data[i] = d;
+                    carry = c as usize;
+                }
+                if let Some(l) = self.data.get_mut(self.length / BVN::BIT_UNIT) {
+                    *l &= Self::mask(self.length % BVN::BIT_UNIT);
+                }
+            }
+        }
+
+        impl $trait<$rhs> for BVN {
+            fn $method(&mut self, rhs: $rhs) {
+                self.$method(&rhs);
+            }
+        }
+    )+
+}}
+
+impl_addsub_assign!(AddAssign, add_assign, overflowing_add, {(BV8, u8), (BV16, u16), (BV32, u32), (BV64, u64), (BV128, u128)});
+impl_addsub_assign!(SubAssign, sub_assign, overflowing_sub, {(BV8, u8), (BV16, u16), (BV32, u32), (BV64, u64), (BV128, u128)});
+
+macro_rules! impl_op { ($trait:ident, $method:ident, $assign_method:ident, {$($rhs:ty),+}) => {
+    impl $trait<BVN> for BVN {
+        type Output = BVN;
+        fn $method(mut self, rhs: BVN) -> BVN {
+            self.$assign_method(rhs);
+            return self;
+        }
+    }
+
+    impl $trait<&'_ BVN> for BVN {
+        type Output = BVN;
+        fn $method(mut self, rhs: &'_ BVN) -> BVN {
+            self.$assign_method(rhs);
+            return self;
+        }
+    }
+
+    impl $trait<BVN> for &'_ BVN {
+        type Output = BVN;
+        fn $method(self, rhs: BVN) -> BVN {
+            return self.clone().$method(rhs);
+        }
+    }
+
+    impl $trait<&'_ BVN> for &'_ BVN {
+        type Output = BVN;
+        fn $method(self, rhs: &'_ BVN) -> BVN {
+            return self.clone().$method(rhs);
+        }
+    }
+
+    $(
+        impl $trait<$rhs> for BVN {
+            type Output = BVN;
+            fn $method(mut self, rhs: $rhs) -> BVN {
+                self.$assign_method(rhs);
+                return self;
+            }
+        }
+
+        impl $trait<&'_ $rhs> for BVN {
+            type Output = BVN;
+            fn $method(mut self, rhs: &'_ $rhs) -> BVN {
+                self.$assign_method(rhs);
+                return self;
+            }
+        }
+
+        impl $trait<$rhs> for &'_ BVN {
+            type Output = BVN;
+            fn $method(self, rhs: $rhs) -> BVN {
+                return self.clone().$method(rhs);
+            }
+        }
+
+        impl $trait<&'_ $rhs> for &'_ BVN {
+            type Output = BVN;
+            fn $method(self, rhs: &'_ $rhs) -> BVN {
+                return self.clone().$method(rhs);
+            }
+        }
+    )+
+}}
+
+impl_op!(BitAnd, bitand, bitand_assign, {BV8, BV16, BV32, BV64, BV128});
+impl_op!(BitOr, bitor, bitor_assign, {BV8, BV16, BV32, BV64, BV128});
+impl_op!(BitXor, bitxor, bitxor_assign, {BV8, BV16, BV32, BV64, BV128});
+impl_op!(Add, add, add_assign, {BV8, BV16, BV32, BV64, BV128});
+impl_op!(Sub, sub, sub_assign, {BV8, BV16, BV32, BV64, BV128});
