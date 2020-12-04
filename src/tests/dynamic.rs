@@ -1,3 +1,4 @@
+use std::convert::TryInto;
 use std::io::Cursor;
 use std::iter::repeat;
 
@@ -5,6 +6,7 @@ use rand::{random, thread_rng, RngCore};
 use rand::seq::SliceRandom;
 
 use crate::{Bit, BitVector, Endianness};
+use crate::fixed::{BV8, BV16, BV32, BV64, BV128};
 use crate::dynamic::BVN;
 
 const MAX_TESTED_SIZE: usize = 256;
@@ -223,4 +225,23 @@ fn not() {
         assert_eq!(BVN::ones(length), !(&bvz));
         assert_eq!(BVN::zeros(length), !(&bvo));
     }
+}
+
+#[test]
+fn from_try_from() {
+    let v: u8 = random();
+    assert_eq!(v, BVN::from(v).try_into().unwrap());
+    assert_eq!(BV8::from(v), BVN::from(BV8::from(v)).try_into().unwrap());
+    let v: u16 = random();
+    assert_eq!(v, BVN::from(v).try_into().unwrap());
+    assert_eq!(BV16::from(v), BVN::from(BV16::from(v)).try_into().unwrap());
+    let v: u32 = random();
+    assert_eq!(v, BVN::from(v).try_into().unwrap());
+    assert_eq!(BV32::from(v), BVN::from(BV32::from(v)).try_into().unwrap());
+    let v: u64 = random();
+    assert_eq!(v, BVN::from(v).try_into().unwrap());
+    assert_eq!(BV64::from(v), BVN::from(BV64::from(v)).try_into().unwrap());
+    let v: u128 = random();
+    assert_eq!(v, BVN::from(v).try_into().unwrap());
+    assert_eq!(BV128::from(v), BVN::from(BV128::from(v)).try_into().unwrap());
 }

@@ -1,3 +1,4 @@
+use std::convert::{From, TryFrom};
 use std::fmt::{Binary, Display, LowerHex, Octal, UpperHex};
 use std::io::{Read, Write};
 use std::iter::repeat;
@@ -6,6 +7,11 @@ use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor,
     Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
 
 use crate::{Bit, BitVector, Endianness};
+use crate::fixed::{BV8, BV16, BV32, BV64, BV128};
+
+mod adapter;
+
+use adapter::USizeStream;
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct BVN {
@@ -174,7 +180,7 @@ impl BitVector for BVN {
             ((bit as usize) << (index % Self::BIT_UNIT));
     }
 
-    fn copy_slice(&self, range: std::ops::Range<usize>) -> Self {
+    fn copy_slice(&self, range: Range<usize>) -> Self {
         debug_assert!(range.start < self.len() && range.end <= self.len());
         let length = range.end - usize::min(range.start, range.end);
         let mut data: Vec<usize> = repeat(0usize).take(Self::capacity_from_bit_len(length)).collect();
@@ -534,6 +540,8 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
     )+
 }}
 
+impl_shifts!({u8, u16, u32, u64, u128, usize});
+
 impl Not for BVN {
     type Output = BVN;
     fn not(mut self) -> Self::Output {
@@ -562,4 +570,49 @@ impl Not for &'_ BVN {
     }
 }
 
-impl_shifts!({u8, u16, u32, u64, u128, usize});
+
+macro_rules! impl_froms {({$(($rhs:ty, $st:ty)),+}) => {
+    $(
+        impl From<$st> for BVN {
+            fn from(st: $st) -> Self {
+                let it = USizeStream::new(st);
+                BVN {
+                    length: it.bit_length(),
+                    data: it.collect(),
+                }
+            }
+        }
+
+        impl From<$rhs> for BVN {
+            fn from(rhs: $rhs) -> BVN {
+                BVN::from(<$st>::from(rhs))
+            }
+        }
+
+        impl TryFrom<BVN> for $st {
+            type Error = &'static str;
+            #[allow(arithmetic_overflow)]
+            fn try_from(bvn: BVN) -> Result<Self, Self::Error> {
+                if bvn.length > size_of::<$st>() * 8 {
+                    return Err("BVN is too large to convert into this type");
+                }
+                else {
+                    let mut r: $st = 0;
+                    for i in (0..BVN::capacity_from_bit_len(bvn.length)).rev() {
+                        r = r.checked_shl(BVN::BIT_UNIT as u32).unwrap_or(0) | bvn.data[i] as $st;
+                    }
+                    return Ok(r);
+                }
+            }
+        }
+
+        impl TryFrom<BVN> for $rhs {
+            type Error = &'static str;
+            fn try_from(bvn: BVN) -> Result<Self, Self::Error> {
+                Ok(<$rhs>::from(<$st>::try_from(bvn)?))
+            }
+        }
+    )+
+}}
+
+impl_froms!({(BV8, u8), (BV16, u16), (BV32, u32), (BV64, u64), (BV128, u128)});
