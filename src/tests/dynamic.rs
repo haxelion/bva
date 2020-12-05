@@ -267,25 +267,25 @@ fn op() {
         // BitAndAssign
         b &= a;
         bvb &= &bva;
-        assert_eq!(b.0, u128::try_from(bvb.clone()).unwrap());
+        assert_eq!(b.0, u128::try_from(&bvb).unwrap());
         // AddAssign
         b += a;
         b &= mask;
         bvb += &bva;
-        assert_eq!(b.0, u128::try_from(bvb.clone()).unwrap());
+        assert_eq!(b.0, u128::try_from(&bvb).unwrap());
         // BitOrAssign
         b |= a;
         bvb |= &bva;
-        assert_eq!(b.0, u128::try_from(bvb.clone()).unwrap());
+        assert_eq!(b.0, u128::try_from(&bvb).unwrap());
         // SubAssign
         b -= a;
         b &= mask;
         bvb -= &bva;
-        assert_eq!(b.0, u128::try_from(bvb.clone()).unwrap());
+        assert_eq!(b.0, u128::try_from(&bvb).unwrap());
         // BitXorAssign
         b ^= a;
         bvb ^= &bva;
-        assert_eq!(b.0, u128::try_from(bvb).unwrap());
+        assert_eq!(b.0, u128::try_from(&bvb).unwrap());
     }
 }
 
@@ -308,25 +308,25 @@ macro_rules! decl_op_implicit_cast_inner {($name:ident, $bvb:ty, $stb:ty) => {
             // BitAndAssign
             a &= b;
             bva &= &bvb;
-            assert_eq!(a.0, u128::try_from(bva.clone()).unwrap());
+            assert_eq!(a.0, u128::try_from(&bva).unwrap());
             // AddAssign
             a += b;
             a &= mask;
             bva += &bvb;
-            assert_eq!(a.0, u128::try_from(bva.clone()).unwrap());
+            assert_eq!(a.0, u128::try_from(&bva).unwrap());
             // BitOrAssign
             a |= b;
             bva |= &bvb;
-            assert_eq!(a.0, u128::try_from(bva.clone()).unwrap());
+            assert_eq!(a.0, u128::try_from(&bva).unwrap());
             // SubAssign
             a -= b;
             a &= mask;
             bva -= &bvb;
-            assert_eq!(a.0, u128::try_from(bva.clone()).unwrap());
+            assert_eq!(a.0, u128::try_from(&bva).unwrap());
             // BitXorAssign
             a ^= b;
             bva ^= &bvb;
-            assert_eq!(a.0, u128::try_from(bva.clone()).unwrap());
+            assert_eq!(a.0, u128::try_from(&bva).unwrap());
         }
     }
 }}

@@ -1,4 +1,3 @@
-use std::convert::From;
 use std::iter::{ExactSizeIterator, Iterator};
 use std::mem::size_of;
 use std::ops::{Shr, BitAnd};

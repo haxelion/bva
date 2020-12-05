@@ -396,7 +396,9 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
 
         fn resize(&mut self, new_length: usize, bit: Bit) {
             debug_assert!(new_length <= Self::CAPACITY);
-            let sign_mask = <$st>::MIN.wrapping_sub(<$st>::from(bit)).checked_shr((Self::CAPACITY + self.len() - new_length) as u32).unwrap_or(0) << self.len();
+            let sign_mask = <$st>::MIN.wrapping_sub(<$st>::from(bit))
+                            .checked_shr((Self::CAPACITY + self.len() - new_length) as u32)
+                            .unwrap_or(0).checked_shl(self.len() as u32).unwrap_or(0);
             self.data = self.data & Self::mask(new_length) | Wrapping(sign_mask);
             self.length = new_length as u8;
         }
@@ -429,12 +431,18 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
     }
 
     $(
-        impl From<$rhs> for $name {
-            fn from(a: $rhs) -> $name {
+        impl From<&'_ $rhs> for $name {
+            fn from(a: &'_ $rhs) -> $name {
                 $name {
                     data: Wrapping(a.data.0 as $st),
                     length: a.length
                 }
+            }
+        }
+
+        impl From<$rhs> for $name {
+            fn from(a: $rhs) -> $name {
+                $name::from(&a)
             }
         }
     )*
@@ -452,6 +460,12 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
 
     impl From<$name> for $st {
         fn from(a: $name) -> $st {
+            a.data.0
+        }
+    }
+
+    impl From<&'_ $name> for $st {
+        fn from(a: &'_ $name) -> $st {
             a.data.0
         }
     }

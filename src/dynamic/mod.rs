@@ -52,7 +52,7 @@ impl BVN {
 
 impl BitVector for BVN {
     fn zeros(length: usize) -> Self {
-        let mut v: Vec<usize> = repeat(0).take(Self::capacity_from_bit_len(length)).collect();
+        let v: Vec<usize> = repeat(0).take(Self::capacity_from_bit_len(length)).collect();
         BVN {
             data: v.into_boxed_slice(),
             length
@@ -335,7 +335,13 @@ impl Binary for BVN {
 
 impl Display for BVN {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        if let Ok(b) = BV128::try_from(self) {
+            return Display::fmt(&b, f);
+        }
+        else {
+            // TODO: waiting for div and mod operations
+            todo!()
+        }
     }
 }
 
@@ -593,10 +599,10 @@ macro_rules! impl_froms {({$(($rhs:ty, $st:ty)),+}) => {
             }
         }
 
-        impl TryFrom<BVN> for $st {
+        impl TryFrom<&'_ BVN> for $st {
             type Error = &'static str;
             #[allow(arithmetic_overflow)]
-            fn try_from(bvn: BVN) -> Result<Self, Self::Error> {
+            fn try_from(bvn: &'_ BVN) -> Result<Self, Self::Error> {
                 if bvn.length > size_of::<$st>() * 8 {
                     return Err("BVN is too large to convert into this type");
                 }
@@ -610,10 +616,26 @@ macro_rules! impl_froms {({$(($rhs:ty, $st:ty)),+}) => {
             }
         }
 
+        impl TryFrom<BVN> for $st {
+            type Error = &'static str;
+            fn try_from(bvn: BVN) -> Result<Self, Self::Error> {
+                <$st>::try_from(&bvn)
+            }
+        }
+
+        impl TryFrom<&'_ BVN> for $rhs {
+            type Error = &'static str;
+            fn try_from(bvn: &'_ BVN) -> Result<Self, Self::Error> {
+                let mut r = <$rhs>::from(<$st>::try_from(bvn)?);
+                r.resize(bvn.length, Bit::Zero);
+                Ok(r)
+            }
+        }
+
         impl TryFrom<BVN> for $rhs {
             type Error = &'static str;
             fn try_from(bvn: BVN) -> Result<Self, Self::Error> {
-                Ok(<$rhs>::from(<$st>::try_from(bvn)?))
+                <$rhs>::try_from(&bvn)
             }
         }
     )+
