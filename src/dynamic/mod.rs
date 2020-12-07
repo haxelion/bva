@@ -48,6 +48,17 @@ impl BVN {
             self.data = new_data.into_boxed_slice();
         }
     }
+
+    pub fn shrink_to_fit(&mut self) {
+        if Self::capacity_from_bit_len(self.length) < self.data.len() {
+            // TODO: in place reallocation
+            let mut new_data: Vec<usize> = repeat(0usize).take(Self::capacity_from_bit_len(self.length)).collect();
+            for i in 0..self.data.len() {
+                new_data[i] = self.data[i];
+            }
+            self.data = new_data.into_boxed_slice();
+        }
+    }
 }
 
 impl BitVector for BVN {
@@ -589,13 +600,19 @@ macro_rules! impl_froms {({$(($rhs:ty, $st:ty)),+}) => {
             }
         }
 
-        impl From<$rhs> for BVN {
-            fn from(rhs: $rhs) -> BVN {
+        impl From<&'_ $rhs> for BVN {
+            fn from(rhs: &'_ $rhs) -> BVN {
                 let it = USizeStream::new(<$st>::from(rhs));
                 BVN {
                     length: rhs.len(),
                     data: it.collect(),
                 }
+            }
+        }
+
+        impl From<$rhs> for BVN {
+            fn from(rhs: $rhs) -> BVN {
+                BVN::from(&rhs)
             }
         }
 

@@ -1,4 +1,4 @@
-use std::convert::From;
+use std::convert::{From, TryFrom};
 use std::fmt::{Binary, Display, LowerHex, Octal, UpperHex};
 use std::io::{Read, Write};
 use std::iter::repeat;
@@ -206,7 +206,7 @@ macro_rules! impl_shr_assign {($t:ident, {$($rhs:ty),+}) => {
 /// Declare a new fixed BitVector type named `$name`, backed by the underlying storage type `$st` 
 /// and accepting for its operations a list of valid rhs BA types `$rhs`.
 /// In addition, a list of sub storage type is also specified.
-macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => {
+macro_rules! decl_bv { ($name:ident, $st:ty, {$(($rhs:ident, $sst:ty)),*}) => {
     #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
     pub struct $name {
         data: Wrapping<$st>,
@@ -445,9 +445,24 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
                 $name::from(&a)
             }
         }
-    )*
 
-    $(
+        impl TryFrom<&'_ $name> for $rhs {
+            type Error = &'static str;
+            fn try_from(a: &'_ $name) -> Result<Self, Self::Error> {
+                Ok($rhs {
+                    data: Wrapping(<$sst>::try_from(a)?),
+                    length: a.length
+                })
+            }
+        }
+        
+        impl TryFrom<$name> for $rhs {
+            type Error = &'static str;
+            fn try_from(a: $name) -> Result<Self, Self::Error> {
+                return Ok(<$rhs>::try_from(&a)?);
+            }
+        }
+
         impl From<$sst> for $name {
             fn from(a: $sst) -> $name {
                 $name {
@@ -456,7 +471,33 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
                 }
             }
         }
+
+        impl TryFrom<&'_ $name> for $sst {
+            type Error = &'static str;
+            fn try_from(a: &'_ $name) -> Result<Self, Self::Error> {
+                if a.len() > size_of::<$sst>() * 8 {
+                    return Err(concat!(stringify!($name), " is too large to convert into this type"));
+                }
+                return Ok(a.data.0 as $sst);
+            }
+        }
+
+        impl TryFrom<$name> for $sst {
+            type Error = &'static str;
+            fn try_from(a: $name) -> Result<Self, Self::Error> {
+                return Ok(<$sst>::try_from(&a)?);
+            }
+        }
     )*
+
+    impl From<$st> for $name {
+        fn from(a: $st) -> $name {
+            $name {
+                data: Wrapping(a),
+                length: (std::mem::size_of::<$st>() * 8) as u8
+            }
+        }
+    }
 
     impl From<$name> for $st {
         fn from(a: $name) -> $st {
@@ -596,8 +637,8 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$($sst:ty),*}, {$($rhs:ty),*}) => 
     }
 }}
 
-decl_bv! {BV8, u8, {u8}, {}}
-decl_bv! {BV16, u16, {u8, u16}, {BV8}}
-decl_bv! {BV32, u32, {u8, u16, u32}, {BV8, BV16}}
-decl_bv! {BV64, u64, {u8, u16, u32, u64}, {BV8, BV16, BV32}}
-decl_bv! {BV128, u128, {u8, u16, u32, u64, u128}, {BV8, BV16, BV32, BV64}}
+decl_bv! (BV8, u8, {});
+decl_bv! (BV16, u16, {(BV8, u8)});
+decl_bv! {BV32, u32, {(BV8, u8), (BV16, u16)}}
+decl_bv! {BV64, u64, {(BV8, u8), (BV16, u16), (BV32, u32)}}
+decl_bv! {BV128, u128, {(BV8, u8), (BV16, u16), (BV32, u32), (BV64, u64)}}
