@@ -13,7 +13,7 @@ mod adapter;
 
 use adapter::USizeStream;
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug)]
 pub struct BVN {
     data: Box<[usize]>,
     length: usize
@@ -404,6 +404,26 @@ fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         else {
             return write!(f, "{}", s.as_str());
         }
+    }
+}
+
+impl PartialEq for BVN {
+    fn eq(&self, other: &Self) -> bool {
+        todo!()
+    }
+}
+
+impl Eq for BVN {}
+
+impl Ord for BVN {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        todo!()
+    }
+}
+
+impl PartialOrd for BVN {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 

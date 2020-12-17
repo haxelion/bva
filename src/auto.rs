@@ -198,8 +198,8 @@ impl BitVector for BV {
 
     fn rotr(&mut self, rot: usize) {
         match self {
-            BV::Fixed(b) => b.rotl(rot),
-            BV::Dynamic(b) => b.rotl(rot),
+            BV::Fixed(b) => b.rotr(rot),
+            BV::Dynamic(b) => b.rotr(rot),
         }
     }
 
@@ -258,13 +258,33 @@ impl Octal for BV {
 
 impl From<BVN> for BV {
     fn from(b: BVN) -> Self {
+        // TODO: optimize for smaller length
         BV::Dynamic(b)
     }
 }
 
 impl From<&'_ BVN> for BV {
     fn from(b: &'_ BVN) -> Self {
+        // TODO: optimize for smaller length
         BV::Dynamic(b.clone())
+    }
+}
+
+impl From<&'_ BV> for BVN {
+    fn from(bv: &'_ BV) -> Self {
+        match bv {
+            BV::Fixed(b) => BVN::from(b),
+            BV::Dynamic(b) => b.clone()
+        }
+    }
+}
+
+impl From<BV> for BVN {
+    fn from(bv: BV) -> Self {
+        match bv {
+            BV::Fixed(b) => BVN::from(b),
+            BV::Dynamic(b) => b
+        }
     }
 }
 
@@ -339,6 +359,29 @@ macro_rules! impl_froms {({$(($sbv:ty, $sst:ty)),+}, {$(($ubv:ty, $ust:ty)),+}) 
     )+
 
     $(
+        impl From<$ust> for BV {
+            fn from(ust: $ust) -> Self {
+                BV::Dynamic(BVN::from(ust))
+            }
+        }
+
+        impl From<&'_ $ubv> for BV {
+            fn from(ubv: &'_ $ubv) -> Self {
+                if ubv.len() <= BVF::CAPACITY {
+                    BV::Fixed(BVF::try_from(*ubv).unwrap())
+                }
+                else {
+                    BV::Dynamic(BVN::from(ubv))
+                }
+            }
+        }
+
+        impl From<$ubv> for BV {
+            fn from(ubv: $ubv) -> Self {
+                BV::from(&ubv)
+            }
+        }
+
         impl TryFrom<&'_ BV> for $ust {
             type Error = &'static str;
             fn try_from(bv: &'_ BV) -> Result<Self, Self::Error> {
@@ -507,6 +550,7 @@ macro_rules! impl_op_assign { ($trait:ident, $method:ident, {$($sbv:ty),*}, {$($
         impl $trait<&'_ $ubv> for BV {
             fn $method(&mut self, b: &'_ $ubv) {
                 // Force reallocation to dynamic type
+                // TODO: optimize this
                 self.reserve(usize::max(b.len(), BVF::CAPACITY + 1) - self.len());
                 if let BV::Dynamic(s) = self {
                     s.$method(b);
