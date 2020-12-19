@@ -258,15 +258,23 @@ impl Octal for BV {
 
 impl From<BVN> for BV {
     fn from(b: BVN) -> Self {
-        // TODO: optimize for smaller length
-        BV::Dynamic(b)
+        if let Ok(bvf) = BVF::try_from(&b) {
+            BV::Fixed(bvf)
+        }
+        else {
+            BV::Dynamic(b)
+        }
     }
 }
 
 impl From<&'_ BVN> for BV {
     fn from(b: &'_ BVN) -> Self {
-        // TODO: optimize for smaller length
-        BV::Dynamic(b.clone())
+        if let Ok(bvf) = BVF::try_from(b) {
+            BV::Fixed(bvf)
+        }
+        else {
+            BV::Dynamic(b.clone())
+        }
     }
 }
 
@@ -549,13 +557,13 @@ macro_rules! impl_op_assign { ($trait:ident, $method:ident, {$($sbv:ty),*}, {$($
     $(
         impl $trait<&'_ $ubv> for BV {
             fn $method(&mut self, b: &'_ $ubv) {
-                // Force reallocation to dynamic type
-                // TODO: optimize this
-                self.reserve(usize::max(b.len(), BVF::CAPACITY + 1) - self.len());
-                if let BV::Dynamic(s) = self {
-                    s.$method(b);
+                if b.len() > self.len() {
+                    self.reserve(b.len() - self.len());
                 }
-                else { unreachable!() }
+                match self {
+                    BV::Fixed(s) => s.$method(BVF::try_from(b).unwrap()),
+                    BV::Dynamic(s) => s.$method(b)
+                }
             }
         }
 

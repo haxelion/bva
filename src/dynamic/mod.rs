@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::convert::{From, TryFrom};
 use std::fmt::{Binary, Display, LowerHex, Octal, UpperHex};
 use std::io::{Read, Write};
@@ -409,15 +410,26 @@ fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 
 impl PartialEq for BVN {
     fn eq(&self, other: &Self) -> bool {
-        todo!()
+        for i in 0..usize::max(self.data.len(), other.data.len()) {
+            if self.data.get(i).unwrap_or(&0) != other.data.get(i).unwrap_or(&0) {
+                return false;
+            }
+        }
+        return true;
     }
 }
 
 impl Eq for BVN {}
 
 impl Ord for BVN {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        todo!()
+    fn cmp(&self, other: &Self) -> Ordering { 
+        for i in (0..usize::max(self.data.len(), other.data.len())).rev() {
+            match self.data.get(i).unwrap_or(&0).cmp(other.data.get(i).unwrap_or(&0)) {
+                Ordering::Equal => continue,
+                ord => return ord
+            }
+        }
+        return Ordering::Equal;
     }
 }
 

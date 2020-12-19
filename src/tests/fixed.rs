@@ -160,8 +160,6 @@ fn resize_slice() {
 }
 
 fn from_to_bytes_inner<BV: BitVector>(max_length: usize) {
-    let num_bytes = max_length / 8;
-
     for length in (8..=max_length).step_by(8) {
         let bv = random_bv::<BV>(length);
 
