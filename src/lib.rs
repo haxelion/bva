@@ -1,4 +1,4 @@
-//! Crate for manipulating bit vectors and doing arithmetic on arbitrary sized bit vectors.
+//! Crate for manipulating bit vectors and doing arithmetic on arbitrarily sized bit vectors.
 //!
 //! This crate emphasizes optimizing storage by providing alternative storage options.
 //! The module [`fixed`] contains implementations using unsigned integers as storage and thus
@@ -38,7 +38,7 @@ pub enum Endianness {
     BE
 }
 
-/// A trait representing common bit vector operations
+/// A trait representing common bit vector operations.
 pub trait BitVector: Sized + Clone + Debug + PartialEq + Eq + Display + Binary + LowerHex + UpperHex {
     /// Construct a bit vector made of `length` 0 bits.
     /// Will panic if there is not enough capacity and it is a fixed variant.

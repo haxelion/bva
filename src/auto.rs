@@ -249,6 +249,7 @@ impl Binary for BV {
     }
 }
 
+/// Warning: this implementation is broken for bit vector longer than 128 bits.
 impl Display for BV {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
