@@ -1,3 +1,13 @@
+//! This module contains an automatically managed bit vector type. Depending on the required
+//! capacity, it might use a fixed capacity implementation to avoid unnecessary dynamic memory
+//! allocations, or it might use a dynamic capacity implementation if the capacity of fixed
+//! implementations is exceeded.
+//!
+//! While avoiding memory allocation might improve performance, there is a slight performance cost
+//! due to the dynamic dispatch and extra capacity checks. The net effect will depend on the exact
+//! application. It is designed for the case where most bit vector are expected to fit inside
+//! fixed capacity implementations but some outliers might not.
+
 use std::convert::{From, TryFrom};
 use std::fmt::{Binary, Display, LowerHex, Octal, UpperHex};
 use std::mem::size_of;
@@ -10,8 +20,7 @@ use crate::dynamic::BVN;
 #[allow(unused_imports)]
 use crate::fixed::{BV8, BV16, BV32, BV64, BV128};
 
-// Choose a fixed BV type which will match the size of BVN inside the enum
-
+// Choose a fixed BV type which should match the size of BVN inside the enum
 #[cfg(target_pointer_width = "16")]
 type BVF = BV32;
 #[cfg(target_pointer_width = "32")]
@@ -19,6 +28,7 @@ type BVF = BV64;
 #[cfg(target_pointer_width = "64")]
 type BVF = BV128;
 
+/// A bit vector with automatic capacity management.
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum BV {
     Fixed(BVF),
@@ -26,6 +36,21 @@ pub enum BV {
 }
 
 impl BV {
+    /// Create a bit vector of length 0 but with enough capacity to store `capacity` bits.
+    pub fn with_capacity(capacity: usize) -> Self {
+        if capacity <= BVF::CAPACITY {
+            BV::Fixed(BVF::zeros(0))
+        }
+        else {
+            BV::Dynamic(BVN::with_capacity(capacity))
+        }
+    }
+
+    /// Reserve will reserve room for at least `additional` bits in the bit vector. The actual
+    /// length of the bit vector will stay unchanged, see [`BitVector::resize`] to change the actual
+    /// length of the bit vector.
+    ///
+    /// Calling this method might cause the storage to become dynamically allocated.
     pub fn reserve(&mut self, additional: usize) {
         match self {
             &mut BV::Fixed(ref b) => {
@@ -39,6 +64,10 @@ impl BV {
         }
     }
 
+    /// Drop as much excess capacity as possible in the bit vector to fit the current length.
+    ///
+    /// Calling this method might cause the implementation to drop unnecessary dynamically
+    /// allocated memory.
     pub fn shrink_to_fit(&mut self) {
         if let BV::Dynamic(b) = self {
             if b.len() <= BVF::CAPACITY {

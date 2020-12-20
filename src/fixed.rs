@@ -1,3 +1,10 @@
+//! This module contains fixed capacity bit vector implementations using a single integer as
+//! storage. Each implementations is named `BV` followed by a number corresponding to its max bit
+//! capacity.
+//!
+//! Performing operations resulting in exceeding the bit vector capacity will result in
+//! a runtime panic. See [`crate::dynamic`] for dynamic capacity bit vector implementations.
+
 use std::convert::{From, TryFrom};
 use std::fmt::{Binary, Display, LowerHex, Octal, UpperHex};
 use std::io::{Read, Write};
@@ -9,11 +16,6 @@ use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor,
 
 use crate::{Bit, BitVector, Endianness};
 
-// Beware! Here be hardcore macro magic!
-
-/// Implement the binary operation (`$trait`, `$method`) for `$t` backed by the underlying type `$st`
-/// and the rhs `$rhs`.
-/// Also implement the various borrowed versions
 macro_rules! impl_op { ($t:ident, $st:ty, $rhs:ty, $trait:ident, $method:ident) => {
     impl $trait<$rhs> for $t {
         type Output = $t;
@@ -60,9 +62,6 @@ macro_rules! impl_op { ($t:ident, $st:ty, $rhs:ty, $trait:ident, $method:ident) 
     }
 }}
 
-/// Implement the assign variant of the binary operation (`$trait`, `$method`) for `$t` 
-/// backed by the underlying type `$st` and the rhs `$t2`.
-/// Also implement the various borrowed versions.
 macro_rules! impl_op_assign { ($t:ident, $st:ty, $rhs:ty, $trait:ident, $method:ident) => {
     impl $trait<$rhs> for $t {
         fn $method(&mut self, rhs: $rhs) {
@@ -207,15 +206,16 @@ macro_rules! impl_shr_assign {($t:ident, {$($rhs:ty),+}) => {
 /// and accepting for its operations a list of valid rhs BA types `$rhs`.
 /// In addition, a list of sub storage type is also specified.
 macro_rules! decl_bv { ($name:ident, $st:ty, {$(($rhs:ident, $sst:ty)),*}) => {
+    /// Fixed capacity bit vector backed by a single unsigned integer.
+    /// Operation exceding the underlying capacity will panic.
     #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
     pub struct $name {
         data: Wrapping<$st>,
         length: u8
     }
 
-    /// Fixed capacity bit vector backed by a single unsigned integer.
-    /// Operation exceding the underlying capacity will panic.
     impl $name {
+        /// Bit vector capacity.
         pub const CAPACITY: usize = size_of::<$st>() * 8;
 
         fn mask(length: usize) -> Wrapping<$st> {

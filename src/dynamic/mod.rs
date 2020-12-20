@@ -1,3 +1,9 @@
+//! This module contains a dynamic capacity bit vector implementation using a dynamically allocated
+//! integer array as storage.
+//!
+//! As the capacity is dynamic, performing operations exceeding the current capacity will result in
+//! a reallocation of the internal array.
+
 use std::cmp::Ordering;
 use std::convert::{From, TryFrom};
 use std::fmt::{Binary, Display, LowerHex, Octal, UpperHex};
@@ -14,6 +20,7 @@ mod adapter;
 
 use adapter::USizeStream;
 
+/// A bit vector with dynamic capacity.
 #[derive(Clone, Debug)]
 pub struct BVN {
     data: Box<[usize]>,
@@ -38,11 +45,25 @@ impl BVN {
         usize::MAX.checked_shr((Self::BIT_UNIT - length) as u32).unwrap_or(0)
     }
 
+    /// Allocate a bit vector of length 0 but with enough capacity to store `capacity` bits.
+    pub fn with_capacity(capacity: usize) -> Self {
+        let data: Vec<usize> = repeat(0usize).take(Self::capacity_from_bit_len(capacity)).collect();
+        BVN {
+            data: data.into_boxed_slice(),
+            length: 0
+        }
+    }
+
+    /// Reserve will reserve room for at least `additional` bits in the bit vector. The actual
+    /// length of the bit vector will stay unchanged, see [`BitVector::resize`] to change the actual
+    /// length of the bit vector.
+    ///
+    /// The underlying allocator might reserve additional capacity.
     pub fn reserve(&mut self, additional: usize) {
-        let new_length = self.length + additional;
-        if Self::capacity_from_bit_len(new_length) > self.data.len() {
+        let new_capacity = self.length + additional;
+        if Self::capacity_from_bit_len(new_capacity) > self.data.len() {
             // TODO: in place reallocation
-            let mut new_data: Vec<usize> = repeat(0usize).take(Self::capacity_from_bit_len(new_length)).collect();
+            let mut new_data: Vec<usize> = repeat(0usize).take(Self::capacity_from_bit_len(new_capacity)).collect();
             for i in 0..self.data.len() {
                 new_data[i] = self.data[i];
             }
@@ -50,6 +71,7 @@ impl BVN {
         }
     }
 
+    /// Drop as much excess capacity as possible in the bit vector to fit the current length.
     pub fn shrink_to_fit(&mut self) {
         if Self::capacity_from_bit_len(self.length) < self.data.len() {
             // TODO: in place reallocation

@@ -1,3 +1,24 @@
+//! Crate for manipulating bit vectors and doing arithmetic on arbitrary sized bit vectors.
+//!
+//! This crate emphasizes optimizing storage by providing alternative storage options.
+//! The module [`fixed`] contains implementations using unsigned integers as storage and thus
+//! has a fixed capacity. The module [`dynamic`] contains an implementation using dynamically
+//! allocated array of integers as storage and therefore has a dynamic capacity. The module
+//! [`auto`] contains an implementation capable of switching at runtime between a fixed or
+//! dynamic capacity implementation to try to minimize dynamic memory allocations.
+//! All of those implementations implement the [`BitVector`] trait and can be freely mixed together
+//! and converted into each other.
+//!
+//! The different bit vector types represent a vector of bits where the bit at index 0 is the least
+//! significant bit and the bit at index `.len() - 1` is the most significant bit. There is no
+//! notion of endianness for the bit vector themselves, endianness is only involved when reading or
+//! writing a bit vector to or from memory or storage.
+//!
+//! Arithmetic operation can be applied to bit vectors of different length. The result will always
+//! have the length of the longest operand and the smallest operand will be zero extended for the
+//! operation. This should match the most intuitive behavior in most cases except when manipulating
+//! bit vector supposed to have a sign bit.
+
 use std::fmt::{Binary, Display, Debug, LowerHex, UpperHex};
 use std::io::{Read, Write};
 use std::ops::Range;
@@ -9,8 +30,11 @@ pub mod auto;
 
 use bit::Bit;
 
+/// A enumeration representing the endianness of an I/O or memory operation.
 pub enum Endianness {
+    /// Little Endian ordering: bytes are stored from the least significant byte to the most significant byte.
     LE,
+    /// big Endian ordering: bytes are stored from the most significant byte to the least significant byte.
     BE
 }
 
@@ -41,14 +65,14 @@ pub trait BitVector: Sized + Clone + Debug + PartialEq + Eq + Display + Binary +
     /// If the length is not a multiple of 8 bits, he highest weight bits will be padded with `'0'`.
     fn to_vec(&self, endianness: Endianness) -> Vec<u8>;
 
-    /// Construct a bit vector by reading `num_bytes` bytes from a type implementing `Read` and 
+    /// Construct a bit vector by reading `length` bits from a type implementing `Read` and 
     /// arrange them according to the specified `endianness`. If `length` is not a multiple of 8,
-    /// the bits remaining in the highest weight byte will be dropped.
+    /// the bits remaining in the most signigicant byte will be dropped.
     /// Will panic if there is not enough capacity and it is a fixed variant.
     fn read<R: Read>(reader: &mut R, length: usize, endianness: Endianness) -> std::io::Result<Self>;
 
     /// Write the bit vector to a type implementing `Write` and according to the specified 
-    /// `endianness`. If the length is not a multiple of 8 bits, he highest weight bits will be 
+    /// `endianness`. If the length is not a multiple of 8 bits, the most significant byte will be 
     /// padded with `'0'`.
     fn write<W: Write>(&self, writer: &mut W, endianness: Endianness) -> std::io::Result<()>;
 
