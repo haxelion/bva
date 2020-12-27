@@ -8,6 +8,7 @@
 //! application. It is designed for the case where most bit vector are expected to fit inside
 //! fixed capacity implementations but some outliers might not.
 
+use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::convert::{From, TryFrom};
 use std::fmt::{Binary, Display, LowerHex, Octal, UpperHex};
 use std::mem::size_of;
@@ -29,7 +30,7 @@ type BVF = BV64;
 type BVF = BV128;
 
 /// A bit vector with automatic capacity management.
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug)]
 pub enum BV {
     Fixed(BVF),
     Dynamic(BVN)
@@ -285,6 +286,91 @@ impl Octal for BV {
         }
     }
 }
+
+impl PartialEq for BV {
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            BV::Fixed(b1) => match other {
+                BV::Fixed(b2) => b1.eq(b2),
+                BV::Dynamic(b2) => b1.eq(b2)
+            },
+            BV::Dynamic(b1) => match other {
+                BV::Fixed(b2) => b1.eq(b2),
+                BV::Dynamic(b2) => b1.eq(b2)
+            }
+        }
+    }
+}
+
+impl Eq for BV {}
+
+impl Ord for BV {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self {
+            BV::Fixed(b1) => match other {
+                BV::Fixed(b2) => b1.cmp(b2),
+                BV::Dynamic(b2) => b1.partial_cmp(b2).unwrap()
+            },
+            BV::Dynamic(b1) => match other {
+                BV::Fixed(b2) => b1.partial_cmp(b2).unwrap(),
+                BV::Dynamic(b2) => b1.cmp(b2)
+            }
+        }
+    }
+}
+
+impl PartialOrd for BV {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+macro_rules! impl_eq { ({$($rhs:ty),+}) => {
+    $(
+        impl PartialEq<$rhs> for BV {
+            fn eq(&self, other: &$rhs) -> bool {
+                match self {
+                    BV::Fixed(b) => b.eq(other),
+                    BV::Dynamic(b) => b.eq(other),
+                }
+            }
+        }
+
+        impl PartialEq<BV> for $rhs {
+            fn eq(&self, other: &BV) -> bool {
+                match other {
+                    BV::Fixed(b) => self.eq(b),
+                    BV::Dynamic(b) => self.eq(b),
+                }
+            }
+        }
+    )+
+}}
+
+macro_rules! impl_ord { ({$($rhs:ty),+}) => {
+    $(
+        impl PartialOrd<$rhs> for BV {
+            fn partial_cmp(&self, other: &$rhs) -> Option<Ordering> {
+                match self {
+                    BV::Fixed(b) => b.partial_cmp(other),
+                    BV::Dynamic(b) => b.partial_cmp(other),
+                }
+            }
+        }
+
+        impl PartialOrd<BV> for $rhs {
+            fn partial_cmp(&self, other: &BV) -> Option<Ordering> {
+                match other {
+                    BV::Fixed(b) => self.partial_cmp(b),
+                    BV::Dynamic(b) => self.partial_cmp(b),
+                }
+            }
+        }
+    )+
+}}
+
+impl_eq!({BV8, BV16, BV32, BV64, BV128, BVN});
+impl_ord!({BV8, BV16, BV32, BV64, BV128, BVN});
 
 impl From<BVN> for BV {
     fn from(b: BVN) -> Self {

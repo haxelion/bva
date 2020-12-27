@@ -5,6 +5,7 @@
 //! Performing operations resulting in exceeding the bit vector capacity will result in
 //! a runtime panic. See [`crate::dynamic`] for dynamic capacity bit vector implementations.
 
+use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::convert::{From, TryFrom};
 use std::fmt::{Binary, Display, LowerHex, Octal, UpperHex};
 use std::io::{Read, Write};
@@ -202,13 +203,101 @@ macro_rules! impl_shr_assign {($t:ident, {$($rhs:ty),+}) => {
     )+
 }}
 
+macro_rules! impl_from { ($name:ident, $st:ty, $rhs:ident, $sst:ty) => {
+    impl From<&'_ $rhs> for $name {
+        fn from(a: &'_ $rhs) -> $name {
+            $name {
+                data: Wrapping(a.data.0 as $st),
+                length: a.length
+            }
+        }
+    }
+
+    impl From<$rhs> for $name {
+        fn from(a: $rhs) -> $name {
+            $name::from(&a)
+        }
+    }
+
+    impl TryFrom<&'_ $name> for $rhs {
+        type Error = &'static str;
+        fn try_from(a: &'_ $name) -> Result<Self, Self::Error> {
+            Ok($rhs {
+                data: Wrapping(<$sst>::try_from(a)?),
+                length: a.length
+            })
+        }
+    }
+    
+    impl TryFrom<$name> for $rhs {
+        type Error = &'static str;
+        fn try_from(a: $name) -> Result<Self, Self::Error> {
+            return Ok(<$rhs>::try_from(&a)?);
+        }
+    }
+
+    impl From<$sst> for $name {
+        fn from(a: $sst) -> $name {
+            $name {
+                data: Wrapping(a as $st),
+                length: (std::mem::size_of::<$sst>() * 8) as u8
+            }
+        }
+    }
+
+    impl TryFrom<&'_ $name> for $sst {
+        type Error = &'static str;
+        fn try_from(a: &'_ $name) -> Result<Self, Self::Error> {
+            if a.len() > size_of::<$sst>() * 8 {
+                return Err(concat!(stringify!($name), " is too large to convert into this type"));
+            }
+            return Ok(a.data.0 as $sst);
+        }
+    }
+
+    impl TryFrom<$name> for $sst {
+        type Error = &'static str;
+        fn try_from(a: $name) -> Result<Self, Self::Error> {
+            return Ok(<$sst>::try_from(&a)?);
+        }
+    }
+}}
+
+macro_rules! impl_eq { ($name:ident, $st:ty, $rhs:ident) => {
+    impl PartialEq<$rhs> for $name {
+        fn eq(&self, other: &$rhs) -> bool {
+            other.data.0 as $st == self.data.0
+        }
+    }
+
+    impl PartialEq<$name> for $rhs {
+        fn eq(&self, other: &$name) -> bool {
+            self.data.0 as $st == other.data.0
+        }
+    }
+}}
+
+macro_rules! impl_ord { ($name:ident, $st:ty, $rhs:ident) => {
+    impl PartialOrd<$rhs> for $name {
+        fn partial_cmp(&self, other: &$rhs) -> Option<Ordering> {
+            Some(self.data.0.cmp(&(other.data.0 as $st)))
+        }
+    }
+
+    impl PartialOrd<$name> for $rhs {
+        fn partial_cmp(&self, other: &$name) -> Option<Ordering> {
+            Some((self.data.0 as $st).cmp(&other.data.0))
+        }
+    }
+}}
+
 /// Declare a new fixed BitVector type named `$name`, backed by the underlying storage type `$st` 
 /// and accepting for its operations a list of valid rhs BA types `$rhs`.
 /// In addition, a list of sub storage type is also specified.
 macro_rules! decl_bv { ($name:ident, $st:ty, {$(($rhs:ident, $sst:ty)),*}) => {
     /// Fixed capacity bit vector backed by a single unsigned integer.
     /// Operation exceding the underlying capacity will panic.
-    #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+    #[derive(Copy, Clone, Debug)]
     pub struct $name {
         data: Wrapping<$st>,
         length: u8
@@ -430,66 +519,6 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$(($rhs:ident, $sst:ty)),*}) => {
         }
     }
 
-    $(
-        impl From<&'_ $rhs> for $name {
-            fn from(a: &'_ $rhs) -> $name {
-                $name {
-                    data: Wrapping(a.data.0 as $st),
-                    length: a.length
-                }
-            }
-        }
-
-        impl From<$rhs> for $name {
-            fn from(a: $rhs) -> $name {
-                $name::from(&a)
-            }
-        }
-
-        impl TryFrom<&'_ $name> for $rhs {
-            type Error = &'static str;
-            fn try_from(a: &'_ $name) -> Result<Self, Self::Error> {
-                Ok($rhs {
-                    data: Wrapping(<$sst>::try_from(a)?),
-                    length: a.length
-                })
-            }
-        }
-        
-        impl TryFrom<$name> for $rhs {
-            type Error = &'static str;
-            fn try_from(a: $name) -> Result<Self, Self::Error> {
-                return Ok(<$rhs>::try_from(&a)?);
-            }
-        }
-
-        impl From<$sst> for $name {
-            fn from(a: $sst) -> $name {
-                $name {
-                    data: Wrapping(a as $st),
-                    length: (std::mem::size_of::<$sst>() * 8) as u8
-                }
-            }
-        }
-
-        impl TryFrom<&'_ $name> for $sst {
-            type Error = &'static str;
-            fn try_from(a: &'_ $name) -> Result<Self, Self::Error> {
-                if a.len() > size_of::<$sst>() * 8 {
-                    return Err(concat!(stringify!($name), " is too large to convert into this type"));
-                }
-                return Ok(a.data.0 as $sst);
-            }
-        }
-
-        impl TryFrom<$name> for $sst {
-            type Error = &'static str;
-            fn try_from(a: $name) -> Result<Self, Self::Error> {
-                return Ok(<$sst>::try_from(&a)?);
-            }
-        }
-    )*
-
     impl From<$st> for $name {
         fn from(a: $st) -> $name {
             $name {
@@ -522,6 +551,10 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$(($rhs:ident, $sst:ty)),*}) => {
     }
 
     $(
+        impl_from!{$name, $st, $rhs, $sst}
+        impl_eq!{$name, $st, $rhs}
+        impl_ord!{$name, $st, $rhs}
+
         impl_op!{$name, $st, $rhs, BitAnd, bitand}
         impl_op!{$name, $st, $rhs, BitOr, bitor}
         impl_op!{$name, $st, $rhs, BitXor, bitxor}
@@ -635,10 +668,30 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$(($rhs:ident, $sst:ty)),*}) => {
             }
         }
     }
+
+    impl PartialEq for $name {
+        fn eq(&self, other: &$name) -> bool {
+            other.data.0 as $st == self.data.0
+        }
+    }
+
+    impl PartialOrd for $name {
+        fn partial_cmp(&self, other: &$name) -> Option<Ordering> {
+            Some(self.cmp(other))
+        }
+    }
+
+    impl Eq for $name {}
+
+    impl Ord for $name {
+        fn cmp(&self, other: &$name) -> Ordering {
+            self.data.0.cmp(&other.data.0)
+        }
+    }
 }}
 
-decl_bv! (BV8, u8, {});
-decl_bv! (BV16, u16, {(BV8, u8)});
+decl_bv! {BV8, u8, {}}
+decl_bv! {BV16, u16, {(BV8, u8)}}
 decl_bv! {BV32, u32, {(BV8, u8), (BV16, u16)}}
 decl_bv! {BV64, u64, {(BV8, u8), (BV16, u16), (BV32, u32)}}
 decl_bv! {BV128, u128, {(BV8, u8), (BV16, u16), (BV32, u32), (BV64, u64)}}

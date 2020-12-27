@@ -76,7 +76,7 @@ impl BVN {
         if Self::capacity_from_bit_len(self.length) < self.data.len() {
             // TODO: in place reallocation
             let mut new_data: Vec<usize> = repeat(0usize).take(Self::capacity_from_bit_len(self.length)).collect();
-            for i in 0..self.data.len() {
+            for i in 0..new_data.len() {
                 new_data[i] = self.data[i];
             }
             self.data = new_data.into_boxed_slice();
@@ -461,6 +461,54 @@ impl PartialOrd for BVN {
         Some(self.cmp(other))
     }
 }
+
+macro_rules! impl_eq { ({$(($rhs:ty, $st:ty)),+}) => {
+    $(
+        impl PartialEq<$rhs> for BVN {
+            fn eq(&self, other: &$rhs) -> bool {
+                let mut it = USizeStream::new(<$st>::from(other));
+                for i in 0..usize::max(self.len(), it.len()) {
+                    if *self.data.get(i).unwrap_or(&0) != it.next().unwrap_or(0) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+        }
+
+        impl PartialEq<BVN> for $rhs {
+            fn eq(&self, other: &BVN) -> bool {
+                other.eq(self)
+            }
+        }
+    )+
+}}
+
+macro_rules! impl_ord { ({$(($rhs:ty, $st:ty)),+}) => {
+    $(
+        impl PartialOrd<$rhs> for BVN {
+            fn partial_cmp(&self, other: &$rhs) -> Option<Ordering> {
+                let mut it = USizeStream::new(<$st>::from(other)).rev();
+                for i in (0..usize::max(self.len(), it.len())).rev() {
+                    match self.data.get(i).unwrap_or(&0).cmp(&it.next().unwrap_or(0)) {
+                        Ordering::Equal => continue,
+                        ord => return Some(ord)
+                    }
+                }
+                return Some(Ordering::Equal);
+            }
+        }
+
+        impl PartialOrd<BVN> for $rhs {
+            fn partial_cmp(&self, other: &BVN) -> Option<Ordering> {
+                other.partial_cmp(self).map(|o| o.reverse())
+            }
+        }
+    )+
+}}
+
+impl_eq!({(BV8, u8), (BV16, u16), (BV32, u32), (BV64, u64), (BV128, u128)});
+impl_ord!({(BV8, u8), (BV16, u16), (BV32, u32), (BV64, u64), (BV128, u128)});
 
 macro_rules! impl_shifts {({$($rhs:ty),+}) => {
     $(

@@ -105,6 +105,33 @@ fn read_write() {
 }
 
 #[test]
+fn capacity() {
+    for length in 1..=MAX_TESTED_SIZE {
+        let bv1 = random_bv(length);
+        let mut bv2 = bv1.clone();
+        bv2.reserve(length);
+        assert_eq!(bv1, bv2);
+        bv2.shrink_to_fit();
+        assert_eq!(bv1, bv2);
+    }
+}
+
+#[test]
+fn ord() {
+    for length in 1..=MAX_TESTED_SIZE {
+        assert!(BV::ones(length) > BV::zeros(length));
+        let bv1 = random_bv(length);
+        let bv2 = random_bv(length);
+        if BV::ones(length) - &bv1 >= bv2 {
+            assert!(bv1 <= &bv1 + &bv2);
+        }
+        else {
+            assert!(bv1 > &bv1 + &bv2);
+        }
+    }
+}
+
+#[test]
 fn get_set() {
     let mut rng = thread_rng();
 
@@ -242,22 +269,22 @@ fn not() {
 fn from_try_from() {
     let v: u8 = random();
     assert_eq!(v, BV::from(v).try_into().unwrap());
-    assert_eq!(BV8::from(v), BV::from(BV8::from(v)).try_into().unwrap());
+    assert_eq!(BV8::from(v), BV8::try_from(BV::from(BV8::from(v))).unwrap());
     let v: u16 = random();
     assert_eq!(v, BV::from(v).try_into().unwrap());
-    assert_eq!(BV16::from(v), BV::from(BV16::from(v)).try_into().unwrap());
+    assert_eq!(BV16::from(v), BV16::try_from(BV::from(BV16::from(v))).unwrap());
     let v: u32 = random();
     assert_eq!(v, BV::from(v).try_into().unwrap());
-    assert_eq!(BV32::from(v), BV::from(BV32::from(v)).try_into().unwrap());
+    assert_eq!(BV32::from(v), BV32::try_from(BV::from(BV32::from(v))).unwrap());
     let v: u64 = random();
     assert_eq!(v, BV::from(v).try_into().unwrap());
-    assert_eq!(BV64::from(v), BV::from(BV64::from(v)).try_into().unwrap());
+    assert_eq!(BV64::from(v), BV64::try_from(BV::from(BV64::from(v))).unwrap());
     let v: u128 = random();
     assert_eq!(v, BV::from(v).try_into().unwrap());
-    assert_eq!(BV128::from(v), BV::from(BV128::from(v)).try_into().unwrap());
+    assert_eq!(BV128::from(v), BV128::try_from(BV::from(BV128::from(v))).unwrap());
     for l in 128..=MAX_TESTED_SIZE {
         let v: BVN = random_bvn(l);
-        assert_eq!(v, BV::from(&v).into());
+        assert_eq!(v, BVN::from(BV::from(&v)));
     }
 }
 

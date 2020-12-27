@@ -1,4 +1,4 @@
-use std::iter::{ExactSizeIterator, Iterator};
+use std::iter::{ExactSizeIterator, DoubleEndedIterator, Iterator};
 use std::mem::size_of;
 use std::ops::{Shr, BitAnd};
 
@@ -38,7 +38,8 @@ impl Streamable for usize {
 }
 
 pub struct USizeStream<T> where T: Streamable {
-    idx: usize,
+    front_idx: usize,
+    back_idx: usize,
     data: T
 }
 
@@ -47,7 +48,8 @@ impl<T: Streamable> USizeStream<T> {
 
     pub fn new(t: T) -> USizeStream<T> {
         USizeStream::<T> {
-            idx: 0,
+            front_idx: 0,
+            back_idx: Self::LENGTH,
             data: t
         }
     }
@@ -55,23 +57,36 @@ impl<T: Streamable> USizeStream<T> {
     pub fn bit_length(&self) -> usize {
         size_of::<T>() * 8
     }
+
+    fn get(&self, idx: usize) -> usize {
+        (self.data >> (idx * size_of::<usize>() * 8)).static_usize_cast()
+    }
 }
 
 impl<T: Streamable> Iterator for USizeStream<T> {
     type Item = usize;
 
     fn next(&mut self) -> Option<usize> {
-        if self.idx < Self::LENGTH {
-            let r = (self.data >> (self.idx * size_of::<usize>() * 8)).static_usize_cast();
-            self.idx += 1;
-            return Some(r);
+        if self.front_idx < self.back_idx {
+            self.front_idx += 1;
+            return Some(self.get(self.front_idx - 1));
         }
         return None;
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (Self::LENGTH - self.idx, Some(Self::LENGTH - self.idx))
+        (self.back_idx - self.front_idx, Some(self.back_idx - self.front_idx))
     }
 }
 
 impl<T: Streamable> ExactSizeIterator for USizeStream<T> {}
+
+impl<T: Streamable> DoubleEndedIterator for USizeStream<T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.front_idx < self.back_idx {
+            self.back_idx -= 1;
+            return Some(self.get(self.back_idx));
+        }
+        return None;
+    }
+}
