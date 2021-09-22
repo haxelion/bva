@@ -12,8 +12,8 @@ use std::io::{Read, Write};
 use std::iter::repeat;
 use std::mem::size_of;
 use std::num::Wrapping;
-use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, 
-    Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
+use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Mul, 
+    MulAssign, Not, Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
 
 use crate::{Bit, BitVector, Endianness};
 
@@ -560,12 +560,14 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$(($rhs:ident, $sst:ty)),*}) => {
         impl_op!{$name, $st, $rhs, BitXor, bitxor}
         impl_op!{$name, $st, $rhs, Add, add}
         impl_op!{$name, $st, $rhs, Sub, sub}
+        impl_op!{$name, $st, $rhs, Mul, mul}
 
         impl_op_assign!{$name, $st, $rhs, BitAndAssign, bitand_assign}
         impl_op_assign!{$name, $st, $rhs, BitOrAssign, bitor_assign}
         impl_op_assign!{$name, $st, $rhs, BitXorAssign, bitxor_assign}
         impl_op_assign!{$name, $st, $rhs, AddAssign, add_assign}
         impl_op_assign!{$name, $st, $rhs, SubAssign, sub_assign}
+        impl_op_assign!{$name, $st, $rhs, MulAssign, mul_assign}
     )*
 
     impl_op!{$name, $st, $name, BitAnd, bitand}
@@ -573,12 +575,14 @@ macro_rules! decl_bv { ($name:ident, $st:ty, {$(($rhs:ident, $sst:ty)),*}) => {
     impl_op!{$name, $st, $name, BitXor, bitxor}
     impl_op!{$name, $st, $name, Add, add}
     impl_op!{$name, $st, $name, Sub, sub}
+    impl_op!{$name, $st, $name, Mul, mul}
 
     impl_op_assign!{$name, $st, $name, BitAndAssign, bitand_assign}
     impl_op_assign!{$name, $st, $name, BitOrAssign, bitor_assign}
     impl_op_assign!{$name, $st, $name, BitXorAssign, bitxor_assign}
     impl_op_assign!{$name, $st, $name, AddAssign, add_assign}
     impl_op_assign!{$name, $st, $name, SubAssign, sub_assign}
+    impl_op_assign!{$name, $st, $name, MulAssign, mul_assign}
 
     impl_shl!{$name, {u8, u16, u32, u64, u128, usize}}
     impl_shr!{$name, {u8, u16, u32, u64, u128, usize}}

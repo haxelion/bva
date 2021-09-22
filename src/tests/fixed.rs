@@ -44,11 +44,11 @@ fn get_set_inner<BV: BitVector>(capacity: usize) {
 
 #[test]
 fn get_set() {
-    get_set_inner::<BV8>(BV8::CAPACITY);
-    get_set_inner::<BV16>(BV16::CAPACITY);
-    get_set_inner::<BV32>(BV32::CAPACITY);
-    get_set_inner::<BV64>(BV64::CAPACITY);
-    get_set_inner::<BV128>(BV128::CAPACITY);
+    get_set_inner::<BV8>(BV8::capacity());
+    get_set_inner::<BV16>(BV16::capacity());
+    get_set_inner::<BV32>(BV32::capacity());
+    get_set_inner::<BV64>(BV64::capacity());
+    get_set_inner::<BV128>(BV128::capacity());
 }
 
 macro_rules! decl_push_pop_inner {($name:ident, $bv:ty, $st:ty) => {
@@ -79,11 +79,11 @@ decl_push_pop_inner!(push_pop_inner_bv128, BV128, u128);
 
 #[test]
 fn push_pop() {
-    push_pop_inner_bv8(BV8::CAPACITY);
-    push_pop_inner_bv16(BV16::CAPACITY);
-    push_pop_inner_bv32(BV32::CAPACITY);
-    push_pop_inner_bv64(BV64::CAPACITY);
-    push_pop_inner_bv128(BV128::CAPACITY);
+    push_pop_inner_bv8(BV8::capacity());
+    push_pop_inner_bv16(BV16::capacity());
+    push_pop_inner_bv32(BV32::capacity());
+    push_pop_inner_bv64(BV64::capacity());
+    push_pop_inner_bv128(BV128::capacity());
 }
 
 macro_rules! decl_shift_rot_inner {($name:ident, $bv:ty, $st:ty) => {
@@ -117,11 +117,11 @@ decl_shift_rot_inner!(shift_rot_inner_bv128, BV128, u128);
 
 #[test]
 fn shift_rot() {
-    shift_rot_inner_bv8(BV8::CAPACITY);
-    shift_rot_inner_bv16(BV16::CAPACITY);
-    shift_rot_inner_bv32(BV32::CAPACITY);
-    shift_rot_inner_bv64(BV64::CAPACITY);
-    shift_rot_inner_bv128(BV128::CAPACITY);
+    shift_rot_inner_bv8(BV8::capacity());
+    shift_rot_inner_bv16(BV16::capacity());
+    shift_rot_inner_bv32(BV32::capacity());
+    shift_rot_inner_bv64(BV64::capacity());
+    shift_rot_inner_bv128(BV128::capacity());
 }
 
 macro_rules! decl_resize_slice_inner {($name:ident, $bv:ty, $st:ty) => {
@@ -152,11 +152,11 @@ decl_resize_slice_inner!(resize_slice_inner_bv128, BV128, u128);
 
 #[test]
 fn resize_slice() {
-    resize_slice_inner_bv8(BV8::CAPACITY);
-    resize_slice_inner_bv16(BV16::CAPACITY);
-    resize_slice_inner_bv32(BV32::CAPACITY);
-    resize_slice_inner_bv64(BV64::CAPACITY);
-    resize_slice_inner_bv128(BV128::CAPACITY);
+    resize_slice_inner_bv8(BV8::capacity());
+    resize_slice_inner_bv16(BV16::capacity());
+    resize_slice_inner_bv32(BV32::capacity());
+    resize_slice_inner_bv64(BV64::capacity());
+    resize_slice_inner_bv128(BV128::capacity());
 }
 
 fn from_to_bytes_inner<BV: BitVector>(max_length: usize) {
@@ -175,11 +175,11 @@ fn from_to_bytes_inner<BV: BitVector>(max_length: usize) {
 
 #[test]
 fn from_to_bytes() {
-    from_to_bytes_inner::<BV8>(BV8::CAPACITY);
-    from_to_bytes_inner::<BV16>(BV16::CAPACITY);
-    from_to_bytes_inner::<BV32>(BV32::CAPACITY);
-    from_to_bytes_inner::<BV64>(BV64::CAPACITY);
-    from_to_bytes_inner::<BV128>(BV128::CAPACITY);
+    from_to_bytes_inner::<BV8>(BV8::capacity());
+    from_to_bytes_inner::<BV16>(BV16::capacity());
+    from_to_bytes_inner::<BV32>(BV32::capacity());
+    from_to_bytes_inner::<BV64>(BV64::capacity());
+    from_to_bytes_inner::<BV128>(BV128::capacity());
 }
 
 fn read_write_inner<BV: BitVector>(max_length: usize) {
@@ -205,11 +205,11 @@ fn read_write_inner<BV: BitVector>(max_length: usize) {
 
 #[test]
 fn read_write() {
-    read_write_inner::<BV8>(BV8::CAPACITY);
-    read_write_inner::<BV16>(BV16::CAPACITY);
-    read_write_inner::<BV32>(BV32::CAPACITY);
-    read_write_inner::<BV64>(BV64::CAPACITY);
-    read_write_inner::<BV128>(BV128::CAPACITY);
+    read_write_inner::<BV8>(BV8::capacity());
+    read_write_inner::<BV16>(BV16::capacity());
+    read_write_inner::<BV32>(BV32::capacity());
+    read_write_inner::<BV64>(BV64::capacity());
+    read_write_inner::<BV128>(BV128::capacity());
 }
 
 fn hex_inner<BV: BitVector>(max_length: usize) {
@@ -238,11 +238,11 @@ fn hex_inner<BV: BitVector>(max_length: usize) {
 
 #[test]
 fn hex() {
-    hex_inner::<BV8>(BV8::CAPACITY);
-    hex_inner::<BV16>(BV16::CAPACITY);
-    hex_inner::<BV32>(BV32::CAPACITY);
-    hex_inner::<BV64>(BV64::CAPACITY);
-    hex_inner::<BV128>(BV128::CAPACITY);
+    hex_inner::<BV8>(BV8::capacity());
+    hex_inner::<BV16>(BV16::capacity());
+    hex_inner::<BV32>(BV32::capacity());
+    hex_inner::<BV64>(BV64::capacity());
+    hex_inner::<BV128>(BV128::capacity());
 }
 
 
@@ -259,11 +259,11 @@ fn binary_inner<BV: BitVector>(max_length: usize) {
 
 #[test]
 fn binary() {
-    binary_inner::<BV8>(BV8::CAPACITY);
-    binary_inner::<BV16>(BV16::CAPACITY);
-    binary_inner::<BV32>(BV32::CAPACITY);
-    binary_inner::<BV64>(BV64::CAPACITY);
-    binary_inner::<BV128>(BV128::CAPACITY);
+    binary_inner::<BV8>(BV8::capacity());
+    binary_inner::<BV16>(BV16::capacity());
+    binary_inner::<BV32>(BV32::capacity());
+    binary_inner::<BV64>(BV64::capacity());
+    binary_inner::<BV128>(BV128::capacity());
 }
 
 macro_rules! decl_op_inner {($name:ident, $bv:ty, $st:ty) => {
@@ -424,9 +424,9 @@ fn shift_in_inner<BV: BitVector>(capacity: usize) {
 
 #[test]
 fn shift_in() {
-    shift_in_inner::<BV8>(BV8::CAPACITY);
-    shift_in_inner::<BV16>(BV16::CAPACITY);
-    shift_in_inner::<BV32>(BV32::CAPACITY);
-    shift_in_inner::<BV64>(BV64::CAPACITY);
-    shift_in_inner::<BV128>(BV128::CAPACITY);
+    shift_in_inner::<BV8>(BV8::capacity());
+    shift_in_inner::<BV16>(BV16::capacity());
+    shift_in_inner::<BV32>(BV32::capacity());
+    shift_in_inner::<BV64>(BV64::capacity());
+    shift_in_inner::<BV128>(BV128::capacity());
 }

@@ -13,7 +13,7 @@ use std::mem::size_of;
 use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, 
     Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
 
-use crate::{Bit, BitVector, Endianness};
+use crate::{Bit, BitVector, ConvertError, Endianness};
 use crate::fixed::{BV8, BV16, BV32, BV64, BV128};
 
 mod adapter;
@@ -105,7 +105,7 @@ impl BitVector for BVN {
         }
     }
 
-    fn from_binary<S: AsRef<str>>(string: S) -> Option<Self> {
+    fn from_binary<S: AsRef<str>>(string: S) -> Result<Self, ConvertError> {
         let length = string.as_ref().chars().count();
         let offset = (Self::BIT_UNIT - length % Self::BIT_UNIT) % Self::BIT_UNIT;
         let mut data: Vec<usize> = repeat(0usize).take(Self::capacity_from_bit_len(length)).collect();
@@ -115,16 +115,16 @@ impl BitVector for BVN {
             data[j] = (data[j] << 1) | match c {
                 '0' => 0,
                 '1' => 1,
-                _ => return None
+                _ => return Err(ConvertError::InvalidFormat(i))
             };
         }
-        return Some(Self {
+        Ok(Self {
             data: data.into_boxed_slice(),
             length
         })
     }
 
-    fn from_hex<S: AsRef<str>>(string: S) -> Option<Self> {
+    fn from_hex<S: AsRef<str>>(string: S) -> Result<Self, ConvertError> {
         let length = string.as_ref().chars().count();
         let offset = (Self::NIBBLE_UNIT - length % Self::NIBBLE_UNIT) % Self::NIBBLE_UNIT;
         let mut data: Vec<usize> = repeat(0usize).take(Self::capacity_from_byte_len((length + 1) / 2)).collect();
@@ -133,16 +133,16 @@ impl BitVector for BVN {
             let j = data.len() - 1 - (i + offset) / Self::NIBBLE_UNIT;
             data[j] = (data[j] << 4) | match c.to_digit(16) {
                 Some(d) => d as usize,
-                None => return None
+                None => return Err(ConvertError::InvalidFormat(i))
             };
         }  
-        Some(BVN {
+        Ok(Self {
             data: data.into_boxed_slice(),
             length: length * 4
         })
     }
 
-    fn from_bytes<B: AsRef<[u8]>>(bytes: B, endianness: Endianness) -> Self {
+    fn from_bytes<B: AsRef<[u8]>>(bytes: B, endianness: Endianness) -> Result<Self, ConvertError> {
         let byte_length = bytes.as_ref().len();
         let mut data: Vec<usize> = repeat(0usize).take(Self::capacity_from_byte_len(byte_length)).collect();
         match endianness {
@@ -161,10 +161,10 @@ impl BitVector for BVN {
                 }
             }
         }
-        BVN {
+        Ok(Self {
             data: data.into_boxed_slice(),
             length: byte_length * 8
-        }
+        })
     }
 
     fn to_vec(&self, endianness: Endianness) -> Vec<u8> {
@@ -186,11 +186,10 @@ impl BitVector for BVN {
     }
 
     fn read<R: Read>(reader: &mut R, length: usize, endianness: Endianness) -> std::io::Result<Self> {
-        // TODO: double allocation could be reduced to a single one with endianness switch in place
         let num_bytes = (length + 7) / 8;
         let mut buf: Vec<u8> = repeat(0u8).take(num_bytes).collect();
         reader.read_exact(&mut buf[..])?;
-        let mut bv = Self::from_bytes(&buf[..], endianness);
+        let mut bv = Self::from_bytes(&buf[..], endianness).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
         if let Some(l) = bv.data.last_mut() {
             *l &= Self::mask(length.wrapping_sub(1) % Self::BIT_UNIT + 1);
         }
@@ -352,9 +351,9 @@ impl Binary for BVN {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = String::with_capacity(self.length);
         for i in (0..self.length).rev() {
-            match self.data[i / (size_of::<usize>() * 8)] >> (i % (size_of::<usize>() * 8)) & 1 {
-                0 => s.push('0'),
-                1 => s.push('1'),
+            match self.get(i) {
+                Bit::Zero => s.push('0'),
+                Bit::One => s.push('1'),
                 _ => unreachable!()
             }
         }
@@ -415,12 +414,12 @@ impl UpperHex for BVN {
 }
 
 impl Octal for BVN {
-fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         const SEMI_NIBBLE: [char;8] = ['0', '1', '2', '3', '4', '5', '6', '7'];
         let length = (self.length + 2) / 3;
         let mut s = String::with_capacity(length);
         for i in (0..length).rev() {
-            s.push(SEMI_NIBBLE[(self.data[i / Self::SEMI_NIBBLE_UNIT] >> ((i % Self::SEMI_NIBBLE_UNIT) * 4) & 0xf) as usize]);
+            s.push(SEMI_NIBBLE[(self.data[i / Self::SEMI_NIBBLE_UNIT] >> ((i % Self::SEMI_NIBBLE_UNIT) * 4) & 0x7) as usize]);
         }
         if f.alternate() {
             return write!(f, "0x{}", s.as_str());
