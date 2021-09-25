@@ -46,7 +46,7 @@ impl<I: Integer, const N: usize> BV<I, N> {
     fn mask(length: usize) -> I {
         // Re-implementation of checked_shr since we don't have a generic trait for it.
         if length == 0 {
-            I::MAX
+            I::ZERO
         }
         else {
             I::MAX.shr(Self::BIT_UNIT - length)
@@ -56,6 +56,7 @@ impl<I: Integer, const N: usize> BV<I, N> {
 
 impl<I: Integer, const N: usize> BitVector for BV<I, N> {
     fn zeros(length: usize) -> Self {
+        debug_assert!(length <= Self::capacity());
         Self {
             data: [I::ZERO; N],
             length
@@ -63,8 +64,13 @@ impl<I: Integer, const N: usize> BitVector for BV<I, N> {
     }
 
     fn ones(length: usize) -> Self {
+        debug_assert!(length <= Self::capacity());
+        let mut data = [I::MAX; N];
+        for i in 0..N {
+            data[i] &= Self::mask(usize::min(length - usize::min(length, i * Self::BIT_UNIT), Self::BIT_UNIT));
+        }
         Self {
-            data: [I::MAX; N],
+            data,
             length
         }
     }
@@ -187,8 +193,8 @@ impl<I: Integer, const N: usize> BitVector for BV<I, N> {
 
     fn set(&mut self, index: usize, bit: Bit) {
         debug_assert!(index < self.length);
-        let b: I = (I::from(bit)) << (index % Self::BIT_UNIT).into();
-        let mask: I = !(I::ONE << (index % Self::BIT_UNIT).into());
+        let b: I = (I::from(bit)) << (index % Self::BIT_UNIT);
+        let mask: I = !(I::ONE << (index % Self::BIT_UNIT));
         self.data[index / Self::BIT_UNIT] = (self.data[index / Self::BIT_UNIT] & mask) | b;
     }
 
@@ -449,61 +455,66 @@ impl<I: Integer, const N: usize> fmt::UpperHex for BV<I, N> {
     }
 }
 
-// TODO: Generic implem doesn't compile, need to macro-ize
-impl<I1: Integer, I2: Integer, const N: usize> TryFrom<I2> for BV<I1, N>
-    where I1: StaticCast<I2>
-{
-    type Error = ConvertError;
+macro_rules! impl_tryfrom { ($($type:ty),+) => {
+    $(
+        impl<I: Integer, const N: usize> TryFrom<$type> for BV<I, N>
+            where I: StaticCast<$type>
+        {
+            type Error = ConvertError;
 
-    fn try_from(value: I2) -> Result<Self, Self::Error> {
-        // Branch should be optimized at compile time
-        if size_of::<I1>() >= size_of::<I2>() {
-            let mut data = [I1::ZERO; N];
-            data[0] = value.cast_to();
-            return Ok(BV {
-                data,
-                length: size_of::<I2>() * 8
-            });
-        }
-        else {
-            // Check if I2 overflow the bit vector
-            if value.shr(Self::capacity()) != I2::ZERO {
-                return Err(ConvertError::NotEnoughCapacity);
+            fn try_from(int: $type) -> Result<Self, Self::Error> {
+                // Branch should be optimized at compile time
+                if size_of::<I>() >= size_of::<$type>() {
+                    let mut data = [I::ZERO; N];
+                    data[0] = I::cast_from(int);
+                    return Ok(BV {
+                        data,
+                        length: size_of::<$type>() * 8
+                    });
+                }
+                else {
+                    // Check if value overflow the bit vector
+                    if int.shr(Self::capacity()) != 0 {
+                        return Err(ConvertError::NotEnoughCapacity);
+                    }
+                    let mut data = [I::ZERO; N];
+                    for i in 0..N {
+                        data[i] = I::cast_from(int.shr(i * Self::BIT_UNIT));
+                    }
+                    return Ok(BV {
+                        data,
+                        length: Self::capacity()
+                    });
+                }
             }
-            let mut data = [I1::ZERO; N];
-            for i in 0..N {
-                data[i] = value.shr(i * Self::BIT_UNIT).cast_to();
-            }
-            return Ok(BV {
-                data,
-                length: Self::capacity()
-            });
         }
-    }
-}
 
-impl<I1: Integer, I2: Integer, const N: usize> TryFrom<BV<I1, N>> for I2
-    where I2: StaticCast<I1>
-{
-    type Error = ConvertError;
+        impl<I: Integer, const N: usize> TryFrom<BV<I, N>> for $type
+            where $type: StaticCast<I>
+        {
+            type Error = ConvertError;
 
-    fn try_from(value: BV<I1, N>) -> Result<Self, Self::Error> {
-        // Check if the bit vector overflow I2
-        if value.len() > size_of::I2() * 8 {
-            return Err(ConvertError::NotEnoughCapacity);
-        }
-        if size_of::<I1>() >= size_of::<I2>() {
-            return Ok(data[0].cast_to());
-        }
-        else {
-            let mut value = I2::ZERO;
-            for i in 0..N {
-                value &= data[i].cast_to().shl(i * Self::BIT_UNIT);
+            fn try_from(bv: BV<I, N>) -> Result<Self, Self::Error> {
+                // Check if the bit vector overflow I
+                if bv.len() > size_of::<$type>() * 8 {
+                    return Err(ConvertError::NotEnoughCapacity);
+                }
+                if size_of::<I>() >= size_of::<$type>() {
+                    return Ok(<$type>::cast_from(bv.data[0]));
+                }
+                else {
+                    let mut value = 0;
+                    for i in 0..N {
+                        value &= <$type>::cast_from(bv.data[i]).shl(i * BV::<I, N>::BIT_UNIT);
+                    }
+                    return Ok(value);
+                }
             }
-            return Ok(value);
         }
-    }
-}
+    )+
+}}
+
+impl_tryfrom!(u8, u16, u32, u64, u128, usize);
 
 impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Add<BV<I2, N2>> for BV<I1, N1> 
     where I1: StaticCast<I2>,
