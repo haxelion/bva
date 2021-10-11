@@ -1,3 +1,10 @@
+use std::fmt;
+use std::mem::size_of;
+use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, 
+    Div, DivAssign, Mul, MulAssign, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
+
+use crate::Bit;
+
 pub trait StaticCast<U> {
     fn cast_from(u: U) -> Self;
     fn cast_to(self) -> U;
@@ -50,3 +57,30 @@ macro_rules! impl_constants {
 }
 
 impl_constants!(u8, u16, u32, u64, u128, usize);
+
+
+pub trait Integer : Add<Output=Self> + AddAssign + BitAnd<Output=Self> + BitAndAssign +
+    BitOr<Output=Self> + BitOrAssign + BitXor<Output=Self> + BitXorAssign + Constants + Copy + 
+    fmt::Debug + Div<Output=Self> + DivAssign + Eq + From<Bit> + Into<Bit> + Mul<Output=Self> +
+    MulAssign+ Not<Output=Self> + Ord + PartialEq + PartialOrd + Shl<usize, Output=Self> + 
+    ShlAssign<usize> + Shr<usize, Output=Self> + ShrAssign<usize> + Sub<Output=Self> + SubAssign + 
+    Sized + StaticCast<u8> {
+        fn carry_add(&mut self, rhs: Self, carry: Self) -> Self;
+    }
+
+macro_rules! impl_integer {
+    ($($type:ty),+) => {
+        $(
+            impl Integer for $type {
+                fn carry_add(&mut self, rhs: Self, carry: Self) -> Self {
+                    let (v1, c1) = self.overflowing_add(rhs);
+                    let (v2, c2) = v1.overflowing_add(carry);
+                    *self = v2;
+                    return (c1 || c2) as Self;
+                }
+            }
+        )+
+    }
+}
+
+impl_integer!(u8, u16, u32, u64, u128, usize);

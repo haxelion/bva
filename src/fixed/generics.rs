@@ -2,26 +2,11 @@ use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt;
 use std::iter::repeat;
-use std::mem::size_of;
-use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, 
-    Div, DivAssign, Mul, MulAssign, Not, Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
+use std::mem::{size_of, transmute};
+use std::ops::{Add, Range, Shl, Shr};
 
 use crate::{Bit, BitVector, ConvertError, Endianness};
-use crate::utils::{Constants, StaticCast};
-
-pub trait Integer : Add<Output=Self> + AddAssign + BitAnd<Output=Self> + BitAndAssign +
-    BitOr<Output=Self> + BitOrAssign + BitXor<Output=Self> + BitXorAssign + Constants + Copy + 
-    fmt::Debug + Div<Output=Self> + DivAssign + Eq + From<Bit> + Into<Bit> + Mul<Output=Self> +
-    MulAssign+ Not<Output=Self> + Ord + PartialEq + PartialOrd + Shl<usize, Output=Self> + 
-    ShlAssign<usize> + Shr<usize, Output=Self> + ShrAssign<usize> + Sub<Output=Self> + SubAssign + 
-    Sized + StaticCast<u8> {}
-
-impl Integer for u8 {}
-impl Integer for u16 {}
-impl Integer for u32 {}
-impl Integer for u64 {}
-impl Integer for u128 {}
-impl Integer for usize {}
+use crate::utils::{Constants, Integer, StaticCast};
 
 #[derive(Copy, Clone, Debug)]
 pub struct BV<I: Integer, const N: usize> {
@@ -52,6 +37,12 @@ impl<I: Integer, const N: usize> BV<I, N> {
             I::MAX.shr(Self::BIT_UNIT - length)
         }
     }
+
+    fn mod2n(&mut self, n: usize) {
+        for i in 0..N {
+            self.data[i] &= Self::mask(usize::min(n - usize::min(n, i * Self::BIT_UNIT), Self::BIT_UNIT));
+        }
+    }
 }
 
 impl<I: Integer, const N: usize> BitVector for BV<I, N> {
@@ -65,14 +56,12 @@ impl<I: Integer, const N: usize> BitVector for BV<I, N> {
 
     fn ones(length: usize) -> Self {
         debug_assert!(length <= Self::capacity());
-        let mut data = [I::MAX; N];
-        for i in 0..N {
-            data[i] &= Self::mask(usize::min(length - usize::min(length, i * Self::BIT_UNIT), Self::BIT_UNIT));
-        }
-        Self {
-            data,
+        let mut ones = Self {
+            data: [I::MAX; N],
             length
-        }
+        };
+        ones.mod2n(length);
+        return ones;
     }
 
     fn from_binary<S: AsRef<str>>(string: S) -> Result<Self, ConvertError> {
@@ -80,12 +69,10 @@ impl<I: Integer, const N: usize> BitVector for BV<I, N> {
         if length > Self::capacity() {
             return Err(ConvertError::NotEnoughCapacity);
         }
-
-        let offset = (Self::BIT_UNIT - length % Self::BIT_UNIT) % Self::BIT_UNIT;
         let mut data = [I::ZERO; N];
 
         for (i, c) in string.as_ref().chars().enumerate() {
-            let j = data.len() - 1 - (i + offset) / Self::BIT_UNIT;
+            let j = (length - 1 - i) / Self::BIT_UNIT;
             data[j] = (data[j] << 1) | match c {
                 '0' => I::ZERO,
                 '1' => I::ONE,
@@ -103,12 +90,10 @@ impl<I: Integer, const N: usize> BitVector for BV<I, N> {
         if length * 4 > Self::capacity() {
             return Err(ConvertError::NotEnoughCapacity);
         }
-
-        let offset = (Self::NIBBLE_UNIT - length % Self::NIBBLE_UNIT) % Self::NIBBLE_UNIT;
         let mut data = [I::ZERO; N];
 
         for (i, c) in string.as_ref().chars().enumerate() {
-            let j = data.len() - 1 - (i + offset) / Self::NIBBLE_UNIT;
+            let j = (length - 1 - i) / Self::NIBBLE_UNIT;
             data[j] = (data[j] << 4) | match c.to_digit(16) {
                 Some(d) => I::cast_from(d as u8),
                 None => return Err(ConvertError::InvalidFormat(i))
@@ -129,17 +114,29 @@ impl<I: Integer, const N: usize> BitVector for BV<I, N> {
 
         match endianness {
             Endianness::LE => {
-                let offset = (Self::BYTE_UNIT - byte_length % Self::BYTE_UNIT) % Self::BYTE_UNIT;
-                for (i, b) in bytes.as_ref().iter().rev().enumerate() {
-                    let j = data.len() - 1 - (i + offset) / Self::BYTE_UNIT;
-                    data[j] = (data[j] << 8) | I::cast_from(*b);
+                if size_of::<I>() == 1 {
+                    for (i, b) in bytes.as_ref().iter().enumerate().rev() {
+                        data[i] = I::cast_from(*b);
+                    }
+                }
+                else {
+                    for (i, b) in bytes.as_ref().iter().enumerate().rev() {
+                        let j = i / Self::BYTE_UNIT;
+                        data[j] = (data[j] << 8) | I::cast_from(*b);
+                    }
                 }
             },
             Endianness::BE => {
-                let offset = (Self::BYTE_UNIT - byte_length % Self::BYTE_UNIT) % Self::BYTE_UNIT;
-                for (i, b) in bytes.as_ref().iter().enumerate() {
-                    let j = data.len() - 1 - (i + offset) / Self::BYTE_UNIT;
-                    data[j] = (data[j] << 8) | I::cast_from(*b);
+                if size_of::<I>() == 1 {
+                    for (i, b) in bytes.as_ref().iter().enumerate() {
+                        data[byte_length - 1 - i] = I::cast_from(*b);
+                    }
+                }
+                else {
+                    for (i, b) in bytes.as_ref().iter().enumerate() {
+                        let j = (byte_length - 1 - i) / Self::BYTE_UNIT;
+                        data[j] = (data[j] << 8) | I::cast_from(*b);
+                    }
                 }
             }
         }
@@ -231,18 +228,17 @@ impl<I: Integer, const N: usize> BitVector for BV<I, N> {
 
     fn push(&mut self, bit: Bit) {
         debug_assert!(self.length < Self::capacity());
-        self.set(self.length, bit);
         self.length += 1;
+        self.set(self.length - 1, bit);
     }
 
     fn pop(&mut self) -> Option<Bit> {
+        let mut b = None;
         if self.length > 0 {
+            b = Some(self.get(self.length - 1));
             self.length -= 1;
-            Some(self.get(self.length))
         }
-        else {
-            None
-        }
+        return b;
     }
 
     fn resize(&mut self, new_length: usize, bit: Bit) {
@@ -505,7 +501,7 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
                 else {
                     let mut value = 0;
                     for i in 0..N {
-                        value &= <$type>::cast_from(bv.data[i]).shl(i * BV::<I, N>::BIT_UNIT);
+                        value |= <$type>::cast_from(bv.data[i]).shl(i * BV::<I, N>::BIT_UNIT);
                     }
                     return Ok(value);
                 }
@@ -521,39 +517,36 @@ impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Add<BV<I2, N2>>
 {
     type Output = BV<I1, N1>;
 
-    fn add(self, rhs: BV<I2, N2>) -> Self::Output {
-        // Branch should be optimized at compile time
-        if size_of::<I1>() < size_of::<I2>() {
-            let f = size_of::<I2>() / size_of::<I1>();
-            let mut res = self.data;
-            for i in 0..usize::min(N1, N2*f) {
-                res[i].add_assign(I1::cast_from(rhs.data[i / f].shl((i & f) * size_of::<I1>() * 8)));
-            }
-            BV {
-                data: res,
-                length: self.length
-            }
-        }
-        else if size_of::<I1>() > size_of::<I2>() {
-            let f = size_of::<I1>() / size_of::<I2>();
-            let mut res = self.data;
-            for i in 0..usize::min(N1*f, N2) {
-                res[i/f].add_assign(I1::cast_from(rhs.data[i]).shr((i & f) * size_of::<I2>() * 8));
-            }
-            BV {
-                data: res,
-                length: self.length
-            }
-        }
-        else { // size_of::<I1>() == size_of::<I2>()
-            let mut res = self.data;
+    fn add(mut self, rhs: BV<I2, N2>) -> Self::Output {
+        if size_of::<I1>() == size_of::<I2>() {
+            let mut carry = I1::ZERO;
+
             for i in 0..usize::min(N1, N2) {
-                res[i].add_assign(I1::cast_from(rhs.data[i]));
+                carry = self.data[i].carry_add(I1::cast_from(rhs.data[i]), carry);
             }
-            BV {
-                data: res,
-                length: self.length
+            self.mod2n(self.len());
+
+            return self;
+        }
+        else {
+            let mut carry = I1::ZERO;
+            let (p, m, s) = unsafe { rhs.data.align_to::<I1>() };
+            debug_assert!(p.is_empty()); // BV data should always be aligned
+
+            for i in 0..usize::min(N1, m.len()) {
+                carry = self.data[i].carry_add(m[i], carry);
             }
+            // Addition of the final carry and of the remainder suffix, this operation can't possibly carry
+            if N1 > m.len() {
+                let mut rem = I1::ZERO;
+                for i in 0..s.len() {
+                    rem = rem.shl(BV::<I2, N2>::BIT_UNIT).bitor(I1::cast_from(s[i]));
+                }
+                self.data[m.len()].carry_add(rem, carry);
+            }
+            self.mod2n(self.len());
+
+            return self;
         }
     }
 }

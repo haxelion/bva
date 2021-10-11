@@ -8,7 +8,7 @@ use rand::{random, thread_rng};
 use rand::seq::SliceRandom;
 
 use crate::{Bit, BitVector, Endianness};
-use crate::fixed::{BV8, BV16, BV32, BV64, BV128};
+use crate::fixed::{BV8, BV16, BV32, BV64, BV128, BV192, BV256, BV320, BV384, BV448, BV512};
 
 fn random_bv<B: BitVector>(length: usize) -> B {
     let mut bv = B::zeros(length);
@@ -50,6 +50,12 @@ fn get_set() {
     get_set_inner::<BV32>(BV32::capacity());
     get_set_inner::<BV64>(BV64::capacity());
     get_set_inner::<BV128>(BV128::capacity());
+    get_set_inner::<BV192>(BV192::capacity());
+    get_set_inner::<BV256>(BV256::capacity());
+    get_set_inner::<BV320>(BV320::capacity());
+    get_set_inner::<BV384>(BV384::capacity());
+    get_set_inner::<BV448>(BV448::capacity());
+    get_set_inner::<BV512>(BV512::capacity());
 }
 
 macro_rules! decl_push_pop_inner {($name:ident, $bv:ty, $st:ty) => {
@@ -184,6 +190,12 @@ fn from_to_bytes() {
     from_to_bytes_inner::<BV32>(BV32::capacity());
     from_to_bytes_inner::<BV64>(BV64::capacity());
     from_to_bytes_inner::<BV128>(BV128::capacity());
+    from_to_bytes_inner::<BV192>(BV192::capacity());
+    from_to_bytes_inner::<BV256>(BV256::capacity());
+    from_to_bytes_inner::<BV320>(BV320::capacity());
+    from_to_bytes_inner::<BV384>(BV384::capacity());
+    from_to_bytes_inner::<BV448>(BV448::capacity());
+    from_to_bytes_inner::<BV512>(BV512::capacity());
 }
 
 fn read_write_inner<B: BitVector>(max_length: usize) {
@@ -214,6 +226,12 @@ fn read_write() {
     read_write_inner::<BV32>(BV32::capacity());
     read_write_inner::<BV64>(BV64::capacity());
     read_write_inner::<BV128>(BV128::capacity());
+    read_write_inner::<BV192>(BV192::capacity());
+    read_write_inner::<BV256>(BV256::capacity());
+    read_write_inner::<BV320>(BV320::capacity());
+    read_write_inner::<BV384>(BV384::capacity());
+    read_write_inner::<BV448>(BV448::capacity());
+    read_write_inner::<BV512>(BV512::capacity());
 }
 
 fn hex_inner<B: BitVector>(max_length: usize) {
@@ -247,6 +265,12 @@ fn hex() {
     hex_inner::<BV32>(BV32::capacity());
     hex_inner::<BV64>(BV64::capacity());
     hex_inner::<BV128>(BV128::capacity());
+    hex_inner::<BV192>(BV192::capacity());
+    hex_inner::<BV256>(BV256::capacity());
+    hex_inner::<BV320>(BV320::capacity());
+    hex_inner::<BV384>(BV384::capacity());
+    hex_inner::<BV448>(BV448::capacity());
+    hex_inner::<BV512>(BV512::capacity());
 }
 
 
@@ -268,6 +292,12 @@ fn binary() {
     binary_inner::<BV32>(BV32::capacity());
     binary_inner::<BV64>(BV64::capacity());
     binary_inner::<BV128>(BV128::capacity());
+    binary_inner::<BV192>(BV192::capacity());
+    binary_inner::<BV256>(BV256::capacity());
+    binary_inner::<BV320>(BV320::capacity());
+    binary_inner::<BV384>(BV384::capacity());
+    binary_inner::<BV448>(BV448::capacity());
+    binary_inner::<BV512>(BV512::capacity());
 }
 
 /*
@@ -435,4 +465,10 @@ fn shift_in() {
     shift_in_inner::<BV32>(BV32::capacity());
     shift_in_inner::<BV64>(BV64::capacity());
     shift_in_inner::<BV128>(BV128::capacity());
+    shift_in_inner::<BV192>(BV192::capacity());
+    shift_in_inner::<BV256>(BV256::capacity());
+    shift_in_inner::<BV320>(BV320::capacity());
+    shift_in_inner::<BV384>(BV384::capacity());
+    shift_in_inner::<BV448>(BV448::capacity());
+    shift_in_inner::<BV512>(BV512::capacity());
 }
