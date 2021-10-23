@@ -3,7 +3,8 @@ use std::convert::TryFrom;
 use std::fmt;
 use std::iter::repeat;
 use std::mem::size_of;
-use std::ops::{Add, AddAssign, Not, Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
+use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, 
+    Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
 
 use crate::{Bit, BitVector, ConvertError, Endianness};
 use crate::utils::{Constants, Integer, StaticCast};
@@ -526,7 +527,7 @@ impl<I: Integer, const N: usize> Not for BV<I, N> {
 
 impl<I: Integer, const N: usize> Not for &'_ BV<I, N> {
     type Output = BV<I, N>;
-    
+
     fn not(self) -> BV<I, N> {
         return (*self).not();
     }
@@ -659,89 +660,94 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
 
 impl_shifts!({u8, u16, u32, u64, u128, usize});
 
-impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> AddAssign<&BV<I2, N2>> for BV<I1, N1> 
-    where I1: StaticCast<I2>,
-{
-    fn add_assign(&mut self, rhs: &BV<I2, N2>) {
-        if size_of::<I1>() == size_of::<I2>() {
-            let mut carry = I1::ZERO;
-
-            for i in 0..usize::min(N1, N2) {
-                carry = self.data[i].carry_add(I1::cast_from(rhs.data[i]), carry);
-            }
-            self.mod2n(self.len());
-        }
-        else {
-            let mut carry = I1::ZERO;
-            // FIXME: This actually would not work on big endian architecture ...
-            let (p, m, s) = unsafe { rhs.data.align_to::<I1>() };
-            debug_assert!(p.is_empty()); // BV data should always be aligned
-
-            for i in 0..usize::min(N1, m.len()) {
-                carry = self.data[i].carry_add(m[i], carry);
-            }
-            // Addition of the final carry and of the remainder suffix, this operation can't possibly carry
-            if N1 > m.len() {
-                let mut rem = I1::ZERO;
-                for i in 0..s.len() {
-                    rem = rem.shl(BV::<I2, N2>::BIT_UNIT).bitor(I1::cast_from(s[i]));
+macro_rules! impl_binop_assign { ($trait:ident, $method:ident) => {
+    impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<&BV<I2, N2>> for BV<I1, N1> 
+        where I1: StaticCast<I2>,
+    {
+        fn $method(&mut self, rhs: &BV<I2, N2>) {
+            if size_of::<I1>() == size_of::<I2>() {
+                for i in 0..usize::min(N1, N2) {
+                    self.data[i].$method(I1::cast_from(rhs.data[i]));
                 }
-                self.data[m.len()].carry_add(rem, carry);
             }
-            self.mod2n(self.len());
-        }
-    }
-}
+            else {
+                // FIXME: This actually would not work on big endian architecture ...
+                let (p, m, s) = unsafe { rhs.data.align_to::<I1>() };
+                debug_assert!(p.is_empty()); // BV data should always be aligned
 
-impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> AddAssign<BV<I2, N2>> for BV<I1, N1> 
-    where I1: StaticCast<I2>,
-{
-    fn add_assign(&mut self, rhs: BV<I2, N2>) {
-        self.add_assign(&rhs);
-    }
-}
-
-impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> SubAssign<&BV<I2, N2>> for BV<I1, N1> 
-    where I1: StaticCast<I2>,
-{
-    fn sub_assign(&mut self, rhs: &BV<I2, N2>) {
-        if size_of::<I1>() == size_of::<I2>() {
-            let mut carry = I1::ZERO;
-
-            for i in 0..usize::min(N1, N2) {
-                carry = self.data[i].carry_sub(I1::cast_from(rhs.data[i]), carry);
-            }
-            self.mod2n(self.len());
-        }
-        else {
-            let mut carry = I1::ZERO;
-            // FIXME: This actually would not work on big endian architecture ...
-            let (p, m, s) = unsafe { rhs.data.align_to::<I1>() };
-            debug_assert!(p.is_empty()); // BV data should always be aligned
-
-            for i in 0..usize::min(N1, m.len()) {
-                carry = self.data[i].carry_sub(m[i], carry);
-            }
-            // Addition of the final carry and of the remainder suffix, this operation can't possibly carry
-            if N1 > m.len() {
-                let mut rem = I1::ZERO;
-                for i in 0..s.len() {
-                    rem = rem.shl(BV::<I2, N2>::BIT_UNIT).bitor(I1::cast_from(s[i]));
+                for i in 0..usize::min(N1, m.len()) {
+                    self.data[i].$method(m[i]);
                 }
-                self.data[m.len()].carry_sub(rem, carry);
+                if N1 > m.len() {
+                    let mut rem = I1::ZERO;
+                    for i in 0..s.len() {
+                        rem = rem.shl(BV::<I2, N2>::BIT_UNIT).bitor(I1::cast_from(s[i]));
+                    }
+                    self.data[m.len()].$method(rem);
+                }
             }
-            self.mod2n(self.len());
         }
     }
-}
 
-impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> SubAssign<BV<I2, N2>> for BV<I1, N1> 
-    where I1: StaticCast<I2>,
-{
-    fn sub_assign(&mut self, rhs: BV<I2, N2>) {
-        self.sub_assign(&rhs);
+    impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<BV<I2, N2>> for BV<I1, N1> 
+        where I1: StaticCast<I2>,
+    {
+        fn $method(&mut self, rhs: BV<I2, N2>) {
+            self.$method(&rhs);
+        }
     }
-}
+}}
+
+impl_binop_assign!(BitAndAssign, bitand_assign);
+impl_binop_assign!(BitOrAssign, bitor_assign);
+impl_binop_assign!(BitXorAssign, bitxor_assign);
+
+macro_rules! impl_addsub_assign { ($trait:ident, $method:ident, $carry_method:ident) => {
+    impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<&BV<I2, N2>> for BV<I1, N1> 
+        where I1: StaticCast<I2>,
+    {
+        fn $method(&mut self, rhs: &BV<I2, N2>) {
+            if size_of::<I1>() == size_of::<I2>() {
+                let mut carry = I1::ZERO;
+
+                for i in 0..usize::min(N1, N2) {
+                    carry = self.data[i].$carry_method(I1::cast_from(rhs.data[i]), carry);
+                }
+                self.mod2n(self.len());
+            }
+            else {
+                let mut carry = I1::ZERO;
+                // FIXME: This actually would not work on big endian architecture ...
+                let (p, m, s) = unsafe { rhs.data.align_to::<I1>() };
+                debug_assert!(p.is_empty()); // BV data should always be aligned
+
+                for i in 0..usize::min(N1, m.len()) {
+                    carry = self.data[i].$carry_method(m[i], carry);
+                }
+                // Addition of the final carry and of the remainder suffix, this operation can't possibly carry
+                if N1 > m.len() {
+                    let mut rem = I1::ZERO;
+                    for i in 0..s.len() {
+                        rem = rem.shl(BV::<I2, N2>::BIT_UNIT).bitor(I1::cast_from(s[i]));
+                    }
+                    self.data[m.len()].$carry_method(rem, carry);
+                }
+                self.mod2n(self.len());
+            }
+        }
+    }
+
+    impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<BV<I2, N2>> for BV<I1, N1> 
+        where I1: StaticCast<I2>,
+    {
+        fn $method(&mut self, rhs: BV<I2, N2>) {
+            self.$method(&rhs);
+        }
+    }
+}}
+
+impl_addsub_assign!(AddAssign, add_assign, carry_add);
+impl_addsub_assign!(SubAssign, sub_assign, carry_sub);
 
 macro_rules! impl_op { ($trait:ident, $method:ident, $assign_method:ident) => {
     impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<BV<I2, N2>> for BV<I1, N1>
@@ -784,5 +790,8 @@ macro_rules! impl_op { ($trait:ident, $method:ident, $assign_method:ident) => {
 }}
 
 
+impl_op!(BitAnd, bitand, bitand_assign);
+impl_op!(BitOr, bitor, bitor_assign);
+impl_op!(BitXor, bitxor, bitxor_assign);
 impl_op!(Add, add, add_assign);
 impl_op!(Sub, sub, sub_assign);
