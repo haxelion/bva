@@ -302,22 +302,25 @@ fn binary() {
     binary_inner::<BV512>(BV512::capacity());
 }
 
-/*
+
 macro_rules! decl_op_inner {($name:ident, $bv:ty, $st:ty) => {
     fn $name() {
         for i in 1..=(size_of::<$st>() * 8) {
             let mask = Wrapping(<$st>::MAX) >> (size_of::<$st>() * 8 - i);
             let a = Wrapping(random::<$st>()) & mask;
             let mut b = Wrapping(random::<$st>()) & mask;
-            let bva = <$bv>::from(a.0).copy_slice(0..i);
-            let mut bvb = <$bv>::from(b.0).copy_slice(0..i);
+            let bva = <$bv>::try_from(a.0).unwrap().copy_slice(0..i);
+            let mut bvb = <$bv>::try_from(b.0).unwrap().copy_slice(0..i);
 
             // Test non assign variant first
+            /*
             assert_eq!(((!a) & mask).0, <$st>::from(!bva));
             assert_eq!(((a & b) & mask).0, <$st>::from(bva & bvb));
             assert_eq!(((a | b) & mask).0, <$st>::from(bva | bvb));
             assert_eq!(((a ^ b) & mask).0, <$st>::from(bva ^ bvb));
-            assert_eq!(((a + b) & mask).0, <$st>::from(bva + bvb));
+            */
+            assert_eq!(((a + b) & mask).0, <$st>::try_from(bva + bvb).unwrap());
+            /*
             assert_eq!(((a - b) & mask).0, <$st>::from(bva - bvb));
             // BitAndAssign
             b &= a;
@@ -341,6 +344,7 @@ macro_rules! decl_op_inner {($name:ident, $bv:ty, $st:ty) => {
             b ^= a;
             bvb ^= bva;
             assert_eq!(b.0, <$st>::from(bvb));
+            */
         }
     }
 }}
@@ -360,6 +364,7 @@ fn op() {
     op_inner_bv128();
 }
 
+/*
 macro_rules! decl_op_implicit_cast_inner {($name:ident, $bva:ty, $sta:ty, $bvb:ty, $stb:ty) => {
     fn $name() {
         for i in 1..=(size_of::<$sta>() * 8) {

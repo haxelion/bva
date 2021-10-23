@@ -470,7 +470,7 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
                 }
                 else {
                     // Check if value overflow the bit vector
-                    if int.shr(Self::capacity()) != 0 {
+                    if size_of::<$type>() * 8 > Self::capacity() && int.shr(Self::capacity()) != 0 {
                         return Err(ConvertError::NotEnoughCapacity);
                     }
                     let mut data = [I::ZERO; N];
@@ -665,7 +665,6 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
 
 impl_shifts!({u8, u16, u32, u64, u128, usize});
 
-/*
 impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Add<BV<I2, N2>> for BV<I1, N1> 
     where I1: StaticCast<I2>,
 {
@@ -704,4 +703,3 @@ impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Add<BV<I2, N2>>
         }
     }
 }
-*/
