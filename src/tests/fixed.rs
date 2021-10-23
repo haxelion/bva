@@ -358,45 +358,49 @@ fn op() {
     op_inner_bv128();
 }
 
-/*
+
 macro_rules! decl_op_implicit_cast_inner {($name:ident, $bva:ty, $sta:ty, $bvb:ty, $stb:ty) => {
     fn $name() {
         for i in 1..=(size_of::<$sta>() * 8) {
             let mask = Wrapping(<$sta>::MAX) >> (size_of::<$sta>() * 8 - i);
             let mut a = Wrapping(random::<$sta>()) & mask;
             let b = Wrapping(random::<$stb>() as $sta) & mask;
-            let mut bva = <$bva>::from(a.0).copy_slice(0..i);
-            let bvb = <$bvb>::from(b.0 as $stb).copy_slice(0..(i.min(size_of::<$stb>() * 8)));
+            let mut bva = <$bva>::try_from(a.0).unwrap().copy_slice(0..i);
+            let bvb = <$bvb>::try_from(b.0 as $stb).unwrap().copy_slice(0..(i.min(size_of::<$stb>() * 8)));
+
+            // sanity checks
+            assert_eq!((a & mask).0, <$sta>::try_from(bva).unwrap());
+            assert_eq!((b & mask).0, <$sta>::try_from(bvb).unwrap());
 
             // Test non assign variant first
-            assert_eq!(((!a) & mask).0, <$sta>::from(!bva));
-            assert_eq!(((a & b) & mask).0, <$sta>::from(bva & bvb));
-            assert_eq!(((a | b) & mask).0, <$sta>::from(bva | bvb));
-            assert_eq!(((a ^ b) & mask).0, <$sta>::from(bva ^ bvb));
-            assert_eq!(((a + b) & mask).0, <$sta>::from(bva + bvb));
-            assert_eq!(((a - b) & mask).0, <$sta>::from(bva - bvb));
+            assert_eq!(((!a) & mask).0, <$sta>::try_from(!bva).unwrap());
+            assert_eq!(((a & b) & mask).0, <$sta>::try_from(bva & bvb).unwrap());
+            assert_eq!(((a | b) & mask).0, <$sta>::try_from(bva | bvb).unwrap());
+            assert_eq!(((a ^ b) & mask).0, <$sta>::try_from(bva ^ bvb).unwrap());
+            assert_eq!(((a + b) & mask).0, <$sta>::try_from(bva + bvb).unwrap());
+            assert_eq!(((a - b) & mask).0, <$sta>::try_from(bva - bvb).unwrap());
             // BitAndAssign
             a &= b;
             bva &= bvb;
-            assert_eq!(a.0, <$sta>::from(bva));
+            assert_eq!(a.0, <$sta>::try_from(bva).unwrap());
             // AddAssign
             a += b;
             a &= mask;
             bva += bvb;
-            assert_eq!(a.0, <$sta>::from(bva));
+            assert_eq!(a.0, <$sta>::try_from(bva).unwrap());
             // BitOrAssign
             a |= b;
             bva |= bvb;
-            assert_eq!(a.0, <$sta>::from(bva));
+            assert_eq!(a.0, <$sta>::try_from(bva).unwrap());
             // SubAssign
             a -= b;
             a &= mask;
             bva -= bvb;
-            assert_eq!(a.0, <$sta>::from(bva));
+            assert_eq!(a.0, <$sta>::try_from(bva).unwrap());
             // BitXorAssign
             a ^= b;
             bva ^= bvb;
-            assert_eq!(a.0, <$sta>::from(bva));
+            assert_eq!(a.0, <$sta>::try_from(bva).unwrap());
         }
     }
 }}
@@ -425,7 +429,6 @@ fn op_implicit_cast() {
     op_implicit_cast_inner_bv128_bv32();
     op_implicit_cast_inner_bv128_bv64();
 }
-*/
 
 fn shift_in_inner<B: BitVector>(capacity: usize) {
     for length in 1..=capacity {
