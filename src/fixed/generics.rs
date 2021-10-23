@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 use std::fmt;
 use std::iter::repeat;
 use std::mem::size_of;
-use std::ops::{Add, AddAssign, Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Not, Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
 
 use crate::{Bit, BitVector, ConvertError, Endianness};
 use crate::utils::{Constants, Integer, StaticCast};
@@ -511,6 +511,26 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
 }}
 
 impl_tryfrom!(u8, u16, u32, u64, u128, usize);
+
+impl<I: Integer, const N: usize> Not for BV<I, N> {
+    type Output = BV<I, N>;
+
+    fn not(mut self) -> BV<I, N> {
+        for i in 0..N {
+            self.data[i] = !self.data[i];
+        }
+        self.mod2n(self.length);
+        return self;
+    }
+}
+
+impl<I: Integer, const N: usize> Not for &'_ BV<I, N> {
+    type Output = BV<I, N>;
+    
+    fn not(self) -> BV<I, N> {
+        return (*self).not();
+    }
+}
 
 macro_rules! impl_shifts {({$($rhs:ty),+}) => {
     $(

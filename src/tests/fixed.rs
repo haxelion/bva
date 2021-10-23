@@ -113,8 +113,6 @@ macro_rules! decl_shift_rot_inner {($name:ident, $bv:ty, $st:ty) => {
                 bv >>= length - r;
                 assert_eq!(1, <$st>::try_from(bv).unwrap());
             }
-
-            // TODO: does not cover reference based implementations
         }
     }
 }}
@@ -313,8 +311,8 @@ macro_rules! decl_op_inner {($name:ident, $bv:ty, $st:ty) => {
             let mut bvb = <$bv>::try_from(b.0).unwrap().copy_slice(0..i);
 
             // Test non assign variant first
+            assert_eq!(((!a) & mask).0, <$st>::try_from(!bva).unwrap());
             /*
-            assert_eq!(((!a) & mask).0, <$st>::from(!bva));
             assert_eq!(((a & b) & mask).0, <$st>::from(bva & bvb));
             assert_eq!(((a | b) & mask).0, <$st>::from(bva | bvb));
             assert_eq!(((a ^ b) & mask).0, <$st>::from(bva ^ bvb));
@@ -469,6 +467,7 @@ fn shift_in_inner<B: BitVector>(capacity: usize) {
     }
 }
 
+// This test is slow because it's quadratic 
 #[test]
 fn shift_in() {
     shift_in_inner::<BV8>(BV8::capacity());
