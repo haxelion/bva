@@ -2,8 +2,8 @@ use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt;
 use std::iter::repeat;
-use std::mem::{size_of, transmute};
-use std::ops::{Add, Range, Shl, ShlAssign, Shr, ShrAssign};
+use std::mem::size_of;
+use std::ops::{Add, AddAssign, Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
 
 use crate::{Bit, BitVector, ConvertError, Endianness};
 use crate::utils::{Constants, Integer, StaticCast};
@@ -564,20 +564,7 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
         impl<I: Integer, const N: usize> Shl<$rhs> for &'_ BV<I, N> {
             type Output = BV<I, N>;
             fn shl(self, rhs: $rhs) -> BV<I, N> {
-                let shift = usize::try_from(rhs).map_or(0, |s| s);
-                let mut new_data = [I::ZERO; N];
-                let mut new_idx = self.length;
-                while new_idx - shift > 0 {
-                    let l = (new_idx.wrapping_sub(1) % BV::<I, N>::BIT_UNIT + 1)
-                            .min((new_idx - shift).wrapping_sub(1) % BV::<I, N>::BIT_UNIT + 1);
-                    new_idx -= l;
-                    let old_idx = new_idx - shift;
-                    new_data[new_idx / BV::<I, N>::BIT_UNIT] |= ((self.data[old_idx / BV::<I, N>::BIT_UNIT] >> (old_idx % BV::<I, N>::BIT_UNIT)) & BV::<I, N>::mask(l)) << (new_idx % BV::<I, N>::BIT_UNIT);
-                }
-                BV::<I, N> {
-                    data: new_data,
-                    length: self.length
-                }
+                return (*self).shl(rhs);
             }
         }
 
@@ -637,20 +624,7 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
         impl<I: Integer, const N: usize> Shr<$rhs> for &'_ BV<I, N> {
             type Output = BV<I, N>;
             fn shr(self, rhs: $rhs) -> BV<I, N> {
-                let shift = usize::try_from(rhs).map_or(0, |s| s);
-                let mut new_data = [I::ZERO; N];
-                let mut new_idx = 0;
-                while new_idx + shift < self.length {
-                    let old_idx = new_idx + shift;
-                    let l = (BV::<I, N>::BIT_UNIT - new_idx % BV::<I, N>::BIT_UNIT)
-                            .min(BV::<I, N>::BIT_UNIT - old_idx % BV::<I, N>::BIT_UNIT);
-                    new_data[new_idx / BV::<I, N>::BIT_UNIT] |= ((self.data[old_idx / BV::<I, N>::BIT_UNIT] >> (old_idx % BV::<I, N>::BIT_UNIT)) & BV::<I, N>::mask(l)) << (new_idx % BV::<I, N>::BIT_UNIT);
-                    new_idx += l;
-                }
-                BV::<I, N> {
-                    data: new_data,
-                    length: self.length
-                }
+                return (*self).shr(rhs);
             }
         }
 
@@ -665,12 +639,10 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
 
 impl_shifts!({u8, u16, u32, u64, u128, usize});
 
-impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Add<BV<I2, N2>> for BV<I1, N1> 
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> AddAssign<&BV<I2, N2>> for BV<I1, N1> 
     where I1: StaticCast<I2>,
 {
-    type Output = BV<I1, N1>;
-
-    fn add(mut self, rhs: BV<I2, N2>) -> Self::Output {
+    fn add_assign(&mut self, rhs: &BV<I2, N2>) {
         if size_of::<I1>() == size_of::<I2>() {
             let mut carry = I1::ZERO;
 
@@ -678,11 +650,10 @@ impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Add<BV<I2, N2>>
                 carry = self.data[i].carry_add(I1::cast_from(rhs.data[i]), carry);
             }
             self.mod2n(self.len());
-
-            return self;
         }
         else {
             let mut carry = I1::ZERO;
+            // FIXME: This actually would not work on big endian architecture ...
             let (p, m, s) = unsafe { rhs.data.align_to::<I1>() };
             debug_assert!(p.is_empty()); // BV data should always be aligned
 
@@ -698,8 +669,100 @@ impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Add<BV<I2, N2>>
                 self.data[m.len()].carry_add(rem, carry);
             }
             self.mod2n(self.len());
-
-            return self;
         }
     }
 }
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> AddAssign<BV<I2, N2>> for BV<I1, N1> 
+    where I1: StaticCast<I2>,
+{
+    fn add_assign(&mut self, rhs: BV<I2, N2>) {
+        self.add_assign(&rhs);
+    }
+}
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> SubAssign<&BV<I2, N2>> for BV<I1, N1> 
+    where I1: StaticCast<I2>,
+{
+    fn sub_assign(&mut self, rhs: &BV<I2, N2>) {
+        if size_of::<I1>() == size_of::<I2>() {
+            let mut carry = I1::ZERO;
+
+            for i in 0..usize::min(N1, N2) {
+                carry = self.data[i].carry_sub(I1::cast_from(rhs.data[i]), carry);
+            }
+            self.mod2n(self.len());
+        }
+        else {
+            let mut carry = I1::ZERO;
+            // FIXME: This actually would not work on big endian architecture ...
+            let (p, m, s) = unsafe { rhs.data.align_to::<I1>() };
+            debug_assert!(p.is_empty()); // BV data should always be aligned
+
+            for i in 0..usize::min(N1, m.len()) {
+                carry = self.data[i].carry_sub(m[i], carry);
+            }
+            // Addition of the final carry and of the remainder suffix, this operation can't possibly carry
+            if N1 > m.len() {
+                let mut rem = I1::ZERO;
+                for i in 0..s.len() {
+                    rem = rem.shl(BV::<I2, N2>::BIT_UNIT).bitor(I1::cast_from(s[i]));
+                }
+                self.data[m.len()].carry_sub(rem, carry);
+            }
+            self.mod2n(self.len());
+        }
+    }
+}
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> SubAssign<BV<I2, N2>> for BV<I1, N1> 
+    where I1: StaticCast<I2>,
+{
+    fn sub_assign(&mut self, rhs: BV<I2, N2>) {
+        self.sub_assign(&rhs);
+    }
+}
+
+macro_rules! impl_op { ($trait:ident, $method:ident, $assign_method:ident) => {
+    impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<BV<I2, N2>> for BV<I1, N1>
+        where I1: StaticCast<I2>
+    {
+        type Output = BV<I1, N1>;
+        fn $method(mut self, rhs: BV<I2, N2>) -> BV<I1, N1> {
+            self.$assign_method(rhs);
+            return self;
+        }
+    }
+
+    impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<&'_ BV<I2, N2>> for BV<I1, N1>
+        where I1: StaticCast<I2>
+    {
+        type Output = BV<I1, N1>;
+        fn $method(mut self, rhs: &'_ BV<I2, N2>) -> BV<I1, N1> {
+            self.$assign_method(rhs);
+            return self;
+        }
+    }
+
+    impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<BV<I2, N2>> for &'_ BV<I1, N1>
+        where I1: StaticCast<I2>
+    {
+        type Output = BV<I1, N1>;
+        fn $method(self, rhs: BV<I2, N2>) -> BV<I1, N1> {
+            return (*self).$method(rhs);
+        }
+    }
+
+    impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<&'_ BV<I2, N2>> for &'_ BV<I1, N1>
+        where I1: StaticCast<I2>
+    {
+        type Output = BV<I1, N1>;
+        fn $method(self, rhs: &'_ BV<I2, N2>) -> BV<I1, N1> {
+            return (*self).$method(rhs);
+        }
+    }
+}}
+
+
+impl_op!(Add, add, add_assign);
+impl_op!(Sub, sub, sub_assign);

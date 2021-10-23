@@ -66,6 +66,7 @@ pub trait Integer : Add<Output=Self> + AddAssign + BitAnd<Output=Self> + BitAndA
     ShlAssign<usize> + Shr<usize, Output=Self> + ShrAssign<usize> + Sub<Output=Self> + SubAssign + 
     Sized + StaticCast<u8> {
         fn carry_add(&mut self, rhs: Self, carry: Self) -> Self;
+        fn carry_sub(&mut self, rhs: Self, carry: Self) -> Self;
     }
 
 macro_rules! impl_integer {
@@ -75,6 +76,13 @@ macro_rules! impl_integer {
                 fn carry_add(&mut self, rhs: Self, carry: Self) -> Self {
                     let (v1, c1) = self.overflowing_add(rhs);
                     let (v2, c2) = v1.overflowing_add(carry);
+                    *self = v2;
+                    return (c1 || c2) as Self;
+                }
+
+                fn carry_sub(&mut self, rhs: Self, carry: Self) -> Self {
+                    let (v1, c1) = self.overflowing_sub(rhs);
+                    let (v2, c2) = v1.overflowing_sub(carry);
                     *self = v2;
                     return (c1 || c2) as Self;
                 }

@@ -320,26 +320,30 @@ macro_rules! decl_op_inner {($name:ident, $bv:ty, $st:ty) => {
             assert_eq!(((a ^ b) & mask).0, <$st>::from(bva ^ bvb));
             */
             assert_eq!(((a + b) & mask).0, <$st>::try_from(bva + bvb).unwrap());
+            assert_eq!(((a - b) & mask).0, <$st>::try_from(bva - bvb).unwrap());
             /*
-            assert_eq!(((a - b) & mask).0, <$st>::from(bva - bvb));
             // BitAndAssign
             b &= a;
             bvb &= bva;
             assert_eq!(b.0, <$st>::from(bvb));
+            */
             // AddAssign
             b += a;
             b &= mask;
             bvb += bva;
-            assert_eq!(b.0, <$st>::from(bvb));
+            assert_eq!(b.0, <$st>::try_from(bvb).unwrap());
+            /*
             // BitOrAssign
             b |= a;
             bvb |= bva;
             assert_eq!(b.0, <$st>::from(bvb));
+            */
             // SubAssign
             b -= a;
             b &= mask;
             bvb -= bva;
-            assert_eq!(b.0, <$st>::from(bvb));
+            assert_eq!(b.0, <$st>::try_from(bvb).unwrap());
+            /*
             // BitXorAssign
             b ^= a;
             bvb ^= bva;
