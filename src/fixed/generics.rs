@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 use std::fmt;
 use std::iter::repeat;
 use std::mem::{size_of, transmute};
-use std::ops::{Add, Range, Shl, Shr};
+use std::ops::{Add, Range, Shl, ShlAssign, Shr, ShrAssign};
 
 use crate::{Bit, BitVector, ConvertError, Endianness};
 use crate::utils::{Constants, Integer, StaticCast};
@@ -512,6 +512,160 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
 
 impl_tryfrom!(u8, u16, u32, u64, u128, usize);
 
+macro_rules! impl_shifts {({$($rhs:ty),+}) => {
+    $(
+        impl<I: Integer, const N: usize> ShlAssign<$rhs> for BV<I, N> {
+            fn shl_assign(&mut self, rhs: $rhs) {
+                let shift = usize::try_from(rhs).map_or(0, |s| s);
+                if shift == 0 {
+                    return;
+                }
+                let mut new_idx = self.length;
+                while new_idx - shift > 0 {
+                    let l = (new_idx.wrapping_sub(1) % Self::BIT_UNIT + 1)
+                            .min((new_idx - shift).wrapping_sub(1) % Self::BIT_UNIT + 1);
+                    new_idx -= l;
+                    let old_idx = new_idx - shift;
+                    let d = (self.data[old_idx / Self::BIT_UNIT] >> (old_idx % Self::BIT_UNIT)) & Self::mask(l);
+                    self.data[new_idx / Self::BIT_UNIT] &= !(Self::mask(l) << (new_idx % Self::BIT_UNIT));
+                    self.data[new_idx / Self::BIT_UNIT] |=  d << (new_idx % Self::BIT_UNIT);
+                }
+                while new_idx > 0 {
+                    let l = (new_idx.wrapping_sub(1) % Self::BIT_UNIT) + 1;
+                    new_idx -= l;
+                    self.data[new_idx / Self::BIT_UNIT] &= !(Self::mask(l) << (new_idx % Self::BIT_UNIT));
+                }
+            }
+        }
+
+
+        impl<I: Integer, const N: usize> ShlAssign<&'_ $rhs> for BV<I, N> {
+            fn shl_assign(&mut self, rhs: &'_ $rhs) {
+                self.shl_assign(*rhs);
+            }
+        }
+
+        impl<I: Integer, const N: usize> Shl<$rhs> for BV<I, N> {
+            type Output = BV<I, N>;
+            fn shl(mut self, rhs: $rhs) -> Self {
+                self.shl_assign(rhs);
+                return self;
+            }
+        }
+
+        impl<I: Integer, const N: usize> Shl<&'_ $rhs> for BV<I, N> {
+            type Output = BV<I, N>;
+            fn shl(mut self, rhs: &'_ $rhs) -> Self {
+                self.shl_assign(rhs);
+                return self;
+            }
+        }
+
+        impl<I: Integer, const N: usize> Shl<$rhs> for &'_ BV<I, N> {
+            type Output = BV<I, N>;
+            fn shl(self, rhs: $rhs) -> BV<I, N> {
+                let shift = usize::try_from(rhs).map_or(0, |s| s);
+                let mut new_data = [I::ZERO; N];
+                let mut new_idx = self.length;
+                while new_idx - shift > 0 {
+                    let l = (new_idx.wrapping_sub(1) % BV::<I, N>::BIT_UNIT + 1)
+                            .min((new_idx - shift).wrapping_sub(1) % BV::<I, N>::BIT_UNIT + 1);
+                    new_idx -= l;
+                    let old_idx = new_idx - shift;
+                    new_data[new_idx / BV::<I, N>::BIT_UNIT] |= ((self.data[old_idx / BV::<I, N>::BIT_UNIT] >> (old_idx % BV::<I, N>::BIT_UNIT)) & BV::<I, N>::mask(l)) << (new_idx % BV::<I, N>::BIT_UNIT);
+                }
+                BV::<I, N> {
+                    data: new_data,
+                    length: self.length
+                }
+            }
+        }
+
+        impl<I: Integer, const N: usize> Shl<&'_ $rhs> for &'_ BV<I, N> {
+            type Output = BV<I, N>;
+            fn shl(self, rhs: &'_ $rhs) -> BV<I, N> {
+                self.shl(*rhs)
+            }
+        }
+
+        impl<I: Integer, const N: usize> ShrAssign<$rhs> for BV<I, N> {
+            fn shr_assign(&mut self, rhs: $rhs) {
+                let shift = usize::try_from(rhs).map_or(0, |s| s);
+                if shift == 0 {
+                    return;
+                }
+                let mut new_idx = 0;
+                while new_idx + shift < self.length {
+                    let old_idx = new_idx + shift;
+                    let l = (Self::BIT_UNIT - new_idx % Self::BIT_UNIT)
+                            .min(Self::BIT_UNIT - old_idx % Self::BIT_UNIT);
+                    let d = (self.data[old_idx / Self::BIT_UNIT] >> (old_idx % Self::BIT_UNIT)) & Self::mask(l);
+                    self.data[new_idx / Self::BIT_UNIT] &= !(Self::mask(l) << (new_idx % Self::BIT_UNIT));
+                    self.data[new_idx / Self::BIT_UNIT] |= d << (new_idx % Self::BIT_UNIT);
+                    new_idx += l;
+                }
+                while new_idx < self.length {
+                    let l = Self::BIT_UNIT - new_idx % Self::BIT_UNIT;
+                    self.data[new_idx / Self::BIT_UNIT] &= !(Self::mask(l) << (new_idx % Self::BIT_UNIT));
+                    new_idx += l;
+                }
+            }
+        }
+
+        impl<I: Integer, const N: usize> ShrAssign<&'_ $rhs> for BV<I, N> {
+            fn shr_assign(&mut self, rhs: &'_ $rhs) {
+                self.shr_assign(*rhs);
+            }
+        }
+
+        impl<I: Integer, const N: usize> Shr<$rhs> for BV<I, N> {
+            type Output = BV<I, N>;
+            fn shr(mut self, rhs: $rhs) -> Self {
+                self.shr_assign(rhs);
+                return self;
+            }
+        }
+
+        impl<I: Integer, const N: usize> Shr<&'_ $rhs> for BV<I, N> {
+            type Output = BV<I, N>;
+            fn shr(mut self, rhs: &'_ $rhs) -> Self {
+                self.shr_assign(rhs);
+                return self;
+            }
+        }
+
+        impl<I: Integer, const N: usize> Shr<$rhs> for &'_ BV<I, N> {
+            type Output = BV<I, N>;
+            fn shr(self, rhs: $rhs) -> BV<I, N> {
+                let shift = usize::try_from(rhs).map_or(0, |s| s);
+                let mut new_data = [I::ZERO; N];
+                let mut new_idx = 0;
+                while new_idx + shift < self.length {
+                    let old_idx = new_idx + shift;
+                    let l = (BV::<I, N>::BIT_UNIT - new_idx % BV::<I, N>::BIT_UNIT)
+                            .min(BV::<I, N>::BIT_UNIT - old_idx % BV::<I, N>::BIT_UNIT);
+                    new_data[new_idx / BV::<I, N>::BIT_UNIT] |= ((self.data[old_idx / BV::<I, N>::BIT_UNIT] >> (old_idx % BV::<I, N>::BIT_UNIT)) & BV::<I, N>::mask(l)) << (new_idx % BV::<I, N>::BIT_UNIT);
+                    new_idx += l;
+                }
+                BV::<I, N> {
+                    data: new_data,
+                    length: self.length
+                }
+            }
+        }
+
+        impl<I: Integer, const N: usize> Shr<&'_ $rhs> for &'_ BV<I, N> {
+            type Output = BV<I, N>;
+            fn shr(self, rhs: &'_ $rhs) -> BV<I, N> {
+                self.shr(*rhs)
+            }
+        }
+    )+
+}}
+
+impl_shifts!({u8, u16, u32, u64, u128, usize});
+
+/*
 impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Add<BV<I2, N2>> for BV<I1, N1> 
     where I1: StaticCast<I2>,
 {
@@ -550,3 +704,4 @@ impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Add<BV<I2, N2>>
         }
     }
 }
+*/

@@ -513,10 +513,10 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
     $(
         impl ShlAssign<$rhs> for BVN {
             fn shl_assign(&mut self, rhs: $rhs) {
-                if rhs == 0 {
+                let shift = usize::try_from(rhs).map_or(0, |s| s);
+                if shift == 0 {
                     return;
                 }
-                let shift = rhs as usize;
                 let mut new_idx = self.length;
                 while new_idx - shift > 0 {
                     let l = (new_idx.wrapping_sub(1) % Self::BIT_UNIT + 1)
@@ -560,7 +560,7 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
         impl Shl<$rhs> for &'_ BVN {
             type Output = BVN;
             fn shl(self, rhs: $rhs) -> BVN {
-                let shift = rhs as usize;
+                let shift = usize::try_from(rhs).map_or(0, |s| s);
                 let mut new_data: Vec<usize> = repeat(0).take(BVN::capacity_from_bit_len(self.length)).collect();
                 let mut new_idx = self.length;
                 while new_idx - shift > 0 {
@@ -586,10 +586,10 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
 
         impl ShrAssign<$rhs> for BVN {
             fn shr_assign(&mut self, rhs: $rhs) {
-                if rhs == 0 {
+                let shift = usize::try_from(rhs).map_or(0, |s| s);
+                if shift == 0 {
                     return;
                 }
-                let shift = rhs as usize;
                 let mut new_idx = 0;
                 while new_idx + shift < self.length {
                     let old_idx = new_idx + shift;
@@ -633,7 +633,7 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
         impl Shr<$rhs> for &'_ BVN {
             type Output = BVN;
             fn shr(self, rhs: $rhs) -> BVN {
-                let shift = rhs as usize;
+                let shift = usize::try_from(rhs).map_or(0, |s| s);
                 let mut new_data: Vec<usize> = repeat(0).take(BVN::capacity_from_bit_len(self.length)).collect();
                 let mut new_idx = 0;
                 while new_idx + shift < self.length {

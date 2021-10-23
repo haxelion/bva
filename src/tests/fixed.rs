@@ -93,7 +93,7 @@ fn push_pop() {
     push_pop_inner_bv128(BV128::capacity());
 }
 
-/*
+
 macro_rules! decl_shift_rot_inner {($name:ident, $bv:ty, $st:ty) => {
     fn $name(capacity: usize) {
         for length in 1..=capacity {
@@ -106,13 +106,15 @@ macro_rules! decl_shift_rot_inner {($name:ident, $bv:ty, $st:ty) => {
                 assert_eq!(bv, one << r);
                 assert_eq!(1 << r, <$st>::try_from(bv).unwrap());
                 bv.rotl(length - r);
-                assert_eq!(1, <$st>::from(bv));
+                assert_eq!(1, <$st>::try_from(bv).unwrap());
                 bv.rotr(r);
                 assert_eq!(1 << (length - r), <$st>::try_from(bv).unwrap());
                 assert_eq!(bv >> (length - r), one);
                 bv >>= length - r;
-                assert_eq!(1, <$st>::from(bv));
+                assert_eq!(1, <$st>::try_from(bv).unwrap());
             }
+
+            // TODO: does not cover reference based implementations
         }
     }
 }}
@@ -132,7 +134,7 @@ fn shift_rot() {
     shift_rot_inner_bv64(BV64::capacity());
     shift_rot_inner_bv128(BV128::capacity());
 }
-*/
+
 
 macro_rules! decl_resize_slice_inner {($name:ident, $bv:ty, $st:ty) => {
     fn $name(capacity: usize) {
