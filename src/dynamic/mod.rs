@@ -465,6 +465,7 @@ macro_rules! impl_eq { ({$(($rhs:ty, $st:ty)),+}) => {
     $(
         impl PartialEq<$rhs> for BVN {
             fn eq(&self, other: &$rhs) -> bool {
+                // FIXME: replace USizeStream
                 let mut it = USizeStream::new(<$st>::from(other));
                 for i in 0..usize::max(self.len(), it.len()) {
                     if *self.data.get(i).unwrap_or(&0) != it.next().unwrap_or(0) {
@@ -487,6 +488,7 @@ macro_rules! impl_ord { ({$(($rhs:ty, $st:ty)),+}) => {
     $(
         impl PartialOrd<$rhs> for BVN {
             fn partial_cmp(&self, other: &$rhs) -> Option<Ordering> {
+                // FIXME: replace USizeStream
                 let mut it = USizeStream::new(<$st>::from(other)).rev();
                 for i in (0..usize::max(self.len(), it.len())).rev() {
                     match self.data.get(i).unwrap_or(&0).cmp(&it.next().unwrap_or(0)) {
@@ -506,6 +508,7 @@ macro_rules! impl_ord { ({$(($rhs:ty, $st:ty)),+}) => {
     )+
 }}
 
+// FIXME: Generic implementation
 impl_eq!({(BV8, u8), (BV16, u16), (BV32, u32), (BV64, u64), (BV128, u128)});
 impl_ord!({(BV8, u8), (BV16, u16), (BV32, u32), (BV64, u64), (BV128, u128)});
 
@@ -704,6 +707,7 @@ macro_rules! impl_froms {({$(($rhs:ty, $st:ty)),+}) => {
 
         impl From<&'_ $rhs> for BVN {
             fn from(rhs: &'_ $rhs) -> BVN {
+                // FIXME: Replace USizeStream
                 let it = USizeStream::new(<$st>::from(rhs));
                 BVN {
                     length: rhs.len(),
@@ -745,6 +749,7 @@ macro_rules! impl_froms {({$(($rhs:ty, $st:ty)),+}) => {
         impl TryFrom<&'_ BVN> for $rhs {
             type Error = &'static str;
             fn try_from(bvn: &'_ BVN) -> Result<Self, Self::Error> {
+                // FIXME: don't use integer cast
                 let mut r = <$rhs>::from(<$st>::try_from(bvn)?);
                 r.resize(bvn.length, Bit::Zero);
                 Ok(r)
@@ -760,6 +765,7 @@ macro_rules! impl_froms {({$(($rhs:ty, $st:ty)),+}) => {
     )+
 }}
 
+// FIXME: generic based implementation
 impl_froms!({(BV8, u8), (BV16, u16), (BV32, u32), (BV64, u64), (BV128, u128)});
 
 
@@ -790,6 +796,7 @@ macro_rules! impl_binop_assign { ($trait:ident, $method:ident, {$(($rhs:ty, $st:
                 if rhs.len() > self.length {
                     self.resize(rhs.len(), Bit::Zero);
                 }
+                // FIXME: Replace USizeStream
                 let mut it = USizeStream::new(<$st>::from(*rhs));
                 for i in 0..Self::capacity_from_bit_len(rhs.len()) {
                     self.data[i].$method(it.next().unwrap());
@@ -808,6 +815,7 @@ macro_rules! impl_binop_assign { ($trait:ident, $method:ident, {$(($rhs:ty, $st:
     )+
 }}
 
+// FIXME: Generic based implementation
 impl_binop_assign!(BitAndAssign, bitand_assign, {(BV8, u8), (BV16, u16), (BV32, u32), (BV64, u64), (BV128, u128)});
 impl_binop_assign!(BitOrAssign, bitor_assign, {(BV8, u8), (BV16, u16), (BV32, u32), (BV64, u64), (BV128, u128)});
 impl_binop_assign!(BitXorAssign, bitxor_assign, {(BV8, u8), (BV16, u16), (BV32, u32), (BV64, u64), (BV128, u128)});
@@ -849,6 +857,7 @@ macro_rules! impl_addsub_assign { ($trait:ident, $method:ident, $overflowing_met
                     self.resize(rhs.len(), Bit::Zero);
                 }
                 let mut carry = 0;
+                // FIXME: Replace USizeStream
                 let mut it = USizeStream::new(<$st>::from(*rhs));
                 for i in 0..Self::capacity_from_bit_len(rhs.len()) {
                     let (d1, c1) = self.data[i].$overflowing_method(carry);
@@ -875,6 +884,7 @@ macro_rules! impl_addsub_assign { ($trait:ident, $method:ident, $overflowing_met
     )+
 }}
 
+// FIXME: Generic based implementation
 impl_addsub_assign!(AddAssign, add_assign, overflowing_add, {(BV8, u8), (BV16, u16), (BV32, u32), (BV64, u64), (BV128, u128)});
 impl_addsub_assign!(SubAssign, sub_assign, overflowing_sub, {(BV8, u8), (BV16, u16), (BV32, u32), (BV64, u64), (BV128, u128)});
 
@@ -942,6 +952,7 @@ macro_rules! impl_op { ($trait:ident, $method:ident, $assign_method:ident, {$($r
     )+
 }}
 
+// FIXME: Generic based implementation
 impl_op!(BitAnd, bitand, bitand_assign, {BV8, BV16, BV32, BV64, BV128});
 impl_op!(BitOr, bitor, bitor_assign, {BV8, BV16, BV32, BV64, BV128});
 impl_op!(BitXor, bitxor, bitxor_assign, {BV8, BV16, BV32, BV64, BV128});
