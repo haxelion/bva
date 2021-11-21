@@ -669,6 +669,9 @@ macro_rules! impl_binop_assign { ($trait:ident, $method:ident) => {
                 for i in 0..usize::min(N1, N2) {
                     self.data[i].$method(I1::cast_from(rhs.data[i]));
                 }
+                for i in N2..N1 {
+                    self.data[i].$method(I1::ZERO);
+                }
             }
             else {
                 // FIXME: This actually would not work on big endian architecture ...
@@ -684,6 +687,9 @@ macro_rules! impl_binop_assign { ($trait:ident, $method:ident) => {
                         rem = rem.shl(BV::<I2, N2>::BIT_UNIT).bitor(I1::cast_from(s[i]));
                     }
                     self.data[m.len()].$method(rem);
+                }
+                for i in (m.len() + 1)..N1 {
+                    self.data[i].$method(I1::ZERO);
                 }
             }
         }
@@ -713,6 +719,9 @@ macro_rules! impl_addsub_assign { ($trait:ident, $method:ident, $carry_method:id
                 for i in 0..usize::min(N1, N2) {
                     carry = self.data[i].$carry_method(I1::cast_from(rhs.data[i]), carry);
                 }
+                for i in N2..N1 {
+                    carry = self.data[i].$carry_method(I1::ZERO, carry);
+                }
                 self.mod2n(self.len());
             }
             else {
@@ -724,13 +733,16 @@ macro_rules! impl_addsub_assign { ($trait:ident, $method:ident, $carry_method:id
                 for i in 0..usize::min(N1, m.len()) {
                     carry = self.data[i].$carry_method(m[i], carry);
                 }
-                // Addition of the final carry and of the remainder suffix, this operation can't possibly carry
+                // Addition of the final carry and of the remainder suffix
                 if N1 > m.len() {
                     let mut rem = I1::ZERO;
                     for i in 0..s.len() {
                         rem = rem.shl(BV::<I2, N2>::BIT_UNIT).bitor(I1::cast_from(s[i]));
                     }
-                    self.data[m.len()].$carry_method(rem, carry);
+                    carry = self.data[m.len()].$carry_method(rem, carry);
+                }
+                for i in (m.len() + 1)..N1 {
+                    carry = self.data[i].$carry_method(I1::ZERO, carry);
                 }
                 self.mod2n(self.len());
             }

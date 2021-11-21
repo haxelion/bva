@@ -1,5 +1,4 @@
-use std::fmt;
-use std::mem::size_of;
+use std::fmt::{Debug, Display};
 use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, 
     Div, DivAssign, Mul, MulAssign, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
 
@@ -61,10 +60,10 @@ impl_constants!(u8, u16, u32, u64, u128, usize);
 
 pub trait Integer : Add<Output=Self> + AddAssign + BitAnd<Output=Self> + BitAndAssign +
     BitOr<Output=Self> + BitOrAssign + BitXor<Output=Self> + BitXorAssign + Constants + Copy + 
-    fmt::Debug + Div<Output=Self> + DivAssign + Eq + From<Bit> + Into<Bit> + Mul<Output=Self> +
-    MulAssign+ Not<Output=Self> + Ord + PartialEq + PartialOrd + Shl<usize, Output=Self> + 
-    ShlAssign<usize> + Shr<usize, Output=Self> + ShrAssign<usize> + Sub<Output=Self> + SubAssign + 
-    Sized + StaticCast<u8> {
+    Debug + Div<Output=Self> + DivAssign + Display + Eq + From<Bit> + Into<Bit> + 
+    Mul<Output=Self> + MulAssign+ Not<Output=Self> + Ord + PartialEq + PartialOrd + 
+    Shl<usize, Output=Self> + ShlAssign<usize> + Shr<usize, Output=Self> + ShrAssign<usize> + 
+    Sub<Output=Self> + SubAssign + Sized + StaticCast<u8> {
         fn carry_add(&mut self, rhs: Self, carry: Self) -> Self;
         fn carry_sub(&mut self, rhs: Self, carry: Self) -> Self;
     }
