@@ -25,7 +25,7 @@ use std::ops::Range;
 
 pub mod bit;
 pub mod fixed;
-pub mod dynamic;
+///pub mod dynamic;
 //pub mod auto;
 mod utils;
 

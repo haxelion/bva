@@ -91,3 +91,7 @@ macro_rules! impl_integer {
 }
 
 impl_integer!(u8, u16, u32, u64, u128, usize);
+
+pub trait IStream<I: Integer> {
+    fn stream(&self) -> (&[I], I);
+}

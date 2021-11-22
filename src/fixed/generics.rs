@@ -7,7 +7,7 @@ use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor,
     Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
 
 use crate::{Bit, BitVector, ConvertError, Endianness};
-use crate::utils::{Constants, Integer, StaticCast};
+use crate::utils::{Constants, IStream, Integer, StaticCast};
 
 #[derive(Copy, Clone, Debug)]
 pub struct BV<I: Integer, const N: usize> {
@@ -43,6 +43,25 @@ impl<I: Integer, const N: usize> BV<I, N> {
         for i in 0..N {
             self.data[i] &= Self::mask(usize::min(n - usize::min(n, i * Self::BIT_UNIT), Self::BIT_UNIT));
         }
+    }
+}
+
+impl<I1: Integer, I2: Integer, const N: usize> IStream<I2> for BV<I1, N> 
+    where I2: StaticCast<I1> 
+{
+    fn stream(&self) -> (&[I2], I2) {
+        // FIXME: This actually would not work on big endian architecture ...
+        let (p, m, s) = unsafe { self.data.align_to::<I2>() };
+        let mut rem = I2::ZERO;
+        debug_assert!(p.is_empty()); // BV data should always be aligned
+
+        // If I1 is larger than I2: size_of::<I1>() % size_of::<I2>() == 0
+        // Then s will be empty
+        for i in 0..s.len() {
+            rem = rem.shl(BV::<I1, N>::BIT_UNIT).bitor(I2::cast_from(s[i]));
+        }
+
+        return (m, rem);
     }
 }
 
@@ -674,18 +693,12 @@ macro_rules! impl_binop_assign { ($trait:ident, $method:ident) => {
                 }
             }
             else {
-                // FIXME: This actually would not work on big endian architecture ...
-                let (p, m, s) = unsafe { rhs.data.align_to::<I1>() };
-                debug_assert!(p.is_empty()); // BV data should always be aligned
+                let (m, rem) = rhs.stream();
 
                 for i in 0..usize::min(N1, m.len()) {
                     self.data[i].$method(m[i]);
                 }
                 if N1 > m.len() {
-                    let mut rem = I1::ZERO;
-                    for i in 0..s.len() {
-                        rem = rem.shl(BV::<I2, N2>::BIT_UNIT).bitor(I1::cast_from(s[i]));
-                    }
                     self.data[m.len()].$method(rem);
                 }
                 for i in (m.len() + 1)..N1 {
@@ -726,19 +739,13 @@ macro_rules! impl_addsub_assign { ($trait:ident, $method:ident, $carry_method:id
             }
             else {
                 let mut carry = I1::ZERO;
-                // FIXME: This actually would not work on big endian architecture ...
-                let (p, m, s) = unsafe { rhs.data.align_to::<I1>() };
-                debug_assert!(p.is_empty()); // BV data should always be aligned
+                let (m, rem) = rhs.stream();
 
                 for i in 0..usize::min(N1, m.len()) {
                     carry = self.data[i].$carry_method(m[i], carry);
                 }
                 // Addition of the final carry and of the remainder suffix
                 if N1 > m.len() {
-                    let mut rem = I1::ZERO;
-                    for i in 0..s.len() {
-                        rem = rem.shl(BV::<I2, N2>::BIT_UNIT).bitor(I1::cast_from(s[i]));
-                    }
                     carry = self.data[m.len()].$carry_method(rem, carry);
                 }
                 for i in (m.len() + 1)..N1 {
