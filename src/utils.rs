@@ -1,5 +1,5 @@
 use std::fmt::{Debug, Display};
-use std::mem::size_of;
+use std::mem::{align_of, size_of};
 use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, 
     Div, DivAssign, Mul, MulAssign, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
 
@@ -12,14 +12,14 @@ pub trait StaticCast<U> {
 
 macro_rules! impl_staticcast {
     ($($type:ty),+) => {
-        impl_staticcast!(@as_dual {$($type),+}, {$($type),+});
+        impl_staticcast!(@1 {$($type),+}, {$($type),+});
     };
-    (@as_dual {$($lhs:ty),+}, $rhs:tt) => {
+    (@1 {$($lhs:ty),+}, $rhs:tt) => {
         $(
-            impl_staticcast!(@as_single $lhs, $rhs);
+            impl_staticcast!(@2 $lhs, $rhs);
         )+
     };
-    (@as_single $lhs:ty, {$($rhs:ty),+}) => {
+    (@2 $lhs:ty, {$($rhs:ty),+}) => {
         $(
             impl StaticCast<$rhs> for $lhs {
                 fn cast_from(u: $rhs) -> Self {
@@ -116,22 +116,33 @@ impl<I1: Integer, I2: Integer> IArray<I2> for [I1]
     }
 
     fn get(&self, idx: usize) -> Option<I2> {
-        unsafe {
-            let (head, mid, tail) = self.align_to::<I2>();
-            assert!(head.len() == 0, "unexpected unaligned memory");
-            if idx < mid.len() {
-                return Some(mid[idx]);
-            }
-            else if tail.len() > 0 && idx == mid.len() {
-                let mut v = I2::ZERO;
-                for i in 0..tail.len() {
-                    v |= I2::cast_from(tail[i] << (size_of::<I1>() * 8 * i));
+        // The conditional check should be optimized during specialization.
+        // These asserts should be validated by our tests.
+        if size_of::<I1>() >= size_of::<I2>() {
+            unsafe {
+                debug_assert!(size_of::<I1>() % size_of::<I2>() == 0);
+                debug_assert!(align_of::<I1>() % align_of::<I2>() == 0);
+                let (head, mid, tail) = self.align_to::<I2>();
+                debug_assert!(head.len() == 0 && tail.len() == 0);
+                if idx < mid.len() {
+                    return Some(mid[idx]);
                 }
-                return Some(v);
+                else {
+                    return None;
+                }
             }
-            else {
+        }
+        else {
+            debug_assert!(size_of::<I2>() % size_of::<I1>() == 0);
+            let s = size_of::<I2>() / size_of::<I1>();
+            let mut v = I2::ZERO;
+            if idx >= IArray::<I2>::len(self) {
                 return None;
             }
+            for i in 0..s {
+                v |= I2::cast_from(*self.get(idx * s + i).unwrap_or(&I1::ZERO)) << (size_of::<I1>() * 8 * i);
+            }
+            return Some(v);
         }
     }
 }
@@ -142,25 +153,38 @@ impl<I1: Integer, I2: Integer> IArrayMut<I2> for [I1]
           I2: StaticCast<I1>
 {
     fn set(&mut self, idx: usize, v: I2) -> Option<I2> {
-        unsafe {
-            let (head, mid, tail) = self.align_to_mut::<I2>();
-            assert!(head.len() == 0, "unexpected unaligned memory");
-            if idx < mid.len() {
-                let old = mid[idx];
-                mid[idx] = v;
-                return Some(old);
-            }
-            else if tail.len() > 0 && idx == mid.len() {
-                let mut old = I2::ZERO;
-                for i in 0..tail.len() {
-                    old |= I2::cast_from(tail[i] << (size_of::<I1>() * 8 * i));
-                    tail[i] = I1::cast_from(v >> (size_of::<I1>() * 8 * i));
+        // The conditional check should be optimized during specialization.
+        // These asserts should be validated by our tests.
+        if size_of::<I1>() >= size_of::<I2>() {
+            unsafe {
+                debug_assert!(size_of::<I1>() % size_of::<I2>() == 0);
+                debug_assert!(align_of::<I1>() % align_of::<I2>() == 0);
+                let (head, mid, tail) = self.align_to_mut::<I2>();
+                debug_assert!(head.len() == 0 && tail.len() == 0);
+                if idx < mid.len() {
+                    let old = mid[idx];
+                    mid[idx] = v;
+                    return Some(old);
                 }
-                return Some(old);
+                else {
+                    return None;
+                }
             }
-            else {
+        }
+        else {
+            debug_assert!(size_of::<I2>() % size_of::<I1>() == 0);
+            let s = size_of::<I2>() / size_of::<I1>();
+            let mut old = I2::ZERO;
+            if idx >= IArray::<I2>::len(self) {
                 return None;
             }
+            for i in 0..s {
+                if let Some(p) = self.get_mut(idx * s + i) {
+                    old |= I2::cast_from(*p) << (size_of::<I1>() * 8 * i);
+                    *p = I1::cast_from(v >> (size_of::<I1>() * 8 * i));
+                }
+            }
+            return Some(old);
         }
     }
 }
