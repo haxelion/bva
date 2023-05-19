@@ -64,7 +64,7 @@ pub trait Integer : Add<Output=Self> + AddAssign + BitAnd<Output=Self> + BitAndA
     Debug + Div<Output=Self> + DivAssign + Display + Eq + From<Bit> + Into<Bit> + 
     Mul<Output=Self> + MulAssign+ Not<Output=Self> + Ord + PartialEq + PartialOrd + 
     Shl<usize, Output=Self> + ShlAssign<usize> + Shr<usize, Output=Self> + ShrAssign<usize> + 
-    Sub<Output=Self> + SubAssign + Sized + StaticCast<u8> {
+    Sub<Output=Self> + SubAssign + Sized + StaticCast<u8> + StaticCast<u64> {
         fn carry_add(&mut self, rhs: Self, carry: Self) -> Self;
         fn carry_sub(&mut self, rhs: Self, carry: Self) -> Self;
     }
@@ -93,14 +93,14 @@ macro_rules! impl_integer {
 
 impl_integer!(u8, u16, u32, u64, u128, usize);
 
-pub trait IArray<I: Integer> {
-    fn len(&self) -> usize;
+pub trait IArray<I1: Integer> {
+    fn int_len<I2: Integer>(&self) -> usize;
 
-    fn get(&self, idx: usize) -> Option<I>;
+    fn get_int<I2: Integer>(&self, idx: usize) -> Option<I2> where I1: StaticCast<I2>;
 }
 
-pub trait IArrayMut<I: Integer> : IArray<I> {
-    fn set(&mut self, idx: usize, v: I) -> Option<I>;
+pub trait IArrayMut<I1: Integer> : IArray<I1> {
+    fn set_int<I2: Integer>(&mut self, idx: usize, v: I2) -> Option<I2> where I1: StaticCast<I2>;
 }
 
 #[cfg(not(any(target_endian = "big", target_endian = "little")))]
@@ -108,14 +108,12 @@ compile_error!("Unknown target endianness");
 
 
 #[cfg(target_endian = "little")]
-impl<I1: Integer, I2: Integer> IArray<I2> for [I1]
-    where I2: StaticCast<I1>
-{
-    fn len(&self) -> usize {
+impl<I1: Integer> IArray<I1> for [I1] {
+    fn int_len<I2: Integer>(&self) -> usize {
         (self.len() * size_of::<I1>() + size_of::<I2>() - 1) / size_of::<I2>()
     }
 
-    fn get(&self, idx: usize) -> Option<I2> {
+    fn get_int<I2: Integer>(&self, idx: usize) -> Option<I2> where I1: StaticCast<I2> {
         // The conditional check should be optimized during specialization.
         // These asserts should be validated by our tests.
         if size_of::<I1>() >= size_of::<I2>() {
@@ -136,11 +134,11 @@ impl<I1: Integer, I2: Integer> IArray<I2> for [I1]
             debug_assert!(size_of::<I2>() % size_of::<I1>() == 0);
             let s = size_of::<I2>() / size_of::<I1>();
             let mut v = I2::ZERO;
-            if idx >= IArray::<I2>::len(self) {
+            if idx >= self.int_len::<I2>() {
                 return None;
             }
             for i in 0..s {
-                v |= I2::cast_from(*self.get(idx * s + i).unwrap_or(&I1::ZERO)) << (size_of::<I1>() * 8 * i);
+                v |= StaticCast::<I2>::cast_to(*self.get(idx * s + i).unwrap_or(&I1::ZERO)) << (size_of::<I1>() * 8 * i);
             }
             return Some(v);
         }
@@ -148,11 +146,9 @@ impl<I1: Integer, I2: Integer> IArray<I2> for [I1]
 }
 
 #[cfg(target_endian = "little")]
-impl<I1: Integer, I2: Integer> IArrayMut<I2> for [I1]
-    where I1: StaticCast<I2>,
-          I2: StaticCast<I1>
+impl<I1: Integer> IArrayMut<I1> for [I1]
 {
-    fn set(&mut self, idx: usize, v: I2) -> Option<I2> {
+    fn set_int<I2: Integer>(&mut self, idx: usize, v: I2) -> Option<I2> where I1: StaticCast<I2> {
         // The conditional check should be optimized during specialization.
         // These asserts should be validated by our tests.
         if size_of::<I1>() >= size_of::<I2>() {
@@ -175,13 +171,13 @@ impl<I1: Integer, I2: Integer> IArrayMut<I2> for [I1]
             debug_assert!(size_of::<I2>() % size_of::<I1>() == 0);
             let s = size_of::<I2>() / size_of::<I1>();
             let mut old = I2::ZERO;
-            if idx >= IArray::<I2>::len(self) {
+            if idx >= self.int_len::<I2>() {
                 return None;
             }
             for i in 0..s {
                 if let Some(p) = self.get_mut(idx * s + i) {
-                    old |= I2::cast_from(*p) << (size_of::<I1>() * 8 * i);
-                    *p = I1::cast_from(v >> (size_of::<I1>() * 8 * i));
+                    old |= StaticCast::<I2>::cast_to(*p) << (size_of::<I1>() * 8 * i);
+                    *p = StaticCast::<I2>::cast_from(v >> (size_of::<I1>() * 8 * i));
                 }
             }
             return Some(old);
@@ -190,6 +186,6 @@ impl<I1: Integer, I2: Integer> IArrayMut<I2> for [I1]
 }
 
 
-// FIXME: Big Endian support for IArray and IArrayMut
+// TODO: Big Endian support for IArray and IArrayMut
 #[cfg(target_endian = "big")]
 compile_error!("Big endian not yet supported");

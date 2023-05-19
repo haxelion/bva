@@ -1,4 +1,4 @@
-mod generics;
+pub mod generics;
 
 pub type BV8 = generics::BV<u8, 1>;
 pub type BV16 = generics::BV<u16, 1>;

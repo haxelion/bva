@@ -7,7 +7,7 @@ use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor,
     Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
 
 use crate::{Bit, BitVector, ConvertError, Endianness};
-use crate::utils::{Integer, IArray, StaticCast};
+use crate::utils::{IArray, IArrayMut, Integer, StaticCast};
 
 #[derive(Copy, Clone, Debug)]
 pub struct BV<I: Integer, const N: usize> {
@@ -18,7 +18,6 @@ pub struct BV<I: Integer, const N: usize> {
 impl<I: Integer, const N: usize> BV<I, N> {
     const BYTE_UNIT: usize = size_of::<I>();
     const NIBBLE_UNIT: usize = size_of::<I>() * 2;
-    const SEMI_NIBBLE_UNIT: usize = size_of::<I>() * 4;
     const BIT_UNIT: usize = size_of::<I>() * 8;
 
     pub fn capacity() -> usize {
@@ -391,7 +390,7 @@ impl<I: Integer, const N: usize> fmt::Binary for BV<I, N> {
 }
 
 impl<I: Integer, const N: usize> fmt::Display for BV<I, N> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // TODO: waiting for div and mod operations
         todo!()
     }
@@ -403,7 +402,7 @@ impl<I: Integer, const N: usize> fmt::Octal for BV<I, N> {
         let length = (self.length + 2) / 3;
         let mut s = String::with_capacity(length);
         for i in (0..length).rev() {
-            let semi_nibble = (self.data[i / Self::NIBBLE_UNIT] >> ((i % Self::NIBBLE_UNIT) * 4)).cast_to() & 0x7;
+            let semi_nibble = StaticCast::<u8>::cast_to(self.data[i / Self::NIBBLE_UNIT] >> ((i % Self::NIBBLE_UNIT) * 4)) & 0x7;
             s.push(SEMI_NIBBLE[semi_nibble as usize]);
         }
         if f.alternate() {
@@ -421,7 +420,7 @@ impl<I: Integer, const N: usize> fmt::LowerHex for BV<I, N> {
         let length = (self.length + 3) / 4;
         let mut s = String::with_capacity(length);
         for i in (0..length).rev() {
-            let nibble = (self.data[i / Self::NIBBLE_UNIT] >> ((i % Self::NIBBLE_UNIT) * 4)).cast_to() & 0xf;
+            let nibble = StaticCast::<u8>::cast_to(self.data[i / Self::NIBBLE_UNIT] >> ((i % Self::NIBBLE_UNIT) * 4)) & 0xf;
             s.push(NIBBLE[nibble as usize]);
         }
         if f.alternate() {
@@ -439,7 +438,7 @@ impl<I: Integer, const N: usize> fmt::UpperHex for BV<I, N> {
         let length = (self.length + 3) / 4;
         let mut s = String::with_capacity(length);
         for i in (0..length).rev() {
-            let nibble = (self.data[i / Self::NIBBLE_UNIT] >> ((i % Self::NIBBLE_UNIT) * 4)).cast_to() & 0xf;
+            let nibble = StaticCast::<u8>::cast_to(self.data[i / Self::NIBBLE_UNIT] >> ((i % Self::NIBBLE_UNIT) * 4)) & 0xf;
             s.push(NIBBLE[nibble as usize]);
         }
         if f.alternate() {
@@ -661,12 +660,12 @@ impl_shifts!({u8, u16, u32, u64, u128, usize});
 
 macro_rules! impl_binop_assign { ($trait:ident, $method:ident) => {
     impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<&BV<I2, N2>> for BV<I1, N1> 
-        where I1: StaticCast<I2>,
+        where I2: StaticCast<I1>,
     {
         fn $method(&mut self, rhs: &BV<I2, N2>) {
             if size_of::<I1>() == size_of::<I2>() {
                 for i in 0..usize::min(N1, N2) {
-                    self.data[i].$method(I1::cast_from(rhs.data[i]));
+                    self.data[i].$method(StaticCast::<I1>::cast_to(rhs.data[i]));
                 }
                 for i in N2..N1 {
                     self.data[i].$method(I1::ZERO);
@@ -674,14 +673,14 @@ macro_rules! impl_binop_assign { ($trait:ident, $method:ident) => {
             }
             else {
                 for i in 0..N1 {
-                    self.data[i].$method(IArray::<I1>::get(&rhs.data[..], i).unwrap_or(I1::ZERO));
+                    self.data[i].$method(rhs.data.get_int::<I1>(i).unwrap_or(I1::ZERO));
                 }
             }
         }
     }
 
     impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<BV<I2, N2>> for BV<I1, N1> 
-        where I1: StaticCast<I2>,
+        where I2: StaticCast<I1>,
     {
         fn $method(&mut self, rhs: BV<I2, N2>) {
             self.$method(&rhs);
@@ -695,14 +694,14 @@ impl_binop_assign!(BitXorAssign, bitxor_assign);
 
 macro_rules! impl_addsub_assign { ($trait:ident, $method:ident, $carry_method:ident) => {
     impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<&BV<I2, N2>> for BV<I1, N1> 
-        where I1: StaticCast<I2>,
+        where I2: StaticCast<I1>
     {
         fn $method(&mut self, rhs: &BV<I2, N2>) {
             if size_of::<I1>() == size_of::<I2>() {
                 let mut carry = I1::ZERO;
 
                 for i in 0..usize::min(N1, N2) {
-                    carry = self.data[i].$carry_method(I1::cast_from(rhs.data[i]), carry);
+                    carry = self.data[i].$carry_method(StaticCast::<I1>::cast_to(rhs.data[i]), carry);
                 }
                 for i in N2..N1 {
                     carry = self.data[i].$carry_method(I1::ZERO, carry);
@@ -712,7 +711,7 @@ macro_rules! impl_addsub_assign { ($trait:ident, $method:ident, $carry_method:id
             else {
                 let mut carry = I1::ZERO;
                 for i in 0..N1 {
-                    carry = self.data[i].$carry_method(IArray::<I1>::get(&rhs.data[..], i).unwrap_or(I1::ZERO), carry);
+                    carry = self.data[i].$carry_method(rhs.data.get_int::<I1>(i).unwrap_or(I1::ZERO), carry);
                 }
                 self.mod2n(self.len());
             }
@@ -720,7 +719,7 @@ macro_rules! impl_addsub_assign { ($trait:ident, $method:ident, $carry_method:id
     }
 
     impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<BV<I2, N2>> for BV<I1, N1> 
-        where I1: StaticCast<I2>,
+        where I2: StaticCast<I1>
     {
         fn $method(&mut self, rhs: BV<I2, N2>) {
             self.$method(&rhs);
@@ -733,7 +732,7 @@ impl_addsub_assign!(SubAssign, sub_assign, carry_sub);
 
 macro_rules! impl_op { ($trait:ident, $method:ident, $assign_method:ident) => {
     impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<BV<I2, N2>> for BV<I1, N1>
-        where I1: StaticCast<I2>
+        where I2: StaticCast<I1>
     {
         type Output = BV<I1, N1>;
         fn $method(mut self, rhs: BV<I2, N2>) -> BV<I1, N1> {
@@ -743,7 +742,7 @@ macro_rules! impl_op { ($trait:ident, $method:ident, $assign_method:ident) => {
     }
 
     impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<&'_ BV<I2, N2>> for BV<I1, N1>
-        where I1: StaticCast<I2>
+        where I2: StaticCast<I1>
     {
         type Output = BV<I1, N1>;
         fn $method(mut self, rhs: &'_ BV<I2, N2>) -> BV<I1, N1> {
@@ -753,7 +752,7 @@ macro_rules! impl_op { ($trait:ident, $method:ident, $assign_method:ident) => {
     }
 
     impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<BV<I2, N2>> for &'_ BV<I1, N1>
-        where I1: StaticCast<I2>
+        where I2: StaticCast<I1>
     {
         type Output = BV<I1, N1>;
         fn $method(self, rhs: BV<I2, N2>) -> BV<I1, N1> {
@@ -762,7 +761,7 @@ macro_rules! impl_op { ($trait:ident, $method:ident, $assign_method:ident) => {
     }
 
     impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<&'_ BV<I2, N2>> for &'_ BV<I1, N1>
-        where I1: StaticCast<I2>
+        where I2: StaticCast<I1>
     {
         type Output = BV<I1, N1>;
         fn $method(self, rhs: &'_ BV<I2, N2>) -> BV<I1, N1> {
@@ -777,3 +776,20 @@ impl_op!(BitOr, bitor, bitor_assign);
 impl_op!(BitXor, bitxor, bitxor_assign);
 impl_op!(Add, add, add_assign);
 impl_op!(Sub, sub, sub_assign);
+
+
+impl<I1: Integer, const N: usize> IArray<I1> for BV<I1, N> {
+    fn int_len<I2: Integer>(&self) -> usize {
+        self.data.int_len::<I2>()
+    }
+
+    fn get_int<I2: Integer>(&self, idx: usize) -> Option<I2> where I1: StaticCast<I2> {
+        self.data.get_int::<I2>(idx)
+    }
+}
+
+impl<I1: Integer, const N: usize> IArrayMut<I1> for BV<I1, N> {
+    fn set_int<I2: Integer>(&mut self, idx: usize, v: I2) -> Option<I2> where I1: StaticCast<I2> {
+        self.data.set_int::<I2>(idx, v)
+    }
+}
