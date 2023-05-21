@@ -339,7 +339,6 @@ macro_rules! decl_op_implicit_cast_inner {($name:ident, $bvb:ty, $stb:ty) => {
             let b = Wrapping(random::<$stb>() as u128) & mask;
             let mut bva = BVN::from(a.0).copy_slice(0..i);
             let bvb = <$bvb>::try_from(b.0 as $stb).unwrap().copy_slice(0..(i.min(size_of::<$stb>() * 8)));
-
             // Test non assign variant first
             assert_eq!(((!a) & mask).0, u128::try_from(!&bva).unwrap());
             assert_eq!(((a & b) & mask).0, u128::try_from(&bva & &bvb).unwrap());

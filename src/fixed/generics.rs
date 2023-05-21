@@ -7,6 +7,7 @@ use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor,
     Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
 
 use crate::{Bit, BitVector, ConvertError, Endianness};
+use crate::dynamic::BVN;
 use crate::utils::{IArray, IArrayMut, Integer, StaticCast};
 
 #[derive(Copy, Clone, Debug)]
@@ -511,6 +512,38 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
 
 impl_tryfrom!(u8, u16, u32, u64, u128, usize);
 
+impl<I: Integer, const N: usize> TryFrom<&'_ BVN> for BV<I, N>
+where 
+    u64: StaticCast<I>
+{
+    type Error = ConvertError;
+    fn try_from(bvn: &'_ BVN) -> Result<Self, Self::Error> {
+        if bvn.len() > BV::<I, N>::capacity() {
+            Err(ConvertError::NotEnoughCapacity)
+        }
+        else {
+            let mut data = [I::ZERO; N];
+            for i in 0..N {
+                data[i] = bvn.get_int(i).unwrap_or(I::ZERO);
+            } 
+            Ok(BV::<I, N> {
+                data,
+                length: bvn.len()
+            })
+        }
+    }
+}
+
+impl<I: Integer, const N: usize> TryFrom<BVN> for BV<I, N>
+where 
+    u64: StaticCast<I>
+{
+    type Error = ConvertError;
+    fn try_from(bvn: BVN) -> Result<Self, Self::Error> {
+        Self::try_from(&bvn)
+    }
+}
+
 impl<I: Integer, const N: usize> Not for BV<I, N> {
     type Output = BV<I, N>;
 
@@ -777,19 +810,28 @@ impl_op!(BitXor, bitxor, bitxor_assign);
 impl_op!(Add, add, add_assign);
 impl_op!(Sub, sub, sub_assign);
 
-
 impl<I1: Integer, const N: usize> IArray<I1> for BV<I1, N> {
     fn int_len<I2: Integer>(&self) -> usize {
-        self.data.int_len::<I2>()
+        (self.len() + size_of::<I2>() * 8 - 1) / (size_of::<I2>() * 8)
     }
 
     fn get_int<I2: Integer>(&self, idx: usize) -> Option<I2> where I1: StaticCast<I2> {
-        self.data.get_int::<I2>(idx)
+        if idx < self.int_len::<I2>() {
+            self.data.get_int::<I2>(idx)
+        }
+        else {
+            None
+        }
     }
 }
 
 impl<I1: Integer, const N: usize> IArrayMut<I1> for BV<I1, N> {
     fn set_int<I2: Integer>(&mut self, idx: usize, v: I2) -> Option<I2> where I1: StaticCast<I2> {
-        self.data.set_int::<I2>(idx, v)
+        if idx < self.int_len::<I2>() {
+            self.data.set_int::<I2>(idx, v)
+        }
+        else {
+            None
+        }
     }
 }

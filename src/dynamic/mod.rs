@@ -16,7 +16,7 @@ use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor,
 use crate::{Bit, BitVector, ConvertError, Endianness};
 use crate::fixed::BV128;
 use crate::fixed::generics::BV;
-use crate::utils::{IArray, Integer};
+use crate::utils::{IArray, IArrayMut, Integer, StaticCast};
 
 /// A bit vector with dynamic capacity.
 #[derive(Clone, Debug)]
@@ -78,6 +78,32 @@ impl BVN {
                 new_data[i] = self.data[i];
             }
             self.data = new_data.into_boxed_slice();
+        }
+    }
+}
+
+impl IArray<u64> for BVN {
+    fn int_len<I2: Integer>(&self) -> usize {
+        (self.len() + size_of::<I2>() * 8 - 1) / (size_of::<I2>() * 8)
+    }
+
+    fn get_int<I2: Integer>(&self, idx: usize) -> Option<I2> where u64: StaticCast<I2> {
+        if idx < self.int_len::<I2>() {
+            self.data.get_int::<I2>(idx)
+        }
+        else {
+            None
+        }
+    }
+}
+
+impl IArrayMut<u64> for BVN {
+    fn set_int<I2: Integer>(&mut self, idx: usize, v: I2) -> Option<I2> where u64: StaticCast<I2> {
+        if idx < self.int_len::<I2>() {
+            self.data.set_int::<I2>(idx, v)
+        }
+        else {
+            None
         }
     }
 }
@@ -731,20 +757,6 @@ impl<I: Integer, const N: usize> From<BV<I, N>> for BVN {
     }
 }
 
-impl<I: Integer, const N: usize> TryFrom<&'_ BVN> for BV<I, N> {
-    type Error = &'static str;
-    fn try_from(_bvn: &'_ BVN) -> Result<Self, Self::Error> {
-        todo!()
-    }
-}
-
-impl<I: Integer, const N: usize> TryFrom<BVN> for BV<I, N> {
-    type Error = &'static str;
-    fn try_from(bvn: BVN) -> Result<Self, Self::Error> {
-        Self::try_from(&bvn)
-    }
-}
-
 macro_rules! impl_binop_assign { ($trait:ident, $method:ident) => {
     impl $trait<&'_ BVN> for BVN {
         fn $method(&mut self, rhs: &'_ BVN) {
@@ -827,13 +839,13 @@ macro_rules! impl_addsub_assign { ($trait:ident, $method:ident, $overflowing_met
                 self.resize(rhs.len(), Bit::Zero);
             }
             let mut carry = 0;
-            for i in 0..usize::min(rhs.int_len::<u64>(), self.data.len()) {
+            for i in 0..rhs.int_len::<u64>() {
                 let (d1, c1) = self.data[i].$overflowing_method(carry);
                 let (d2, c2) = d1.$overflowing_method(rhs.get_int::<u64>(i).unwrap());
                 self.data[i] = d2;
                 carry = (c1 | c2) as u64;
             }
-            for i in 0..usize::min(rhs.int_len::<u64>(), self.data.len()) {
+            for i in rhs.int_len::<u64>()..Self::capacity_from_bit_len(self.length) {
                 let (d, c) = self.data[i].$overflowing_method(carry);
                 self.data[i] = d;
                 carry = c as u64;
