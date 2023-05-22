@@ -21,11 +21,11 @@ impl<I: Integer, const N: usize> BV<I, N> {
     const NIBBLE_UNIT: usize = size_of::<I>() * 2;
     const BIT_UNIT: usize = size_of::<I>() * 8;
 
-    pub fn capacity() -> usize {
+    pub const fn capacity() -> usize {
         size_of::<I>() * 8 * N
     }
 
-    fn capacity_from_bit_len(bit_length: usize) -> usize {
+    const fn capacity_from_bit_len(bit_length: usize) -> usize {
         (bit_length + Self::BIT_UNIT - 1) / Self::BIT_UNIT
     }
 
@@ -46,7 +46,7 @@ impl<I: Integer, const N: usize> BV<I, N> {
     }
 }
 
-impl<I: Integer, const N: usize> BitVector for BV<I, N> {
+impl<I: Integer, const N: usize> BitVector for BV<I, N> where I: StaticCast<I> {
     fn zeros(length: usize) -> Self {
         debug_assert!(length <= Self::capacity());
         Self {
@@ -340,10 +340,14 @@ impl<I: Integer, const N: usize> BitVector for BV<I, N> {
     }
 }
 
-impl<I: Integer, const N: usize> PartialEq for BV<I, N> {
-    fn eq(&self, other: &Self) -> bool {
-        for i in 0..N {
-            if self.data.get(i).unwrap_or(&I::ZERO) != other.data.get(i).unwrap_or(&I::ZERO) {
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> PartialEq<BV<I1, N1>> for BV<I2, N2> where
+    I1: StaticCast<I1>,
+    I2: StaticCast<I1>
+{
+    fn eq(&self, other: &BV<I1, N1>) -> bool {
+        for i in 0..usize::max(self.int_len::<I1>(), other.int_len::<I1>()) {
+            if self.data.get_int::<I1>(i).unwrap_or(I1::ZERO) != 
+               other.data.get_int::<I1>(i).unwrap_or(I1::ZERO) {
                 return false;
             }
         }
@@ -351,28 +355,33 @@ impl<I: Integer, const N: usize> PartialEq for BV<I, N> {
     }
 }
 
-impl<I: Integer, const N: usize> Eq for BV<I, N> {}
+impl<I: Integer, const N: usize> Eq for BV<I, N> where I: StaticCast<I> {}
 
-
-impl<I: Integer, const N: usize> Ord for BV<I, N> {
-    fn cmp(&self, other: &Self) -> Ordering { 
-        for i in (0..N).rev() {
-            match self.data.get(i).unwrap_or(&I::ZERO).cmp(other.data.get(i).unwrap_or(&I::ZERO)) {
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> PartialOrd<BV<I1, N1>> for BV<I2, N2> where
+    I1: StaticCast<I1>,
+    I2: StaticCast<I1>
+{
+    fn partial_cmp(&self, other: &BV<I1, N1>) -> Option<std::cmp::Ordering> {
+        for i in (0..usize::max(self.int_len::<I1>(), other.int_len::<I1>())).rev() {
+            match self.data.get_int::<I1>(i).unwrap_or(I1::ZERO).cmp(
+                &other.data.get_int::<I1>(i).unwrap_or(I1::ZERO)
+            ) {
                 Ordering::Equal => continue,
-                ord => return ord
+                ord => return Some(ord)
             }
         }
-        return Ordering::Equal;
+        return Some(Ordering::Equal);
     }
 }
 
-impl<I: Integer, const N: usize> PartialOrd for BV<I, N> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
+impl<I: Integer, const N: usize> Ord for BV<I, N> where I: StaticCast<I> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // Partial Cmp never returns None
+        self.partial_cmp(other).unwrap()
     }
 }
 
-impl<I: Integer, const N: usize> fmt::Binary for BV<I, N> {
+impl<I: Integer, const N: usize> fmt::Binary for BV<I, N> where I: StaticCast<I> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut s = String::with_capacity(self.length);
         for i in (0..self.length).rev() {
@@ -485,32 +494,55 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
             }
         }
 
-        impl<I: Integer, const N: usize> TryFrom<BV<I, N>> for $type
-            where $type: StaticCast<I>
+        impl<I: Integer, const N: usize> TryFrom<&'_ BV<I, N>> for $type
+            where I: StaticCast<$type>
         {
             type Error = ConvertError;
-
-            fn try_from(bv: BV<I, N>) -> Result<Self, Self::Error> {
+            fn try_from(bv: &'_ BV<I, N>) -> Result<Self, Self::Error> {
                 // Check if the bit vector overflow I
-                if bv.len() > size_of::<$type>() * 8 {
-                    return Err(ConvertError::NotEnoughCapacity);
-                }
-                if size_of::<I>() >= size_of::<$type>() {
-                    return Ok(<$type>::cast_from(bv.data[0]));
+                if bv.length > size_of::<$type>() * 8 {
+                    Err(ConvertError::NotEnoughCapacity)
                 }
                 else {
-                    let mut value = 0;
-                    for i in 0..N {
-                        value |= <$type>::cast_from(bv.data[i]).shl(i * BV::<I, N>::BIT_UNIT);
-                    }
-                    return Ok(value);
+                    Ok(bv.data.get_int::<$type>(0).unwrap())
                 }
+            }
+        }
+
+        impl<I: Integer, const N: usize> TryFrom<BV<I, N>> for $type
+            where I: StaticCast<$type>
+        {
+            type Error = ConvertError;
+            fn try_from(bv: BV<I, N>) -> Result<Self, Self::Error> {
+                Self::try_from(&bv)
             }
         }
     )+
 }}
 
 impl_tryfrom!(u8, u16, u32, u64, u128, usize);
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> TryFrom<&'_ BV<I1, N1>> for BV<I2, N2> where
+    I1: StaticCast<I2>
+{
+    type Error = ConvertError;
+
+    fn try_from(bvn: &'_ BV<I1, N1>) -> Result<Self, Self::Error> {
+        if Self::capacity() < bvn.length {
+            Err(ConvertError::NotEnoughCapacity)
+        }
+        else {
+            let mut data = [I2::ZERO; N2];
+            for i in 0..usize::min(N2, bvn.data.int_len::<I2>()) {
+                data[i] = bvn.get_int::<I2>(i).unwrap();
+            }
+            Ok(BV::<I2, N2> {
+                data,
+                length: bvn.length
+            })
+        }
+    }
+}
 
 impl<I: Integer, const N: usize> TryFrom<&'_ BVN> for BV<I, N>
 where 
@@ -739,14 +771,14 @@ macro_rules! impl_addsub_assign { ($trait:ident, $method:ident, $carry_method:id
                 for i in N2..N1 {
                     carry = self.data[i].$carry_method(I1::ZERO, carry);
                 }
-                self.mod2n(self.len());
+                self.mod2n(self.length);
             }
             else {
                 let mut carry = I1::ZERO;
                 for i in 0..N1 {
                     carry = self.data[i].$carry_method(rhs.data.get_int::<I1>(i).unwrap_or(I1::ZERO), carry);
                 }
-                self.mod2n(self.len());
+                self.mod2n(self.length);
             }
         }
     }
@@ -812,7 +844,7 @@ impl_op!(Sub, sub, sub_assign);
 
 impl<I1: Integer, const N: usize> IArray<I1> for BV<I1, N> {
     fn int_len<I2: Integer>(&self) -> usize {
-        (self.len() + size_of::<I2>() * 8 - 1) / (size_of::<I2>() * 8)
+        (self.length + size_of::<I2>() * 8 - 1) / (size_of::<I2>() * 8)
     }
 
     fn get_int<I2: Integer>(&self, idx: usize) -> Option<I2> where I1: StaticCast<I2> {

@@ -64,7 +64,7 @@ pub trait Integer : Add<Output=Self> + AddAssign + BitAnd<Output=Self> + BitAndA
     Debug + Div<Output=Self> + DivAssign + Display + Eq + From<Bit> + Into<Bit> + 
     Mul<Output=Self> + MulAssign+ Not<Output=Self> + Ord + PartialEq + PartialOrd + 
     Shl<usize, Output=Self> + ShlAssign<usize> + Shr<usize, Output=Self> + ShrAssign<usize> + 
-    Sub<Output=Self> + SubAssign + Sized + StaticCast<u8> + StaticCast<u64> {
+    Sub<Output=Self> + SubAssign + Sized + StaticCast<u8> + StaticCast<u64> + StaticCast<Self> {
         fn carry_add(&mut self, rhs: Self, carry: Self) -> Self;
         fn carry_sub(&mut self, rhs: Self, carry: Self) -> Self;
     }

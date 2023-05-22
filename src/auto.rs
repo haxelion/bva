@@ -15,7 +15,7 @@ use std::mem::size_of;
 use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, 
     Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
 
-use crate::{BitVector, Endianness};
+use crate::{BitVector, Endianness, ConvertError};
 use crate::Bit;
 use crate::dynamic::BVN;
 #[allow(unused_imports)]
@@ -39,7 +39,7 @@ pub enum BV {
 impl BV {
     /// Create a bit vector of length 0 but with enough capacity to store `capacity` bits.
     pub fn with_capacity(capacity: usize) -> Self {
-        if capacity <= BVF::CAPACITY {
+        if capacity <= BVF::capacity() {
             BV::Fixed(BVF::zeros(0))
         }
         else {
@@ -55,7 +55,7 @@ impl BV {
     pub fn reserve(&mut self, additional: usize) {
         match self {
             &mut BV::Fixed(ref b) => {
-                if b.len() + additional > BVF::CAPACITY {
+                if b.len() + additional > BVF::capacity() {
                     let mut new_b = BVN::from(b);
                     new_b.reserve(additional);
                     *self = BV::Dynamic(new_b);
@@ -71,7 +71,7 @@ impl BV {
     /// allocated memory.
     pub fn shrink_to_fit(&mut self) {
         if let BV::Dynamic(b) = self {
-            if b.len() <= BVF::CAPACITY {
+            if b.len() <= BVF::capacity() {
                 let new_b = BVF::try_from(&*b).unwrap();
                 *self = BV::Fixed(new_b);
             }
@@ -84,7 +84,7 @@ impl BV {
 
 impl BitVector for BV {
     fn zeros(length: usize) -> Self {
-        if length <= BVF::CAPACITY {
+        if length <= BVF::capacity() {
             BV::Fixed(BVF::zeros(length))
         }
         else {
@@ -93,7 +93,7 @@ impl BitVector for BV {
     }
 
     fn ones(length: usize) -> Self {
-        if length <= BVF::CAPACITY {
+        if length <= BVF::capacity() {
             BV::Fixed(BVF::ones(length))
         }
         else {
@@ -101,30 +101,30 @@ impl BitVector for BV {
         }
     }
 
-    fn from_binary<S: AsRef<str>>(string: S) -> Option<Self> {
-        if string.as_ref().len() <= BVF::CAPACITY {
-            Some(BV::Fixed(BVF::from_binary(string)?))
+    fn from_binary<S: AsRef<str>>(string: S) -> Result<Self, ConvertError> {
+        if string.as_ref().len() <= BVF::capacity() {
+            Ok(BV::Fixed(BVF::from_binary(string)?))
         }
         else {
-            Some(BV::Dynamic(BVN::from_binary(string)?))
+            Ok(BV::Dynamic(BVN::from_binary(string)?))
         }
     }
 
-    fn from_hex<S: AsRef<str>>(string: S) -> Option<Self> {
-        if string.as_ref().len()*4 <= BVF::CAPACITY {
-            Some(BV::Fixed(BVF::from_hex(string)?))
+    fn from_hex<S: AsRef<str>>(string: S) -> Result<Self, ConvertError> {
+        if string.as_ref().len()*4 <= BVF::capacity() {
+            Ok(BV::Fixed(BVF::from_hex(string)?))
         }
         else {
-            Some(BV::Dynamic(BVN::from_hex(string)?))
+            Ok(BV::Dynamic(BVN::from_hex(string)?))
         }
     }
 
-    fn from_bytes<B: AsRef<[u8]>>(bytes: B, endianness: Endianness) -> Self {
-        if bytes.as_ref().len()*8 <= BVF::CAPACITY {
-            BV::Fixed(BVF::from_bytes(bytes, endianness))
+    fn from_bytes<B: AsRef<[u8]>>(bytes: B, endianness: Endianness) -> Result<Self, ConvertError> {
+        if bytes.as_ref().len()*8 <= BVF::capacity() {
+            Ok(BV::Fixed(BVF::from_bytes(bytes, endianness)?))
         }
         else {
-            BV::Dynamic(BVN::from_bytes(bytes, endianness))
+            Ok(BV::Dynamic(BVN::from_bytes(bytes, endianness)?))
         }
     }
 
@@ -136,7 +136,7 @@ impl BitVector for BV {
     }
 
     fn read<R: std::io::Read>(reader: &mut R, length: usize, endianness: Endianness) -> std::io::Result<Self> {
-        if length <= BVF::CAPACITY {
+        if length <= BVF::capacity() {
             Ok(BV::Fixed(BVF::read(reader, length, endianness)?))
         }
         else {
@@ -170,7 +170,7 @@ impl BitVector for BV {
             BV::Fixed(b) => BV::Fixed(b.copy_slice(range)),
             BV::Dynamic(b) => {
                 let s = b.copy_slice(range);
-                if s.len() <= BVF::CAPACITY {
+                if s.len() <= BVF::capacity() {
                     BV::Fixed(BVF::try_from(s).unwrap())
                 }
                 else {
@@ -416,30 +416,33 @@ macro_rules! impl_froms {({$(($sbv:ty, $sst:ty)),+}, {$(($ubv:ty, $ust:ty)),+}) 
     $(
         impl From<$sst> for BV {
             fn from(sst: $sst) -> Self {
-                if size_of::<$sst>() * 8 <= BVF::CAPACITY {
-                    BV::Fixed(BVF::from(sst))
+                if size_of::<$sst>() * 8 <= BVF::capacity() {
+                    // Call should never fail because we check for capacity
+                    BV::Fixed(BVF::try_from(sst).unwrap())
                 }
                 else {
-                    BV::Dynamic(BVN::from(sst))
+                    BV::Dynamic(BVN::try_from(sst).unwrap())
                 }
             }
         }
 
         impl From<&'_ $sbv> for BV {
             fn from(b: &'_ $sbv) -> Self {
-                if <$sbv>::CAPACITY <= BVF::CAPACITY {
-                    BV::Fixed(BVF::from(b))
+                // Call should never fail because we check for capacity
+                if <$sbv>::capacity() <= BVF::capacity() {
+                    BV::Fixed(BVF::try_from(b).unwrap())
                 }
                 else {
-                    BV::Dynamic(BVN::from(b))
+                    BV::Dynamic(BVN::try_from(b).unwrap())
                 }
             }
         }
 
         impl From<$sbv> for BV {
             fn from(b: $sbv) -> Self {
-                if <$sbv>::CAPACITY <= BVF::CAPACITY {
-                    BV::Fixed(BVF::from(b))
+                if <$sbv>::capacity() <= BVF::capacity() {
+                    // Call should never fail because we check for capacity
+                    BV::Fixed(BVF::try_from(&b).unwrap())
                 }
                 else {
                     BV::Dynamic(BVN::from(b))
@@ -448,7 +451,7 @@ macro_rules! impl_froms {({$(($sbv:ty, $sst:ty)),+}, {$(($ubv:ty, $ust:ty)),+}) 
         }
 
         impl TryFrom<&'_ BV> for $sst {
-            type Error = &'static str;
+            type Error = ConvertError;
             fn try_from(bv: &'_ BV) -> Result<Self, Self::Error> {
                 match bv {
                     BV::Fixed(b) => <$sst>::try_from(b),
@@ -458,14 +461,14 @@ macro_rules! impl_froms {({$(($sbv:ty, $sst:ty)),+}, {$(($ubv:ty, $ust:ty)),+}) 
         }
 
         impl TryFrom<BV> for $sst {
-            type Error = &'static str;
+            type Error = ConvertError;
             fn try_from(bv: BV) -> Result<Self, Self::Error> {
                 <$sst>::try_from(&bv)
             }
         }
 
         impl TryFrom<&'_ BV> for $sbv {
-            type Error = &'static str;
+            type Error = ConvertError;
             fn try_from(bv: &'_ BV) -> Result<Self, Self::Error> {
                 match bv {
                     BV::Fixed(b) => <$sbv>::try_from(b),
@@ -475,7 +478,7 @@ macro_rules! impl_froms {({$(($sbv:ty, $sst:ty)),+}, {$(($ubv:ty, $ust:ty)),+}) 
         }
 
         impl TryFrom<BV> for $sbv {
-            type Error = &'static str;
+            type Error = ConvertError;
             fn try_from(bv: BV) -> Result<Self, Self::Error> {
                 <$sbv>::try_from(&bv)
             }
@@ -491,7 +494,7 @@ macro_rules! impl_froms {({$(($sbv:ty, $sst:ty)),+}, {$(($ubv:ty, $ust:ty)),+}) 
 
         impl From<&'_ $ubv> for BV {
             fn from(ubv: &'_ $ubv) -> Self {
-                if ubv.len() <= BVF::CAPACITY {
+                if ubv.len() <= BVF::capacity() {
                     BV::Fixed(BVF::try_from(*ubv).unwrap())
                 }
                 else {
@@ -507,24 +510,24 @@ macro_rules! impl_froms {({$(($sbv:ty, $sst:ty)),+}, {$(($ubv:ty, $ust:ty)),+}) 
         }
 
         impl TryFrom<&'_ BV> for $ust {
-            type Error = &'static str;
+            type Error = ConvertError;
             fn try_from(bv: &'_ BV) -> Result<Self, Self::Error> {
                 match bv {
-                    BV::Fixed(b) => Ok(<$ust>::from(b)),
+                    BV::Fixed(b) => Ok(<$ust>::try_from(b).unwrap()),
                     BV::Dynamic(b) => <$ust>::try_from(b),
                 }
             }
         }
 
         impl TryFrom<BV> for $ust {
-            type Error = &'static str;
+            type Error = ConvertError;
             fn try_from(bv: BV) -> Result<Self, Self::Error> {
                 <$ust>::try_from(&bv)
             }
         }
 
         impl TryFrom<&'_ BV> for $ubv {
-            type Error = &'static str;
+            type Error = ConvertError;
             fn try_from(bv: &'_ BV) -> Result<Self, Self::Error> {
                 match bv {
                     BV::Fixed(b) => Ok(<$ubv>::from(*b)),
@@ -534,7 +537,7 @@ macro_rules! impl_froms {({$(($sbv:ty, $sst:ty)),+}, {$(($ubv:ty, $ust:ty)),+}) 
         }
 
         impl TryFrom<BV> for $ubv {
-            type Error = &'static str;
+            type Error = ConvertError;
             fn try_from(bv: BV) -> Result<Self, Self::Error> {
                 <$ubv>::try_from(&bv)
             }

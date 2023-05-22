@@ -713,11 +713,11 @@ macro_rules! impl_from_ints {($($st:ty),+) => {
         }
 
         impl TryFrom<&'_ BVN> for $st {
-            type Error = &'static str;
+            type Error = ConvertError;
             #[allow(arithmetic_overflow)]
             fn try_from(bvn: &'_ BVN) -> Result<Self, Self::Error> {
                 if bvn.length > size_of::<$st>() * 8 {
-                    return Err("BVN is too large to convert into this type");
+                    return Err(ConvertError::NotEnoughCapacity);
                 }
                 else {
                     let mut r: $st = 0;
@@ -730,7 +730,7 @@ macro_rules! impl_from_ints {($($st:ty),+) => {
         }
 
         impl TryFrom<BVN> for $st {
-            type Error = &'static str;
+            type Error = ConvertError;
             fn try_from(bvn: BVN) -> Result<Self, Self::Error> {
                 <$st>::try_from(&bvn)
             }

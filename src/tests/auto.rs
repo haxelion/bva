@@ -19,7 +19,7 @@ fn random_bvn(length: usize) -> BVN {
     let byte_length = (length + 7) / 8;
     let mut bytes: Vec<u8> = repeat(0u8).take(byte_length).collect();
     thread_rng().fill_bytes(&mut bytes[..]);
-    let mut bvn = BVN::from_bytes(&bytes, Endianness::LE);
+    let mut bvn = BVN::from_bytes(&bytes, Endianness::LE).unwrap();
     bvn.resize(length, Bit::Zero);
     return bvn;
 }
@@ -28,7 +28,7 @@ fn random_bv(length: usize) -> BV {
     let byte_length = (length + 7) / 8;
     let mut bytes: Vec<u8> = repeat(0u8).take(byte_length).collect();
     thread_rng().fill_bytes(&mut bytes[..]);
-    let mut bv = BV::from_bytes(&bytes, Endianness::LE);
+    let mut bv = BV::from_bytes(&bytes, Endianness::LE).unwrap();
     bv.resize(length, Bit::Zero);
     return bv;
 }
@@ -74,11 +74,11 @@ fn from_to_bytes() {
         let bv = random_bv(length);
 
         let buf1 = bv.to_vec(Endianness::LE);
-        let bv1 = BV::from_bytes(&buf1, Endianness::LE);
+        let bv1 = BV::from_bytes(&buf1, Endianness::LE).unwrap();
         assert_eq!(bv, bv1);
 
         let buf2 = bv.to_vec(Endianness::BE);
-        let bv2 = BV::from_bytes(&buf2, Endianness::BE);
+        let bv2 = BV::from_bytes(&buf2, Endianness::BE).unwrap();
         assert_eq!(bv, bv2);
     }
 }
@@ -269,19 +269,19 @@ fn not() {
 fn from_try_from() {
     let v: u8 = random();
     assert_eq!(v, BV::from(v).try_into().unwrap());
-    assert_eq!(BV8::from(v), BV8::try_from(BV::from(BV8::from(v))).unwrap());
+    assert_eq!(BV8::try_from(v).unwrap(), BV8::try_from(BV::from(BV8::try_from(v).unwrap())).unwrap());
     let v: u16 = random();
     assert_eq!(v, BV::from(v).try_into().unwrap());
-    assert_eq!(BV16::from(v), BV16::try_from(BV::from(BV16::from(v))).unwrap());
+    assert_eq!(BV16::try_from(v).unwrap(), BV16::try_from(BV::from(BV16::try_from(v).unwrap())).unwrap());
     let v: u32 = random();
     assert_eq!(v, BV::from(v).try_into().unwrap());
-    assert_eq!(BV32::from(v), BV32::try_from(BV::from(BV32::from(v))).unwrap());
+    assert_eq!(BV32::try_from(v).unwrap(), BV32::try_from(BV::from(BV32::try_from(v).unwrap())).unwrap());
     let v: u64 = random();
     assert_eq!(v, BV::from(v).try_into().unwrap());
-    assert_eq!(BV64::from(v), BV64::try_from(BV::from(BV64::from(v))).unwrap());
+    assert_eq!(BV64::try_from(v).unwrap(), BV64::try_from(BV::from(BV64::try_from(v).unwrap())).unwrap());
     let v: u128 = random();
     assert_eq!(v, BV::from(v).try_into().unwrap());
-    assert_eq!(BV128::from(v), BV128::try_from(BV::from(BV128::from(v))).unwrap());
+    assert_eq!(BV128::try_from(v).unwrap(), BV128::try_from(BV::from(BV128::try_from(v).unwrap())).unwrap());
     for l in 128..=MAX_TESTED_SIZE {
         let v: BVN = random_bvn(l);
         assert_eq!(v, BVN::from(BV::from(&v)));
@@ -333,7 +333,7 @@ macro_rules! decl_op_implicit_cast_inner {($name:ident, $bvb:ty, $stb:ty) => {
             let mut a = Wrapping(random::<u128>()) & mask;
             let b = Wrapping(random::<$stb>() as u128) & mask;
             let mut bva = BV::from(a.0).copy_slice(0..i);
-            let bvb = <$bvb>::from(b.0 as $stb).copy_slice(0..(i.min(size_of::<$stb>() * 8)));
+            let bvb = <$bvb>::try_from(b.0 as $stb).unwrap().copy_slice(0..(i.min(size_of::<$stb>() * 8)));
 
             // Test non assign variant first
             assert_eq!(((!a) & mask).0, u128::try_from(!&bva).unwrap());
