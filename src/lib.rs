@@ -58,13 +58,13 @@ pub enum ConvertError {
 impl Debug for ConvertError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            &ConvertError::NotEnoughCapacity => write!(
+            ConvertError::NotEnoughCapacity => write!(
                 f,
-                "BitVector type did not have enough capacity to perform the conversion"
+                "Bit vector did not have enough capacity to perform the conversion"
             ),
-            &ConvertError::InvalidFormat(pos) => write!(
+            ConvertError::InvalidFormat(pos) => write!(
                 f,
-                "BitVector type conversion method encountered an error at symbol {}",
+                "Bit vector conversion method encountered an error at symbol {}",
                 pos
             ),
         }
@@ -74,8 +74,8 @@ impl Debug for ConvertError {
 impl Display for ConvertError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            &ConvertError::NotEnoughCapacity => write!(f, "ConvertError::NotEnoughCapacity"),
-            &ConvertError::InvalidFormat(pos) => write!(f, "ConvertError::InvalidFormat({})", pos),
+            ConvertError::NotEnoughCapacity => write!(f, "ConvertError::NotEnoughCapacity"),
+            ConvertError::InvalidFormat(pos) => write!(f, "ConvertError::InvalidFormat({})", pos),
         }
     }
 }
@@ -170,6 +170,11 @@ pub trait BitVector:
 
     /// Return the length of the bit vector in bits.
     fn len(&self) -> usize;
+
+    /// Return wether the bit vector is empty or not.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 #[cfg(test)]
