@@ -1,7 +1,9 @@
 use std::fmt::{Debug, Display};
 use std::mem::{align_of, size_of};
-use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, 
-    Div, DivAssign, Mul, MulAssign, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
+use std::ops::{
+    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
+    Mul, MulAssign, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+};
 
 use crate::Bit;
 
@@ -25,7 +27,7 @@ macro_rules! impl_staticcast {
                 fn cast_from(u: $rhs) -> Self {
                     u as Self
                 }
-                
+
                 fn cast_to(self) -> $rhs {
                     self as $rhs
                 }
@@ -58,16 +60,44 @@ macro_rules! impl_constants {
 
 impl_constants!(u8, u16, u32, u64, u128, usize);
 
-
-pub trait Integer : Add<Output=Self> + AddAssign + BitAnd<Output=Self> + BitAndAssign +
-    BitOr<Output=Self> + BitOrAssign + BitXor<Output=Self> + BitXorAssign + Constants + Copy + 
-    Debug + Div<Output=Self> + DivAssign + Display + Eq + From<Bit> + Into<Bit> + 
-    Mul<Output=Self> + MulAssign+ Not<Output=Self> + Ord + PartialEq + PartialOrd + 
-    Shl<usize, Output=Self> + ShlAssign<usize> + Shr<usize, Output=Self> + ShrAssign<usize> + 
-    Sub<Output=Self> + SubAssign + Sized + StaticCast<u8> + StaticCast<u64> + StaticCast<Self> {
-        fn carry_add(&mut self, rhs: Self, carry: Self) -> Self;
-        fn carry_sub(&mut self, rhs: Self, carry: Self) -> Self;
-    }
+pub trait Integer:
+    Add<Output = Self>
+    + AddAssign
+    + BitAnd<Output = Self>
+    + BitAndAssign
+    + BitOr<Output = Self>
+    + BitOrAssign
+    + BitXor<Output = Self>
+    + BitXorAssign
+    + Constants
+    + Copy
+    + Debug
+    + Div<Output = Self>
+    + DivAssign
+    + Display
+    + Eq
+    + From<Bit>
+    + Into<Bit>
+    + Mul<Output = Self>
+    + MulAssign
+    + Not<Output = Self>
+    + Ord
+    + PartialEq
+    + PartialOrd
+    + Shl<usize, Output = Self>
+    + ShlAssign<usize>
+    + Shr<usize, Output = Self>
+    + ShrAssign<usize>
+    + Sub<Output = Self>
+    + SubAssign
+    + Sized
+    + StaticCast<u8>
+    + StaticCast<u64>
+    + StaticCast<Self>
+{
+    fn carry_add(&mut self, rhs: Self, carry: Self) -> Self;
+    fn carry_sub(&mut self, rhs: Self, carry: Self) -> Self;
+}
 
 macro_rules! impl_integer {
     ($($type:ty),+) => {
@@ -96,16 +126,19 @@ impl_integer!(u8, u16, u32, u64, u128, usize);
 pub trait IArray<I1: Integer> {
     fn int_len<I2: Integer>(&self) -> usize;
 
-    fn get_int<I2: Integer>(&self, idx: usize) -> Option<I2> where I1: StaticCast<I2>;
+    fn get_int<I2: Integer>(&self, idx: usize) -> Option<I2>
+    where
+        I1: StaticCast<I2>;
 }
 
-pub trait IArrayMut<I1: Integer> : IArray<I1> {
-    fn set_int<I2: Integer>(&mut self, idx: usize, v: I2) -> Option<I2> where I1: StaticCast<I2>;
+pub trait IArrayMut<I1: Integer>: IArray<I1> {
+    fn set_int<I2: Integer>(&mut self, idx: usize, v: I2) -> Option<I2>
+    where
+        I1: StaticCast<I2>;
 }
 
 #[cfg(not(any(target_endian = "big", target_endian = "little")))]
 compile_error!("Unknown target endianness");
-
 
 #[cfg(target_endian = "little")]
 impl<I1: Integer> IArray<I1> for [I1] {
@@ -113,7 +146,10 @@ impl<I1: Integer> IArray<I1> for [I1] {
         (self.len() * size_of::<I1>() + size_of::<I2>() - 1) / size_of::<I2>()
     }
 
-    fn get_int<I2: Integer>(&self, idx: usize) -> Option<I2> where I1: StaticCast<I2> {
+    fn get_int<I2: Integer>(&self, idx: usize) -> Option<I2>
+    where
+        I1: StaticCast<I2>,
+    {
         // The conditional check should be optimized during specialization.
         // These asserts should be validated by our tests.
         if size_of::<I1>() >= size_of::<I2>() {
@@ -124,13 +160,11 @@ impl<I1: Integer> IArray<I1> for [I1] {
                 debug_assert!(head.is_empty() && tail.is_empty());
                 if idx < mid.len() {
                     Some(mid[idx])
-                }
-                else {
+                } else {
                     None
                 }
             }
-        }
-        else {
+        } else {
             debug_assert!(size_of::<I2>() % size_of::<I1>() == 0);
             let s = size_of::<I2>() / size_of::<I1>();
             let mut v = I2::ZERO;
@@ -138,7 +172,8 @@ impl<I1: Integer> IArray<I1> for [I1] {
                 return None;
             }
             for i in 0..s {
-                v |= StaticCast::<I2>::cast_to(*self.get(idx * s + i).unwrap_or(&I1::ZERO)) << (size_of::<I1>() * 8 * i);
+                v |= StaticCast::<I2>::cast_to(*self.get(idx * s + i).unwrap_or(&I1::ZERO))
+                    << (size_of::<I1>() * 8 * i);
             }
             Some(v)
         }
@@ -146,9 +181,11 @@ impl<I1: Integer> IArray<I1> for [I1] {
 }
 
 #[cfg(target_endian = "little")]
-impl<I1: Integer> IArrayMut<I1> for [I1]
-{
-    fn set_int<I2: Integer>(&mut self, idx: usize, v: I2) -> Option<I2> where I1: StaticCast<I2> {
+impl<I1: Integer> IArrayMut<I1> for [I1] {
+    fn set_int<I2: Integer>(&mut self, idx: usize, v: I2) -> Option<I2>
+    where
+        I1: StaticCast<I2>,
+    {
         // The conditional check should be optimized during specialization.
         // These asserts should be validated by our tests.
         if size_of::<I1>() >= size_of::<I2>() {
@@ -161,13 +198,11 @@ impl<I1: Integer> IArrayMut<I1> for [I1]
                     let old = mid[idx];
                     mid[idx] = v;
                     Some(old)
-                }
-                else {
+                } else {
                     None
                 }
             }
-        }
-        else {
+        } else {
             debug_assert!(size_of::<I2>() % size_of::<I1>() == 0);
             let s = size_of::<I2>() / size_of::<I1>();
             let mut old = I2::ZERO;
@@ -184,7 +219,6 @@ impl<I1: Integer> IArrayMut<I1> for [I1]
         }
     }
 }
-
 
 // TODO: Big Endian support for IArray and IArrayMut
 #[cfg(target_endian = "big")]

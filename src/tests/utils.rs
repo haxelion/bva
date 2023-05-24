@@ -2,7 +2,7 @@ use std::mem::size_of;
 
 use crate::utils::{IArray, IArrayMut, Integer, StaticCast};
 
-macro_rules! test_type_combination { 
+macro_rules! test_type_combination {
     ($func:ident, $types:tt, $size:tt) => {
         test_type_combination!(@1 $func, $types, $types, $size);
     };
@@ -27,8 +27,9 @@ macro_rules! test_type_combination {
 }
 
 fn istream_len_inner<I1: Integer, I2: Integer, const N1: usize>()
-    where I1: StaticCast<I1>,
-          I1: StaticCast<I2>
+where
+    I1: StaticCast<I1>,
+    I1: StaticCast<I2>,
 {
     let array = [I1::ZERO; N1];
     let byte_len = size_of::<I1>() * N1;
@@ -52,10 +53,11 @@ fn istream_len() {
 }
 
 fn istream_get_set_inner<I1: Integer, I2: Integer, const N1: usize>()
-    where I1: StaticCast<I1>,
-          I1: StaticCast<I2>,
-          I2: StaticCast<I1>,
-          I2: StaticCast<usize>
+where
+    I1: StaticCast<I1>,
+    I1: StaticCast<I2>,
+    I2: StaticCast<I1>,
+    I2: StaticCast<usize>,
 {
     let mut array = [I1::ZERO; N1];
     for i in 0..array.int_len::<I2>() {

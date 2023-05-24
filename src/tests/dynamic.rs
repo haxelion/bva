@@ -4,15 +4,14 @@ use std::iter::repeat;
 use std::mem::size_of;
 use std::num::Wrapping;
 
-use rand::{random, thread_rng, RngCore};
 use rand::seq::SliceRandom;
+use rand::{random, thread_rng, RngCore};
 
-use crate::{Bit, BitVector, Endianness};
-use crate::fixed::{BV8, BV16, BV32, BV64, BV128};
 use crate::dynamic::BVN;
+use crate::fixed::{BV128, BV16, BV32, BV64, BV8};
+use crate::{Bit, BitVector, Endianness};
 
 const MAX_TESTED_SIZE: usize = 256;
-
 
 fn random_bvn(length: usize) -> BVN {
     let byte_length = (length + 7) / 8;
@@ -25,7 +24,6 @@ fn random_bvn(length: usize) -> BVN {
 
 #[test]
 fn binary() {
-    
     for length in 1..=MAX_TESTED_SIZE {
         let bv = random_bvn(length);
         let s1 = format!("{:b}", bv);
@@ -115,8 +113,7 @@ fn ord() {
         let bv2 = random_bvn(length);
         if BVN::ones(length) - &bv1 >= bv2 {
             assert!(bv1 <= &bv1 + &bv2);
-        }
-        else {
+        } else {
             assert!(bv1 > &bv1 + &bv2);
         }
     }
@@ -156,12 +153,18 @@ fn resize_slice() {
         let bit = match length % 2 {
             0 => Bit::Zero,
             1 => Bit::One,
-            _ => unreachable!()
+            _ => unreachable!(),
         };
         bv.resize(bv.len() + length, bit);
         match bit {
-            Bit::Zero => assert_eq!(BVN::zeros(length), bv.copy_slice((bv.len() - length)..bv.len())),
-            Bit::One => assert_eq!(BVN::ones(length), bv.copy_slice((bv.len() - length)..bv.len())),
+            Bit::Zero => assert_eq!(
+                BVN::zeros(length),
+                bv.copy_slice((bv.len() - length)..bv.len())
+            ),
+            Bit::One => assert_eq!(
+                BVN::ones(length),
+                bv.copy_slice((bv.len() - length)..bv.len())
+            ),
         }
         length += 1;
     }
@@ -170,7 +173,7 @@ fn resize_slice() {
 #[test]
 fn push_pop() {
     let mut bv = BVN::zeros(0);
-    let mut bits = Vec::<Bit>::with_capacity(MAX_TESTED_SIZE); 
+    let mut bits = Vec::<Bit>::with_capacity(MAX_TESTED_SIZE);
 
     for i in 0..MAX_TESTED_SIZE {
         let b = Bit::from(random::<bool>());
@@ -331,46 +334,50 @@ fn op() {
     }
 }
 
-macro_rules! decl_op_implicit_cast_inner {($name:ident, $bvb:ty, $stb:ty) => {
-    fn $name() {
-        for i in 1..=(size_of::<u128>() * 8) {
-            let mask = Wrapping(<u128>::MAX) >> (size_of::<u128>() * 8 - i);
-            let mut a = Wrapping(random::<u128>()) & mask;
-            let b = Wrapping(random::<$stb>() as u128) & mask;
-            let mut bva = BVN::from(a.0).copy_slice(0..i);
-            let bvb = <$bvb>::try_from(b.0 as $stb).unwrap().copy_slice(0..(i.min(size_of::<$stb>() * 8)));
-            // Test non assign variant first
-            assert_eq!(((!a) & mask).0, u128::try_from(!&bva).unwrap());
-            assert_eq!(((a & b) & mask).0, u128::try_from(&bva & &bvb).unwrap());
-            assert_eq!(((a | b) & mask).0, u128::try_from(&bva | &bvb).unwrap());
-            assert_eq!(((a ^ b) & mask).0, u128::try_from(&bva ^ &bvb).unwrap());
-            assert_eq!(((a + b) & mask).0, u128::try_from(&bva + &bvb).unwrap());
-            assert_eq!(((a - b) & mask).0, u128::try_from(&bva - &bvb).unwrap());
-            // BitAndAssign
-            a &= b;
-            bva &= &bvb;
-            assert_eq!(a.0, u128::try_from(&bva).unwrap());
-            // AddAssign
-            a += b;
-            a &= mask;
-            bva += &bvb;
-            assert_eq!(a.0, u128::try_from(&bva).unwrap());
-            // BitOrAssign
-            a |= b;
-            bva |= &bvb;
-            assert_eq!(a.0, u128::try_from(&bva).unwrap());
-            // SubAssign
-            a -= b;
-            a &= mask;
-            bva -= &bvb;
-            assert_eq!(a.0, u128::try_from(&bva).unwrap());
-            // BitXorAssign
-            a ^= b;
-            bva ^= &bvb;
-            assert_eq!(a.0, u128::try_from(&bva).unwrap());
+macro_rules! decl_op_implicit_cast_inner {
+    ($name:ident, $bvb:ty, $stb:ty) => {
+        fn $name() {
+            for i in 1..=(size_of::<u128>() * 8) {
+                let mask = Wrapping(<u128>::MAX) >> (size_of::<u128>() * 8 - i);
+                let mut a = Wrapping(random::<u128>()) & mask;
+                let b = Wrapping(random::<$stb>() as u128) & mask;
+                let mut bva = BVN::from(a.0).copy_slice(0..i);
+                let bvb = <$bvb>::try_from(b.0 as $stb)
+                    .unwrap()
+                    .copy_slice(0..(i.min(size_of::<$stb>() * 8)));
+                // Test non assign variant first
+                assert_eq!(((!a) & mask).0, u128::try_from(!&bva).unwrap());
+                assert_eq!(((a & b) & mask).0, u128::try_from(&bva & &bvb).unwrap());
+                assert_eq!(((a | b) & mask).0, u128::try_from(&bva | &bvb).unwrap());
+                assert_eq!(((a ^ b) & mask).0, u128::try_from(&bva ^ &bvb).unwrap());
+                assert_eq!(((a + b) & mask).0, u128::try_from(&bva + &bvb).unwrap());
+                assert_eq!(((a - b) & mask).0, u128::try_from(&bva - &bvb).unwrap());
+                // BitAndAssign
+                a &= b;
+                bva &= &bvb;
+                assert_eq!(a.0, u128::try_from(&bva).unwrap());
+                // AddAssign
+                a += b;
+                a &= mask;
+                bva += &bvb;
+                assert_eq!(a.0, u128::try_from(&bva).unwrap());
+                // BitOrAssign
+                a |= b;
+                bva |= &bvb;
+                assert_eq!(a.0, u128::try_from(&bva).unwrap());
+                // SubAssign
+                a -= b;
+                a &= mask;
+                bva -= &bvb;
+                assert_eq!(a.0, u128::try_from(&bva).unwrap());
+                // BitXorAssign
+                a ^= b;
+                bva ^= &bvb;
+                assert_eq!(a.0, u128::try_from(&bva).unwrap());
+            }
         }
-    }
-}}
+    };
+}
 
 decl_op_implicit_cast_inner!(op_implicit_cast_inner_bv8, BV8, u8);
 decl_op_implicit_cast_inner!(op_implicit_cast_inner_bv16, BV16, u16);

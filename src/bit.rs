@@ -5,7 +5,7 @@ use std::fmt::Display;
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Bit {
     Zero,
-    One
+    One,
 }
 
 macro_rules! bit_from_impl {
@@ -34,7 +34,7 @@ impl From<Bit> for bool {
     fn from(bit: Bit) -> bool {
         match bit {
             Bit::Zero => false,
-            Bit::One => true
+            Bit::One => true,
         }
     }
 }
@@ -43,7 +43,7 @@ impl From<bool> for Bit {
     fn from(b: bool) -> Bit {
         match b {
             false => Bit::Zero,
-            true => Bit::One
+            true => Bit::One,
         }
     }
 }
@@ -54,7 +54,7 @@ impl Display for Bit {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Bit::Zero => f.write_str("0"),
-            Bit::One => f.write_str("1")
+            Bit::One => f.write_str("1"),
         }
     }
 }

@@ -20,21 +20,21 @@
 //! bit vector supposed to have a sign bit.
 
 #![allow(
-clippy::suspicious_arithmetic_impl,
-clippy::suspicious_op_assign_impl,
-clippy::upper_case_acronyms,
-clippy::comparison_chain,
-clippy::needless_range_loop
+    clippy::suspicious_arithmetic_impl,
+    clippy::suspicious_op_assign_impl,
+    clippy::upper_case_acronyms,
+    clippy::comparison_chain,
+    clippy::needless_range_loop
 )]
 
-use std::fmt::{Binary, Display, Debug, LowerHex, UpperHex};
+use std::fmt::{Binary, Debug, Display, LowerHex, UpperHex};
 use std::io::{Read, Write};
 use std::ops::Range;
 
-pub mod bit;
-pub mod fixed;
-pub mod dynamic;
 pub mod auto;
+pub mod bit;
+pub mod dynamic;
+pub mod fixed;
 mod utils;
 
 use bit::Bit;
@@ -44,7 +44,7 @@ pub enum Endianness {
     /// Little Endian ordering: bytes are stored from the least significant byte to the most significant byte.
     LE,
     /// big Endian ordering: bytes are stored from the most significant byte to the least significant byte.
-    BE
+    BE,
 }
 
 /// An enumeration representing errors which can arise from convertion operation (`from_hex`, `from_binary`, `from_bytes`).
@@ -52,14 +52,21 @@ pub enum ConvertError {
     /// The underlying BitVector type did not have enough capacity to perform the operation.
     NotEnoughCapacity,
     /// The source data format is invalid at the specified offset.
-    InvalidFormat(usize)
+    InvalidFormat(usize),
 }
 
 impl Debug for ConvertError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            &ConvertError::NotEnoughCapacity => write!(f, "BitVector type did not have enough capacity to perform the conversion"),
-            &ConvertError::InvalidFormat(pos) => write!(f, "BitVector type conversion method encountered an error at symbol {}", pos)
+            &ConvertError::NotEnoughCapacity => write!(
+                f,
+                "BitVector type did not have enough capacity to perform the conversion"
+            ),
+            &ConvertError::InvalidFormat(pos) => write!(
+                f,
+                "BitVector type conversion method encountered an error at symbol {}",
+                pos
+            ),
         }
     }
 }
@@ -68,17 +75,16 @@ impl Display for ConvertError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             &ConvertError::NotEnoughCapacity => write!(f, "ConvertError::NotEnoughCapacity"),
-            &ConvertError::InvalidFormat(pos) => write!(f, "ConvertError::InvalidFormat({})", pos)
+            &ConvertError::InvalidFormat(pos) => write!(f, "ConvertError::InvalidFormat({})", pos),
         }
     }
 }
 
 impl std::error::Error for ConvertError {}
 
-
 /// A trait representing common bit vector operations.
-pub trait BitVector: Sized + Clone + Debug + PartialEq + Eq + PartialOrd + Ord + Display + Binary + 
-    LowerHex + UpperHex
+pub trait BitVector:
+    Sized + Clone + Debug + PartialEq + Eq + PartialOrd + Ord + Display + Binary + LowerHex + UpperHex
 {
     /// Construct a bit vector made of `length` 0 bits.
     /// Will panic if there is not enough capacity and it is a fixed variant.
@@ -92,7 +98,7 @@ pub trait BitVector: Sized + Clone + Debug + PartialEq + Eq + PartialOrd + Ord +
     /// Return `None` if the string is invalid or exceed the maximum capacity.
     fn from_binary<S: AsRef<str>>(string: S) -> Result<Self, ConvertError>;
 
-    /// Construct a bit vector from a hex string made of lower case or upper case hexadecimal 
+    /// Construct a bit vector from a hex string made of lower case or upper case hexadecimal
     /// characters (mixed case is accepted).
     /// Return `None` if the string is invalid or exceed the maximum capacity.
     fn from_hex<S: AsRef<str>>(string: S) -> Result<Self, ConvertError>;
@@ -105,14 +111,18 @@ pub trait BitVector: Sized + Clone + Debug + PartialEq + Eq + PartialOrd + Ord +
     /// If the length is not a multiple of 8 bits, he highest weight bits will be padded with `'0'`.
     fn to_vec(&self, endianness: Endianness) -> Vec<u8>;
 
-    /// Construct a bit vector by reading `length` bits from a type implementing `Read` and 
+    /// Construct a bit vector by reading `length` bits from a type implementing `Read` and
     /// arrange them according to the specified `endianness`. If `length` is not a multiple of 8,
     /// the bits remaining in the most signigicant byte will be dropped.
     /// Will panic if there is not enough capacity and it is a fixed variant.
-    fn read<R: Read>(reader: &mut R, length: usize, endianness: Endianness) -> std::io::Result<Self>;
+    fn read<R: Read>(
+        reader: &mut R,
+        length: usize,
+        endianness: Endianness,
+    ) -> std::io::Result<Self>;
 
-    /// Write the bit vector to a type implementing `Write` and according to the specified 
-    /// `endianness`. If the length is not a multiple of 8 bits, the most significant byte will be 
+    /// Write the bit vector to a type implementing `Write` and according to the specified
+    /// `endianness`. If the length is not a multiple of 8 bits, the most significant byte will be
     /// padded with `'0'`.
     fn write<W: Write>(&self, writer: &mut W, endianness: Endianness) -> std::io::Result<()>;
 
@@ -137,7 +147,7 @@ pub trait BitVector: Sized + Clone + Debug + PartialEq + Eq + PartialOrd + Ord +
     fn pop(&mut self) -> Option<Bit>;
 
     /// Resize the bit vector in place so that its length is equal to `new_length`.
-    /// This will either truncate or extend the bit vector. If it is extended, new bits are filled 
+    /// This will either truncate or extend the bit vector. If it is extended, new bits are filled
     /// with `bit`.
     /// Will panic if there is not enough capacity and it is a fixed variant.
     fn resize(&mut self, new_length: usize, bit: Bit);
@@ -161,7 +171,6 @@ pub trait BitVector: Sized + Clone + Debug + PartialEq + Eq + PartialOrd + Ord +
     /// Return the length of the bit vector in bits.
     fn len(&self) -> usize;
 }
-
 
 #[cfg(test)]
 mod tests;
