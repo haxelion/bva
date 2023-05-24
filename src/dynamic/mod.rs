@@ -29,7 +29,7 @@ impl BVN {
     const BYTE_UNIT: usize = size_of::<u64>();
     const NIBBLE_UNIT: usize = size_of::<u64>() * 2;
     const SEMI_NIBBLE_UNIT: usize = size_of::<u64>() * 4;
-    const BIT_UNIT: usize = size_of::<u64>() * 8;
+    const BIT_UNIT: usize = u64::BITS as usize;
 
     fn capacity_from_byte_len(byte_length: usize) -> usize {
         (byte_length + size_of::<u64>() - 1) / size_of::<u64>()
@@ -206,7 +206,7 @@ impl BitVector for BVN {
                 }
             }
         }
-        return buf;
+        buf
     }
 
     fn read<R: Read>(reader: &mut R, length: usize, endianness: Endianness) -> std::io::Result<Self> {
@@ -218,7 +218,7 @@ impl BitVector for BVN {
             *l &= Self::mask(length.wrapping_sub(1) % Self::BIT_UNIT + 1);
         }
         bv.length = length ;
-        return Ok(bv);
+        Ok(bv)
     }
 
     fn write<W: Write>(&self, writer: &mut W, endianness: Endianness) -> std::io::Result<()> {
@@ -270,7 +270,7 @@ impl BitVector for BVN {
         }
         let bit = self.get(self.length - 1);
         self.length -= 1;
-        return Some(bit);
+        Some(bit)
     }
 
     fn resize(&mut self, new_length: usize, bit: Bit) {
@@ -315,7 +315,7 @@ impl BitVector for BVN {
             self.data[i] = (self.data[i] << 1 | carry as u64) & Self::mask(self.length % Self::BIT_UNIT);
             carry = b.into();
         }
-        return carry;
+        carry
     }
 
     fn shr_in(&mut self, bit: Bit) -> Bit {
@@ -331,7 +331,7 @@ impl BitVector for BVN {
             self.data[i] = self.data[i] >> 1 | (carry as u64) << (Self::BIT_UNIT - 1);
             carry = b.into();
         }
-        return carry;
+        carry
     }
 
     fn rotl(&mut self, rot: usize) {
@@ -381,10 +381,10 @@ impl Binary for BVN {
             }
         }
         if f.alternate() {
-            return write!(f, "0b{}", s.as_str());
+            write!(f, "0b{}", s.as_str())
         }
         else {
-            return write!(f, "{}", s.as_str());
+            write!(f, "{}", s.as_str())
         }
     }
 }
@@ -393,7 +393,7 @@ impl Binary for BVN {
 impl Display for BVN {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Ok(b) = BV128::try_from(self) {
-            return Display::fmt(&b, f);
+            Display::fmt(&b, f)
         }
         else {
             // TODO: waiting for div and mod operations
@@ -411,10 +411,10 @@ impl LowerHex for BVN {
             s.push(NIBBLE[(self.data[i / Self::NIBBLE_UNIT] >> ((i % Self::NIBBLE_UNIT) * 4) & 0xf) as usize]);
         }
         if f.alternate() {
-            return write!(f, "0x{}", s.as_str());
+            write!(f, "0x{}", s.as_str())
         }
         else {
-            return write!(f, "{}", s.as_str());
+            write!(f, "{}", s.as_str())
         }
     }
 }
@@ -428,10 +428,10 @@ impl UpperHex for BVN {
             s.push(NIBBLE[(self.data[i / Self::NIBBLE_UNIT] >> ((i % Self::NIBBLE_UNIT) * 4) & 0xf) as usize]);
         }
         if f.alternate() {
-            return write!(f, "0x{}", s.as_str());
+            write!(f, "0x{}", s.as_str())
         }
         else {
-            return write!(f, "{}", s.as_str());
+            write!(f, "{}", s.as_str())
         }
     }
 }
@@ -445,10 +445,10 @@ impl Octal for BVN {
             s.push(SEMI_NIBBLE[(self.data[i / Self::SEMI_NIBBLE_UNIT] >> ((i % Self::SEMI_NIBBLE_UNIT) * 4) & 0x7) as usize]);
         }
         if f.alternate() {
-            return write!(f, "0x{}", s.as_str());
+            write!(f, "0x{}", s.as_str())
         }
         else {
-            return write!(f, "{}", s.as_str());
+            write!(f, "{}", s.as_str())
         }
     }
 }
@@ -460,7 +460,7 @@ impl PartialEq for BVN {
                 return false;
             }
         }
-        return true;
+        true
     }
 }
 
@@ -474,7 +474,7 @@ impl Ord for BVN {
                 ord => return ord
             }
         }
-        return Ordering::Equal;
+        Ordering::Equal
     }
 }
 
@@ -491,7 +491,7 @@ impl<I: Integer, const N: usize> PartialEq<BV<I, N>> for BVN {
                 return false;
             }
         }
-        return true;
+        true
     }
 }
 
@@ -509,7 +509,7 @@ impl<I: Integer, const N: usize> PartialOrd<BV<I, N>> for BVN {
                 ord => return Some(ord)
             }
         }
-        return Some(Ordering::Equal);
+        Some(Ordering::Equal)
     }
 }
 
@@ -680,7 +680,7 @@ impl Not for BVN {
         if let Some(l) = self.data.get_mut(self.length / Self::BIT_UNIT) {
             *l &= Self::mask(self.length % Self::BIT_UNIT);
         }
-        return self;
+        self
     }
 }
 
@@ -706,7 +706,7 @@ macro_rules! impl_from_ints {($($st:ty),+) => {
             fn from(st: $st) -> Self {
                 let array = [st];
                 BVN {
-                    length: size_of::<$st>() * 8,
+                    length: u128::BITS as usize,
                     data: (0..array.int_len::<u64>()).map(|i| array.get_int::<u64>(i).unwrap()).collect(),
                 }
             }
@@ -716,7 +716,7 @@ macro_rules! impl_from_ints {($($st:ty),+) => {
             type Error = ConvertError;
             #[allow(arithmetic_overflow)]
             fn try_from(bvn: &'_ BVN) -> Result<Self, Self::Error> {
-                if bvn.length > size_of::<$st>() * 8 {
+                if bvn.length > u128::BITS as usize {
                     return Err(ConvertError::NotEnoughCapacity);
                 }
                 else {

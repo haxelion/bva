@@ -11,7 +11,7 @@
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::convert::{From, TryFrom};
 use std::fmt::{Binary, Display, LowerHex, Octal, UpperHex};
-use std::mem::size_of;
+
 use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, 
     Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
 
@@ -416,7 +416,7 @@ macro_rules! impl_froms {({$(($sbv:ty, $sst:ty)),+}, {$(($ubv:ty, $ust:ty)),+}) 
     $(
         impl From<$sst> for BV {
             fn from(sst: $sst) -> Self {
-                if size_of::<$sst>() * 8 <= BVF::capacity() {
+                if u64::BITS as usize <= BVF::capacity() {
                     // Call should never fail because we check for capacity
                     BV::Fixed(BVF::try_from(sst).unwrap())
                 }

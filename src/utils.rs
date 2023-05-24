@@ -121,12 +121,12 @@ impl<I1: Integer> IArray<I1> for [I1] {
                 debug_assert!(size_of::<I1>() % size_of::<I2>() == 0);
                 debug_assert!(align_of::<I1>() % align_of::<I2>() == 0);
                 let (head, mid, tail) = self.align_to::<I2>();
-                debug_assert!(head.len() == 0 && tail.len() == 0);
+                debug_assert!(head.is_empty() && tail.is_empty());
                 if idx < mid.len() {
-                    return Some(mid[idx]);
+                    Some(mid[idx])
                 }
                 else {
-                    return None;
+                    None
                 }
             }
         }
@@ -140,7 +140,7 @@ impl<I1: Integer> IArray<I1> for [I1] {
             for i in 0..s {
                 v |= StaticCast::<I2>::cast_to(*self.get(idx * s + i).unwrap_or(&I1::ZERO)) << (size_of::<I1>() * 8 * i);
             }
-            return Some(v);
+            Some(v)
         }
     }
 }
@@ -156,14 +156,14 @@ impl<I1: Integer> IArrayMut<I1> for [I1]
                 debug_assert!(size_of::<I1>() % size_of::<I2>() == 0);
                 debug_assert!(align_of::<I1>() % align_of::<I2>() == 0);
                 let (head, mid, tail) = self.align_to_mut::<I2>();
-                debug_assert!(head.len() == 0 && tail.len() == 0);
+                debug_assert!(head.is_empty() && tail.is_empty());
                 if idx < mid.len() {
                     let old = mid[idx];
                     mid[idx] = v;
-                    return Some(old);
+                    Some(old)
                 }
                 else {
-                    return None;
+                    None
                 }
             }
         }
@@ -180,7 +180,7 @@ impl<I1: Integer> IArrayMut<I1> for [I1]
                     *p = StaticCast::<I2>::cast_from(v >> (size_of::<I1>() * 8 * i));
                 }
             }
-            return Some(old);
+            Some(old)
         }
     }
 }

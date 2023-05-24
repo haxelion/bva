@@ -62,7 +62,7 @@ impl<I: Integer, const N: usize> BitVector for BV<I, N> where I: StaticCast<I> {
             length
         };
         ones.mod2n(length);
-        return ones;
+        ones
     }
 
     fn from_binary<S: AsRef<str>>(string: S) -> Result<Self, ConvertError> {
@@ -162,7 +162,7 @@ impl<I: Integer, const N: usize> BitVector for BV<I, N> where I: StaticCast<I> {
                 }
             }
         }
-        return buf;
+        buf
     }
 
     fn read<R: std::io::Read>(reader: &mut R, length: usize, endianness: Endianness) -> std::io::Result<Self> {
@@ -177,7 +177,7 @@ impl<I: Integer, const N: usize> BitVector for BV<I, N> where I: StaticCast<I> {
             *l &= Self::mask(length.wrapping_sub(1) % Self::BIT_UNIT + 1);
         }
         bv.length = length ;
-        return Ok(bv);
+        Ok(bv)
     }
 
     fn write<W: std::io::Write>(&self, writer: &mut W, endianness: Endianness) -> std::io::Result<()> {
@@ -239,7 +239,7 @@ impl<I: Integer, const N: usize> BitVector for BV<I, N> where I: StaticCast<I> {
             b = Some(self.get(self.length - 1));
             self.length -= 1;
         }
-        return b;
+        b
     }
 
     fn resize(&mut self, new_length: usize, bit: Bit) {
@@ -284,7 +284,7 @@ impl<I: Integer, const N: usize> BitVector for BV<I, N> where I: StaticCast<I> {
             self.data[i] = (self.data[i] << 1 | carry.into()) & Self::mask(self.length % Self::BIT_UNIT);
             carry = b.into();
         }
-        return carry;
+        carry
     }
 
     fn shr_in(&mut self, bit: Bit) -> Bit {
@@ -300,7 +300,7 @@ impl<I: Integer, const N: usize> BitVector for BV<I, N> where I: StaticCast<I> {
             self.data[i] = self.data[i] >> 1 | I::from(carry) << (Self::BIT_UNIT - 1);
             carry = b.into();
         }
-        return carry;
+        carry
     }
 
     fn rotl(&mut self, rot: usize) {
@@ -351,7 +351,7 @@ impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> PartialEq<BV<I1
                 return false;
             }
         }
-        return true;
+        true
     }
 }
 
@@ -370,7 +370,7 @@ impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> PartialOrd<BV<I
                 ord => return Some(ord)
             }
         }
-        return Some(Ordering::Equal);
+        Some(Ordering::Equal)
     }
 }
 
@@ -391,10 +391,10 @@ impl<I: Integer, const N: usize> fmt::Binary for BV<I, N> where I: StaticCast<I>
             }
         }
         if f.alternate() {
-            return write!(f, "0b{}", s.as_str());
+            write!(f, "0b{}", s.as_str())
         }
         else {
-            return write!(f, "{}", s.as_str());
+            write!(f, "{}", s.as_str())
         }
     }
 }
@@ -416,10 +416,10 @@ impl<I: Integer, const N: usize> fmt::Octal for BV<I, N> {
             s.push(SEMI_NIBBLE[semi_nibble as usize]);
         }
         if f.alternate() {
-            return write!(f, "0x{}", s.as_str());
+            write!(f, "0x{}", s.as_str())
         }
         else {
-            return write!(f, "{}", s.as_str());
+            write!(f, "{}", s.as_str())
         }
     }
 }
@@ -434,10 +434,10 @@ impl<I: Integer, const N: usize> fmt::LowerHex for BV<I, N> {
             s.push(NIBBLE[nibble as usize]);
         }
         if f.alternate() {
-            return write!(f, "0x{}", s.as_str());
+            write!(f, "0x{}", s.as_str())
         }
         else {
-            return write!(f, "{}", s.as_str());
+            write!(f, "{}", s.as_str())
         }
     }
 }
@@ -452,10 +452,10 @@ impl<I: Integer, const N: usize> fmt::UpperHex for BV<I, N> {
             s.push(NIBBLE[nibble as usize]);
         }
         if f.alternate() {
-            return write!(f, "0x{}", s.as_str());
+            write!(f, "0x{}", s.as_str())
         }
         else {
-            return write!(f, "{}", s.as_str());
+            write!(f, "{}", s.as_str())
         }
     }
 }
@@ -474,12 +474,12 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
                     data[0] = I::cast_from(int);
                     return Ok(BV {
                         data,
-                        length: size_of::<$type>() * 8
+                        length: usize::BITS as usize
                     });
                 }
                 else {
                     // Check if value overflow the bit vector
-                    if size_of::<$type>() * 8 > Self::capacity() && int.shr(Self::capacity()) != 0 {
+                    if usize::BITS as usize > Self::capacity() && int.shr(Self::capacity()) != 0 {
                         return Err(ConvertError::NotEnoughCapacity);
                     }
                     let mut data = [I::ZERO; N];
@@ -500,7 +500,7 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
             type Error = ConvertError;
             fn try_from(bv: &'_ BV<I, N>) -> Result<Self, Self::Error> {
                 // Check if the bit vector overflow I
-                if bv.length > size_of::<$type>() * 8 {
+                if bv.length > usize::BITS as usize {
                     Err(ConvertError::NotEnoughCapacity)
                 }
                 else {
@@ -584,7 +584,7 @@ impl<I: Integer, const N: usize> Not for BV<I, N> {
             self.data[i] = !self.data[i];
         }
         self.mod2n(self.length);
-        return self;
+        self
     }
 }
 
@@ -592,7 +592,7 @@ impl<I: Integer, const N: usize> Not for &'_ BV<I, N> {
     type Output = BV<I, N>;
 
     fn not(self) -> BV<I, N> {
-        return (*self).not();
+        (*self).not()
     }
 }
 
