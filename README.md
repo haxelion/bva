@@ -1,5 +1,7 @@
 # bva
 
+![CI](https://github.com/haxelion/bva/actions/workflows/ci.yaml/badge.svg)
+
 `bva` is a rust crate for manipulating bit vectors and doing arithmetics on arbitrarily sized bit
 vectors.
 
