@@ -230,9 +230,9 @@ where
                         << (Self::BIT_UNIT - slide));
             }
         } else {
-            for i in 0..Self::capacity_from_bit_len(length) {
-                data[i] = self.data[i + offset];
-            }
+            data[..Self::capacity_from_bit_len(length)].copy_from_slice(
+                &self.data[offset..(Self::capacity_from_bit_len(length) + offset)],
+            );
         }
 
         if let Some(last) = data.get_mut(Self::capacity_from_bit_len(length)) {
