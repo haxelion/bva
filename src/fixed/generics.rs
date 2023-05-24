@@ -515,12 +515,12 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
                     data[0] = I::cast_from(int);
                     return Ok(BV {
                         data,
-                        length: usize::BITS as usize
+                        length: <$type>::BITS as usize
                     });
                 }
                 else {
                     // Check if value overflow the bit vector
-                    if usize::BITS as usize > Self::capacity() && int.shr(Self::capacity()) != 0 {
+                    if <$type>::BITS as usize > Self::capacity() && int.shr(Self::capacity()) != 0 {
                         return Err(ConvertError::NotEnoughCapacity);
                     }
                     let mut data = [I::ZERO; N];
@@ -541,7 +541,7 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
             type Error = ConvertError;
             fn try_from(bv: &'_ BV<I, N>) -> Result<Self, Self::Error> {
                 // Check if the bit vector overflow I
-                if bv.length > usize::BITS as usize {
+                if bv.length > <$type>::BITS as usize {
                     Err(ConvertError::NotEnoughCapacity)
                 }
                 else {

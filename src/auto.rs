@@ -415,7 +415,7 @@ macro_rules! impl_froms {({$(($sbv:ty, $sst:ty)),+}, {$(($ubv:ty, $ust:ty)),+}) 
     $(
         impl From<$sst> for BV {
             fn from(sst: $sst) -> Self {
-                if u64::BITS as usize <= BVF::capacity() {
+                if <$sst>::BITS as usize <= BVF::capacity() {
                     // Call should never fail because we check for capacity
                     BV::Fixed(BVF::try_from(sst).unwrap())
                 }

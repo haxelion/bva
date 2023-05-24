@@ -773,7 +773,7 @@ macro_rules! impl_from_ints {($($st:ty),+) => {
             fn from(st: $st) -> Self {
                 let array = [st];
                 BVN {
-                    length: u128::BITS as usize,
+                    length: <$st>::BITS as usize,
                     data: (0..array.int_len::<u64>()).map(|i| array.get_int::<u64>(i).unwrap()).collect(),
                 }
             }
@@ -783,7 +783,7 @@ macro_rules! impl_from_ints {($($st:ty),+) => {
             type Error = ConvertError;
             #[allow(arithmetic_overflow)]
             fn try_from(bvn: &'_ BVN) -> Result<Self, Self::Error> {
-                if bvn.length > u128::BITS as usize {
+                if bvn.length > <$st>::BITS as usize {
                     return Err(ConvertError::NotEnoughCapacity);
                 }
                 else {
