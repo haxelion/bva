@@ -19,6 +19,14 @@
 //! operation. This should match the most intuitive behavior in most cases except when manipulating
 //! bit vector supposed to have a sign bit.
 
+#![allow(
+clippy::suspicious_arithmetic_impl,
+clippy::suspicious_op_assign_impl,
+clippy::upper_case_acronyms,
+clippy::comparison_chain,
+clippy::needless_range_loop
+)]
+
 use std::fmt::{Binary, Display, Debug, LowerHex, UpperHex};
 use std::io::{Read, Write};
 use std::ops::Range;
