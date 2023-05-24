@@ -11,15 +11,17 @@
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::convert::{From, TryFrom};
 use std::fmt::{Binary, Display, LowerHex, Octal, UpperHex};
-use std::mem::size_of;
-use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, 
-    Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
 
-use crate::{BitVector, Endianness, ConvertError};
-use crate::Bit;
+use std::ops::{
+    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Range,
+    Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+};
+
 use crate::dynamic::BVN;
 #[allow(unused_imports)]
-use crate::fixed::{BV8, BV16, BV32, BV64, BV128};
+use crate::fixed::{BV128, BV16, BV32, BV64, BV8};
+use crate::Bit;
+use crate::{BitVector, ConvertError, Endianness};
 
 // Choose a fixed BV type which should match the size of BVN inside the enum
 #[cfg(target_pointer_width = "16")]
@@ -33,7 +35,7 @@ type BVF = BV128;
 #[derive(Clone, Debug)]
 pub enum BV {
     Fixed(BVF),
-    Dynamic(BVN)
+    Dynamic(BVN),
 }
 
 impl BV {
@@ -41,8 +43,7 @@ impl BV {
     pub fn with_capacity(capacity: usize) -> Self {
         if capacity <= BVF::capacity() {
             BV::Fixed(BVF::zeros(0))
-        }
-        else {
+        } else {
             BV::Dynamic(BVN::with_capacity(capacity))
         }
     }
@@ -60,8 +61,8 @@ impl BV {
                     new_b.reserve(additional);
                     *self = BV::Dynamic(new_b);
                 }
-            },
-            BV::Dynamic(b) => b.reserve(additional)
+            }
+            BV::Dynamic(b) => b.reserve(additional),
         }
     }
 
@@ -74,8 +75,7 @@ impl BV {
             if b.len() <= BVF::capacity() {
                 let new_b = BVF::try_from(&*b).unwrap();
                 *self = BV::Fixed(new_b);
-            }
-            else {
+            } else {
                 b.shrink_to_fit();
             }
         }
@@ -86,8 +86,7 @@ impl BitVector for BV {
     fn zeros(length: usize) -> Self {
         if length <= BVF::capacity() {
             BV::Fixed(BVF::zeros(length))
-        }
-        else {
+        } else {
             BV::Dynamic(BVN::zeros(length))
         }
     }
@@ -95,8 +94,7 @@ impl BitVector for BV {
     fn ones(length: usize) -> Self {
         if length <= BVF::capacity() {
             BV::Fixed(BVF::ones(length))
-        }
-        else {
+        } else {
             BV::Dynamic(BVN::ones(length))
         }
     }
@@ -104,26 +102,23 @@ impl BitVector for BV {
     fn from_binary<S: AsRef<str>>(string: S) -> Result<Self, ConvertError> {
         if string.as_ref().len() <= BVF::capacity() {
             Ok(BV::Fixed(BVF::from_binary(string)?))
-        }
-        else {
+        } else {
             Ok(BV::Dynamic(BVN::from_binary(string)?))
         }
     }
 
     fn from_hex<S: AsRef<str>>(string: S) -> Result<Self, ConvertError> {
-        if string.as_ref().len()*4 <= BVF::capacity() {
+        if string.as_ref().len() * 4 <= BVF::capacity() {
             Ok(BV::Fixed(BVF::from_hex(string)?))
-        }
-        else {
+        } else {
             Ok(BV::Dynamic(BVN::from_hex(string)?))
         }
     }
 
     fn from_bytes<B: AsRef<[u8]>>(bytes: B, endianness: Endianness) -> Result<Self, ConvertError> {
-        if bytes.as_ref().len()*8 <= BVF::capacity() {
+        if bytes.as_ref().len() * 8 <= BVF::capacity() {
             Ok(BV::Fixed(BVF::from_bytes(bytes, endianness)?))
-        }
-        else {
+        } else {
             Ok(BV::Dynamic(BVN::from_bytes(bytes, endianness)?))
         }
     }
@@ -135,16 +130,23 @@ impl BitVector for BV {
         }
     }
 
-    fn read<R: std::io::Read>(reader: &mut R, length: usize, endianness: Endianness) -> std::io::Result<Self> {
+    fn read<R: std::io::Read>(
+        reader: &mut R,
+        length: usize,
+        endianness: Endianness,
+    ) -> std::io::Result<Self> {
         if length <= BVF::capacity() {
             Ok(BV::Fixed(BVF::read(reader, length, endianness)?))
-        }
-        else {
+        } else {
             Ok(BV::Dynamic(BVN::read(reader, length, endianness)?))
         }
     }
 
-    fn write<W: std::io::Write>(&self, writer: &mut W, endianness: Endianness) -> std::io::Result<()> {
+    fn write<W: std::io::Write>(
+        &self,
+        writer: &mut W,
+        endianness: Endianness,
+    ) -> std::io::Result<()> {
         match self {
             BV::Fixed(b) => b.write(writer, endianness),
             BV::Dynamic(b) => b.write(writer, endianness),
@@ -172,8 +174,7 @@ impl BitVector for BV {
                 let s = b.copy_slice(range);
                 if s.len() <= BVF::capacity() {
                     BV::Fixed(BVF::try_from(s).unwrap())
-                }
-                else {
+                } else {
                     BV::Dynamic(s)
                 }
             }
@@ -184,7 +185,7 @@ impl BitVector for BV {
         self.reserve(1);
         match self {
             BV::Fixed(b) => b.push(bit),
-            BV::Dynamic(b) => b.push(bit)
+            BV::Dynamic(b) => b.push(bit),
         }
     }
 
@@ -201,7 +202,7 @@ impl BitVector for BV {
         }
         match self {
             BV::Fixed(b) => b.resize(new_length, bit),
-            BV::Dynamic(b) => b.resize(new_length, bit)
+            BV::Dynamic(b) => b.resize(new_length, bit),
         }
     }
 
@@ -292,12 +293,12 @@ impl PartialEq for BV {
         match self {
             BV::Fixed(b1) => match other {
                 BV::Fixed(b2) => b1.eq(b2),
-                BV::Dynamic(b2) => b1.eq(b2)
+                BV::Dynamic(b2) => b1.eq(b2),
             },
             BV::Dynamic(b1) => match other {
                 BV::Fixed(b2) => b1.eq(b2),
-                BV::Dynamic(b2) => b1.eq(b2)
-            }
+                BV::Dynamic(b2) => b1.eq(b2),
+            },
         }
     }
 }
@@ -309,12 +310,12 @@ impl Ord for BV {
         match self {
             BV::Fixed(b1) => match other {
                 BV::Fixed(b2) => b1.cmp(b2),
-                BV::Dynamic(b2) => b1.partial_cmp(b2).unwrap()
+                BV::Dynamic(b2) => b1.partial_cmp(b2).unwrap(),
             },
             BV::Dynamic(b1) => match other {
                 BV::Fixed(b2) => b1.partial_cmp(b2).unwrap(),
-                BV::Dynamic(b2) => b1.cmp(b2)
-            }
+                BV::Dynamic(b2) => b1.cmp(b2),
+            },
         }
     }
 }
@@ -376,8 +377,7 @@ impl From<BVN> for BV {
     fn from(b: BVN) -> Self {
         if let Ok(bvf) = BVF::try_from(&b) {
             BV::Fixed(bvf)
-        }
-        else {
+        } else {
             BV::Dynamic(b)
         }
     }
@@ -387,8 +387,7 @@ impl From<&'_ BVN> for BV {
     fn from(b: &'_ BVN) -> Self {
         if let Ok(bvf) = BVF::try_from(b) {
             BV::Fixed(bvf)
-        }
-        else {
+        } else {
             BV::Dynamic(b.clone())
         }
     }
@@ -398,7 +397,7 @@ impl From<&'_ BV> for BVN {
     fn from(bv: &'_ BV) -> Self {
         match bv {
             BV::Fixed(b) => BVN::from(b),
-            BV::Dynamic(b) => b.clone()
+            BV::Dynamic(b) => b.clone(),
         }
     }
 }
@@ -407,7 +406,7 @@ impl From<BV> for BVN {
     fn from(bv: BV) -> Self {
         match bv {
             BV::Fixed(b) => BVN::from(b),
-            BV::Dynamic(b) => b
+            BV::Dynamic(b) => b,
         }
     }
 }
@@ -416,7 +415,7 @@ macro_rules! impl_froms {({$(($sbv:ty, $sst:ty)),+}, {$(($ubv:ty, $ust:ty)),+}) 
     $(
         impl From<$sst> for BV {
             fn from(sst: $sst) -> Self {
-                if size_of::<$sst>() * 8 <= BVF::capacity() {
+                if <$sst>::BITS as usize <= BVF::capacity() {
                     // Call should never fail because we check for capacity
                     BV::Fixed(BVF::try_from(sst).unwrap())
                 }
