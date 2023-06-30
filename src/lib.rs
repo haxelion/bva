@@ -35,9 +35,11 @@ pub mod auto;
 pub mod bit;
 pub mod dynamic;
 pub mod fixed;
+pub mod iter;
 mod utils;
 
 use bit::Bit;
+use iter::BitIterator;
 
 /// An enumeration representing the endianness of an I/O or memory operation.
 pub enum Endianness {
@@ -86,6 +88,10 @@ impl std::error::Error for ConvertError {}
 pub trait BitVector:
     Sized + Clone + Debug + PartialEq + Eq + PartialOrd + Ord + Display + Binary + LowerHex + UpperHex
 {
+    /// Construct an empty pre-allocated with enough capacity to store `length` bits.
+    /// Will panic if there is not enough capacity and it is a fixed variant.
+    fn with_capacity(length: usize) -> Self;
+
     /// Construct a bit vector made of `length` 0 bits.
     /// Will panic if there is not enough capacity and it is a fixed variant.
     fn zeros(length: usize) -> Self;
@@ -175,6 +181,8 @@ pub trait BitVector:
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
+    fn iter<'a>(&'a self) -> BitIterator<'a, Self>;
 }
 
 #[cfg(test)]

@@ -21,6 +21,7 @@ use crate::dynamic::BVN;
 #[allow(unused_imports)]
 use crate::fixed::{BV128, BV16, BV32, BV64, BV8};
 use crate::Bit;
+use crate::iter::BitIterator;
 use crate::{BitVector, ConvertError, Endianness};
 
 // Choose a fixed BV type which should match the size of BVN inside the enum
@@ -39,15 +40,6 @@ pub enum BV {
 }
 
 impl BV {
-    /// Create a bit vector of length 0 but with enough capacity to store `capacity` bits.
-    pub fn with_capacity(capacity: usize) -> Self {
-        if capacity <= BVF::capacity() {
-            BV::Fixed(BVF::zeros(0))
-        } else {
-            BV::Dynamic(BVN::with_capacity(capacity))
-        }
-    }
-
     /// Reserve will reserve room for at least `additional` bits in the bit vector. The actual
     /// length of the bit vector will stay unchanged, see [`BitVector::resize`] to change the actual
     /// length of the bit vector.
@@ -83,6 +75,14 @@ impl BV {
 }
 
 impl BitVector for BV {
+    fn with_capacity(capacity: usize) -> Self {
+        if capacity <= BVF::capacity() {
+            BV::with_capacity(capacity)
+        } else {
+            BV::Dynamic(BVN::with_capacity(capacity))
+        }
+    }
+
     fn zeros(length: usize) -> Self {
         if length <= BVF::capacity() {
             BV::Fixed(BVF::zeros(length))
@@ -239,6 +239,10 @@ impl BitVector for BV {
             BV::Fixed(b) => b.len(),
             BV::Dynamic(b) => b.len(),
         }
+    }
+
+    fn iter<'a>(&'a self) -> BitIterator<'a, Self> {
+        self.into_iter()
     }
 }
 
@@ -776,3 +780,21 @@ impl_all_ops!({BV8, BV16, BV32}, {BV64, BV128, BVN});
 impl_all_ops!({BV8, BV16, BV32, BV64}, {BV128, BVN});
 #[cfg(target_pointer_width = "64")]
 impl_all_ops!({BV8, BV16, BV32, BV64, BV128}, {BVN});
+
+impl<'a> IntoIterator for &'a BV {
+    type Item = Bit;
+    type IntoIter = BitIterator<'a, BV>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        BitIterator::new(&self)
+    }
+}
+
+impl FromIterator<Bit> for BV {
+    fn from_iter<T: IntoIterator<Item = Bit>>(iter: T) -> Self {
+        let iter = iter.into_iter();
+        let mut bv = BV::with_capacity(iter.size_hint().0);
+        iter.for_each(|b| bv.push(b));
+        bv
+    }
+}

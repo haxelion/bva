@@ -9,8 +9,21 @@ use std::ops::{
 };
 
 use crate::dynamic::BVN;
+use crate::iter::BitIterator;
 use crate::utils::{IArray, IArrayMut, Integer, StaticCast};
 use crate::{Bit, BitVector, ConvertError, Endianness};
+
+pub type BV8   = BV<u8, 1>;
+pub type BV16  = BV<u16, 1>;
+pub type BV32  = BV<u32, 1>;
+pub type BV64  = BV<u64, 1>;
+pub type BV128 = BV<u64, 2>;
+pub type BV192 = BV<u64, 3>;
+pub type BV256 = BV<u64, 4>;
+pub type BV320 = BV<u64, 5>;
+pub type BV384 = BV<u64, 6>;
+pub type BV448 = BV<u64, 7>;
+pub type BV512 = BV<u64, 8>;
 
 #[derive(Copy, Clone, Debug)]
 pub struct BV<I: Integer, const N: usize> {
@@ -54,8 +67,11 @@ impl<I: Integer, const N: usize> BitVector for BV<I, N>
 where
     I: StaticCast<I>,
 {
+    fn with_capacity(_length: usize) -> Self {
+        Self::zeros(0)
+    }
     fn zeros(length: usize) -> Self {
-        debug_assert!(length <= Self::capacity());
+        assert!(length <= Self::capacity());
         Self {
             data: [I::ZERO; N],
             length,
@@ -63,7 +79,7 @@ where
     }
 
     fn ones(length: usize) -> Self {
-        debug_assert!(length <= Self::capacity());
+        assert!(length <= Self::capacity());
         let mut ones = Self {
             data: [I::MAX; N],
             length,
@@ -358,6 +374,10 @@ where
 
     fn len(&self) -> usize {
         self.length
+    }
+
+    fn iter<'a>(&'a self) -> BitIterator<'a, Self> {
+        self.into_iter()
     }
 }
 
@@ -931,5 +951,14 @@ impl<I1: Integer, const N: usize> IArrayMut<I1> for BV<I1, N> {
         } else {
             None
         }
+    }
+}
+
+impl<'a, I: Integer, const N: usize> IntoIterator for &'a BV<I, N> {
+    type Item = Bit;
+    type IntoIter = BitIterator<'a, BV<I, N>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        BitIterator::new(&self)
     }
 }
