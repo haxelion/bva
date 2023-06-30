@@ -15,8 +15,9 @@ use std::ops::{
     Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
-use crate::fixed::generics::BV;
+use crate::fixed::BV;
 use crate::fixed::BV128;
+use crate::iter::BitIterator;
 use crate::utils::{IArray, IArrayMut, Integer, StaticCast};
 use crate::{Bit, BitVector, ConvertError, Endianness};
 
@@ -45,17 +46,6 @@ impl BVN {
         u64::MAX
             .checked_shr((Self::BIT_UNIT - length) as u32)
             .unwrap_or(0)
-    }
-
-    /// Allocate a bit vector of length 0 but with enough capacity to store `capacity` bits.
-    pub fn with_capacity(capacity: usize) -> Self {
-        let data: Vec<u64> = repeat(0u64)
-            .take(Self::capacity_from_bit_len(capacity))
-            .collect();
-        BVN {
-            data: data.into_boxed_slice(),
-            length: 0,
-        }
     }
 
     /// Reserve will reserve room for at least `additional` bits in the bit vector. The actual
@@ -123,6 +113,16 @@ impl IArrayMut<u64> for BVN {
 }
 
 impl BitVector for BVN {
+    fn with_capacity(capacity: usize) -> Self {
+        let data: Vec<u64> = repeat(0u64)
+            .take(Self::capacity_from_bit_len(capacity))
+            .collect();
+        BVN {
+            data: data.into_boxed_slice(),
+            length: 0,
+        }
+    }
+
     fn zeros(length: usize) -> Self {
         let v: Vec<u64> = repeat(0)
             .take(Self::capacity_from_bit_len(length))
@@ -415,6 +415,10 @@ impl BitVector for BVN {
 
     fn len(&self) -> usize {
         self.length
+    }
+
+    fn iter<'a>(&'a self) -> BitIterator<'a, Self> {
+        self.into_iter()
     }
 }
 
@@ -1005,9 +1009,26 @@ macro_rules! impl_op {
     };
 }
 
-// FIXME: Generic based implementation
 impl_op!(BitAnd, bitand, bitand_assign);
 impl_op!(BitOr, bitor, bitor_assign);
 impl_op!(BitXor, bitxor, bitxor_assign);
 impl_op!(Add, add, add_assign);
 impl_op!(Sub, sub, sub_assign);
+
+impl<'a> IntoIterator for &'a BVN {
+    type Item = Bit;
+    type IntoIter = BitIterator<'a, BVN>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        BitIterator::new(&self)
+    }
+}
+
+impl FromIterator<Bit> for BVN {
+    fn from_iter<T: IntoIterator<Item = Bit>>(iter: T) -> Self {
+        let iter = iter.into_iter();
+        let mut bv = BVN::with_capacity(iter.size_hint().0);
+        iter.for_each(|b| bv.push(b));
+        bv
+    }
+}
