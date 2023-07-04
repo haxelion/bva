@@ -1,13 +1,15 @@
-use crate::{Bit, BitVector};
 use crate::dynamic::BVN;
 use crate::fixed::BV;
 use crate::utils::Integer;
+use crate::{Bit, BitVector};
 
 use rand::{thread_rng, Rng};
 
 fn iter_inner<B: BitVector>(capacity: usize) {
     let mut rng = thread_rng();
-    let bits: Vec<Bit> = (0..capacity).map(|_| Bit::from(rng.gen::<bool>())).collect();
+    let bits: Vec<Bit> = (0..capacity)
+        .map(|_| Bit::from(rng.gen::<bool>()))
+        .collect();
     let mut bv = B::with_capacity(capacity);
     bits.iter().for_each(|b| bv.push(*b));
 
@@ -21,20 +23,20 @@ fn iter_inner<B: BitVector>(capacity: usize) {
 
     let mut it1 = bits.iter();
     let mut it2 = bv.iter();
-    for _ in 0..capacity/2 {
+    for _ in 0..capacity / 2 {
         assert_eq!(it1.next().copied(), it2.next());
         assert_eq!(it1.next_back().copied(), it2.next_back());
     }
 
     let mut it1 = bits.iter();
     let mut it2 = bv.iter();
-    for _ in 0..capacity/3 {
+    for _ in 0..capacity / 3 {
         assert_eq!(it1.nth(3).copied(), it2.nth(3));
         assert_eq!(it1.nth_back(3).copied(), it2.nth_back(3));
     }
 
     assert_eq!(bits.iter().count(), bv.iter().count());
-    
+
     let bits2: Vec<Bit> = bv.iter().collect();
     assert_eq!(bits, bits2);
 }

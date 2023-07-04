@@ -1,5 +1,5 @@
 use std::fmt::{Debug, Display};
-use std::mem::{align_of, size_of};
+use std::mem::{align_of, size_of, size_of_val};
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
     Mul, MulAssign, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
@@ -143,7 +143,7 @@ compile_error!("Unknown target endianness");
 #[cfg(target_endian = "little")]
 impl<I1: Integer> IArray<I1> for [I1] {
     fn int_len<I2: Integer>(&self) -> usize {
-        (self.len() * size_of::<I1>() + size_of::<I2>() - 1) / size_of::<I2>()
+        (size_of_val(self) + size_of::<I2>() - 1) / size_of::<I2>()
     }
 
     fn get_int<I2: Integer>(&self, idx: usize) -> Option<I2>

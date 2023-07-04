@@ -417,7 +417,7 @@ impl BitVector for BVN {
         self.length
     }
 
-    fn iter<'a>(&'a self) -> BitIterator<'a, Self> {
+    fn iter(&self) -> BitIterator<'_, Self> {
         self.into_iter()
     }
 }
@@ -1020,7 +1020,7 @@ impl<'a> IntoIterator for &'a BVN {
     type IntoIter = BitIterator<'a, BVN>;
 
     fn into_iter(self) -> Self::IntoIter {
-        BitIterator::new(&self)
+        BitIterator::new(self)
     }
 }
 

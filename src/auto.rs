@@ -20,8 +20,8 @@ use std::ops::{
 use crate::dynamic::BVN;
 #[allow(unused_imports)]
 use crate::fixed::{BV128, BV16, BV32, BV64, BV8};
-use crate::Bit;
 use crate::iter::BitIterator;
+use crate::Bit;
 use crate::{BitVector, ConvertError, Endianness};
 
 // Choose a fixed BV type which should match the size of BVN inside the enum
@@ -241,7 +241,7 @@ impl BitVector for BV {
         }
     }
 
-    fn iter<'a>(&'a self) -> BitIterator<'a, Self> {
+    fn iter(&self) -> BitIterator<'_, Self> {
         self.into_iter()
     }
 }
@@ -786,7 +786,7 @@ impl<'a> IntoIterator for &'a BV {
     type IntoIter = BitIterator<'a, BV>;
 
     fn into_iter(self) -> Self::IntoIter {
-        BitIterator::new(&self)
+        BitIterator::new(self)
     }
 }
 

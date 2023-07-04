@@ -182,7 +182,7 @@ pub trait BitVector:
         self.len() == 0
     }
 
-    fn iter<'a>(&'a self) -> BitIterator<'a, Self>;
+    fn iter(&self) -> BitIterator<'_, Self>;
 }
 
 #[cfg(test)]

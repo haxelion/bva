@@ -9,7 +9,10 @@ pub struct BitIterator<'a, B: BitVector> {
 
 impl<'a, B: BitVector> BitIterator<'a, B> {
     pub fn new(bv: &'a B) -> Self {
-        Self { bv, range: 0..bv.len() }
+        Self {
+            bv,
+            range: 0..bv.len(),
+        }
     }
 }
 
@@ -21,8 +24,7 @@ impl<'a, B: BitVector> Iterator for BitIterator<'a, B> {
             let bit = self.bv.get(self.range.start);
             self.range.start += 1;
             Some(bit)
-        }
-        else {
+        } else {
             None
         }
     }
@@ -45,7 +47,7 @@ impl<'a, B: BitVector> Iterator for BitIterator<'a, B> {
     }
 
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        if self.range.start + n  < self.range.end {
+        if self.range.start + n < self.range.end {
             let bit = self.bv.get(self.range.start + n);
             self.range.start += n + 1;
             Some(bit)
