@@ -1,6 +1,6 @@
 [package]
 name = "bva"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["Charles Hubain <github@haxelion.eu>"]
 edition = "2021"
 description = "bva is a crate for manipulating bit vectors and doing arithmetics on arbitrarily sized bit vectors."
