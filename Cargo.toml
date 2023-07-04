@@ -3,12 +3,13 @@ name = "bva"
 version = "0.2.0"
 authors = ["Charles Hubain <github@haxelion.eu>"]
 edition = "2021"
+rust-version = "1.61"
 description = "bva is a crate for manipulating bit vectors and doing arithmetics on arbitrarily sized bit vectors."
 documentation = "https://docs.rs/bva"
 readme = "README.md"
 homepage = "https://github.com/haxelion/bva/"
 repository = "https://github.com/haxelion/bva/"
-license = "Apache-2.0"
+license = "MIT"
 keywords = ["bit", "vector", "binary", "arithmetics"]
 categories = ["data-structures", "encoding", "mathematics"]
 

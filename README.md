@@ -1,6 +1,10 @@
 # bva
 
-![CI](https://github.com/haxelion/bva/actions/workflows/ci.yaml/badge.svg)
+[![crates.io Version](https://img.shields.io/crates/v/bva.svg)](https://crates.io/crates/bva)
+[![Rayon documentation](https://img.shields.io/docsrs/bva/latest)](https://docs.rs/bva)
+![Build Status](https://github.com/haxelion/bva/actions/workflows/ci.yaml/badge.svg)
+![Minimum Rust 1.61](https://img.shields.io/badge/Rust-1.61+-red.svg)
+[![LICENSE](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 `bva` is a rust crate for manipulating bit vectors and doing arithmetics on arbitrarily sized bit
 vectors.
@@ -16,6 +20,9 @@ and converted into each other.
 
 ## Changelog
 
+* 2023/07/04 - 0.2.0
+    * Major rewrite using const generics
+    * Iterator support
 * 2020/12/20 - 0.1.0
     * BitVector trait with fixed, dynamic and auto implementations.
     * Conversion between all the implementations
@@ -26,8 +33,6 @@ and converted into each other.
 
 * More "advanced" arithmetics: multiplication, division, remainder.
 * Fix Display for bit vector longer than 128 bits.
-* Bit operations.
-* Iterator over bits, IntoIterator and FromIterator.
 * Borrowing of bits and bit slice inside a bit vector.
 * Really advanced arithmetics: gcd, modular exponentiation, ...
 * no-std support
