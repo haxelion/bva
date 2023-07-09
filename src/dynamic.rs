@@ -11,8 +11,8 @@ use std::io::{Read, Write};
 use std::iter::repeat;
 use std::mem::size_of;
 use std::ops::{
-    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Range,
-    Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Mul, MulAssign, 
+    Not, Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
 use crate::fixed::BV;
@@ -832,9 +832,6 @@ macro_rules! impl_binop_assign {
     ($trait:ident, $method:ident) => {
         impl $trait<&'_ BVN> for BVN {
             fn $method(&mut self, rhs: &'_ BVN) {
-                if rhs.length > self.length {
-                    self.resize(rhs.length, Bit::Zero);
-                }
                 for i in 0..Self::capacity_from_bit_len(rhs.length) {
                     self.data[i].$method(rhs.data[i]);
                 }
@@ -854,9 +851,6 @@ macro_rules! impl_binop_assign {
 
         impl<I: Integer, const N: usize> $trait<&'_ BV<I, N>> for BVN {
             fn $method(&mut self, rhs: &'_ BV<I, N>) {
-                if rhs.len() > self.length {
-                    self.resize(rhs.len(), Bit::Zero);
-                }
                 for i in 0..usize::min(rhs.int_len::<u64>(), self.data.len()) {
                     self.data[i].$method(rhs.get_int::<u64>(i).unwrap());
                 }
@@ -882,9 +876,6 @@ macro_rules! impl_addsub_assign {
     ($trait:ident, $method:ident, $overflowing_method:ident) => {
         impl $trait<&'_ BVN> for BVN {
             fn $method(&mut self, rhs: &'_ BVN) {
-                if rhs.length > self.length {
-                    self.resize(rhs.length, Bit::Zero);
-                }
                 let mut carry = 0;
                 for i in 0..Self::capacity_from_bit_len(rhs.length) {
                     let (d1, c1) = self.data[i].$overflowing_method(carry);
@@ -913,9 +904,6 @@ macro_rules! impl_addsub_assign {
 
         impl<I: Integer, const N: usize> $trait<&'_ BV<I, N>> for BVN {
             fn $method(&mut self, rhs: &'_ BV<I, N>) {
-                if rhs.len() > self.length {
-                    self.resize(rhs.len(), Bit::Zero);
-                }
                 let mut carry = 0;
                 for i in 0..rhs.int_len::<u64>() {
                     let (d1, c1) = self.data[i].$overflowing_method(carry);
@@ -1014,6 +1002,120 @@ impl_op!(BitOr, bitor, bitor_assign);
 impl_op!(BitXor, bitxor, bitxor_assign);
 impl_op!(Add, add, add_assign);
 impl_op!(Sub, sub, sub_assign);
+
+impl Mul<&'_ BVN> for &'_ BVN {
+    type Output = BVN;
+    fn mul(self, rhs: &'_ BVN) -> BVN {
+        let mut res = BVN::zeros(self.length);
+        let len = BVN::capacity_from_bit_len(res.length);
+        for i in 0..(len - 1) {
+            for j in 0..(i + 1) {
+                let c = self.data[i - j].widening_mul(*rhs.data.get(j).unwrap_or(&0));
+                let carry = res.data[i].carry_add(c.0, 0);
+                res.data[i + 1].carry_add(c.1, carry);
+            }
+        }
+        for j in 0..len {
+            let c = self.data[len - 1 - j].widening_mul(*rhs.data.get(j).unwrap_or(&0));
+            res.data[len - 1].carry_add(c.0, 0);
+        }
+        if let Some(l) = res.data.get_mut(res.length / BVN::BIT_UNIT) {
+            *l &= BVN::mask(res.length % BVN::BIT_UNIT);
+        }
+
+        res
+    }
+}
+
+impl Mul<BVN> for &'_ BVN {
+    type Output = BVN;
+    fn mul(self, rhs: BVN) -> BVN {
+        self.mul(&rhs)
+    }
+}
+
+impl Mul<&'_ BVN> for BVN {
+    type Output = BVN;
+    fn mul(self, rhs: &'_ BVN) -> BVN {
+        (&self).mul(rhs)
+    }
+}
+
+impl Mul<BVN> for BVN {
+    type Output = BVN;
+    fn mul(self, rhs: BVN) -> BVN {
+        (&self).mul(&rhs)
+    }
+}
+
+impl MulAssign<&'_ BVN> for BVN {
+    fn mul_assign(&mut self, rhs: &'_ BVN) {
+        *self = Mul::mul(&*self, rhs);
+    }
+}
+
+impl MulAssign<BVN> for BVN {
+    fn mul_assign(&mut self, rhs: BVN) {
+        *self = Mul::mul(&*self, &rhs);
+    }
+}
+
+impl<I: Integer, const N: usize> Mul<& '_ BV<I, N>> for &'_ BVN {
+    type Output = BVN;
+    fn mul(self, rhs: &'_ BV<I, N>) -> BVN {
+        let mut res = BVN::zeros(self.length);
+        let len = res.int_len::<u64>();
+        for i in 0..(len - 1) {
+            for j in 0..(i + 1) {
+                let c = self.data[i - j].widening_mul(rhs.get_int::<u64>(j).unwrap_or(0));
+                let carry = res.data[i].carry_add(c.0, 0);
+                res.data[i + 1].carry_add(c.1, carry);
+            }
+        }
+        for j in 0..len {
+            let c = self.data[len - 1 - j].widening_mul(rhs.get_int::<u64>(j).unwrap_or(0));
+            res.data[len - 1].carry_add(c.0, 0);
+        }
+        if let Some(l) = res.data.get_mut(res.length / BVN::BIT_UNIT) {
+            *l &= BVN::mask(res.length % BVN::BIT_UNIT);
+        }
+
+        res
+    }
+}
+
+impl<I: Integer, const N: usize> Mul<BV<I, N>> for &'_ BVN {
+    type Output = BVN;
+    fn mul(self, rhs: BV<I, N>) -> BVN {
+        self.mul(&rhs)
+    }
+}
+
+impl<I: Integer, const N: usize> Mul<& '_ BV<I, N>> for BVN {
+    type Output = BVN;
+    fn mul(self, rhs: &'_ BV<I, N>) -> BVN {
+        (&self).mul(rhs)
+    }
+}
+
+impl<I: Integer, const N: usize> Mul<BV<I, N>> for BVN {
+    type Output = BVN;
+    fn mul(self, rhs: BV<I, N>) -> BVN {
+        (&self).mul(&rhs)
+    }
+}
+
+impl<I: Integer, const N: usize> MulAssign<& '_ BV<I, N>> for BVN {
+    fn mul_assign(&mut self, rhs: &'_ BV<I, N>) {
+        *self = Mul::mul(&*self, rhs);
+    }
+}
+
+impl<I: Integer, const N: usize> MulAssign<BV<I, N>> for BVN {
+    fn mul_assign(&mut self, rhs: BV<I, N>) {
+        *self = Mul::mul(&*self, &rhs);
+    }
+}
 
 impl<'a> IntoIterator for &'a BVN {
     type Item = Bit;

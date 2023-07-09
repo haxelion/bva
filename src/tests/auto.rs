@@ -322,6 +322,7 @@ fn op() {
         assert_eq!(&a ^ &b, BVN::from(&bva ^ &bvb));
         assert_eq!(&a + &b, BVN::from(&bva + &bvb));
         assert_eq!(&a - &b, BVN::from(&bva - &bvb));
+        assert_eq!(&a * &b, BVN::from(&bva * &bvb));
         // BitAndAssign
         b &= &a;
         bvb &= &bva;
@@ -341,6 +342,10 @@ fn op() {
         // BitXorAssign
         b ^= &a;
         bvb ^= &bva;
+        assert_eq!(b, BVN::from(&bvb));
+        // BitXorAssign
+        b *= &a;
+        bvb *= &bva;
         assert_eq!(b, BVN::from(&bvb));
     }
 }
@@ -364,6 +369,7 @@ macro_rules! decl_op_implicit_cast_inner {
                 assert_eq!(((a ^ b) & mask).0, u128::try_from(&bva ^ &bvb).unwrap());
                 assert_eq!(((a + b) & mask).0, u128::try_from(&bva + &bvb).unwrap());
                 assert_eq!(((a - b) & mask).0, u128::try_from(&bva - &bvb).unwrap());
+                assert_eq!(((a * b) & mask).0, u128::try_from(&bva * &bvb).unwrap());
                 // BitAndAssign
                 a &= b;
                 bva &= &bvb;
@@ -385,6 +391,11 @@ macro_rules! decl_op_implicit_cast_inner {
                 // BitXorAssign
                 a ^= b;
                 bva ^= &bvb;
+                assert_eq!(a.0, u128::try_from(&bva).unwrap());
+                // BitXorAssign
+                a *= b;
+                a &= mask;
+                bva *= &bvb;
                 assert_eq!(a.0, u128::try_from(&bva).unwrap());
             }
         }

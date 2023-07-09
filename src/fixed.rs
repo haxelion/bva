@@ -4,8 +4,8 @@ use std::fmt;
 use std::iter::repeat;
 use std::mem::size_of;
 use std::ops::{
-    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Range,
-    Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Mul, MulAssign,
+    Not, Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
 use crate::dynamic::BVN;
@@ -923,6 +923,82 @@ impl_op!(BitOr, bitor, bitor_assign);
 impl_op!(BitXor, bitxor, bitxor_assign);
 impl_op!(Add, add, add_assign);
 impl_op!(Sub, sub, sub_assign);
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Mul<&'_ BV<I2, N2>>
+    for &'_ BV<I1, N1>
+where
+    I2: StaticCast<I1>,
+{
+    type Output = BV<I1, N1>;
+    fn mul(self, rhs: &'_ BV<I2, N2>) -> BV<I1, N1> {
+        let mut res = BV::<I1, N1>::zeros(self.length);
+        let len = res.int_len::<I1>();
+        for i in 0..(len - 1) {
+            for j in 0..(i + 1) {
+                let c = self.data[i - j].widening_mul(rhs.get_int::<I1>(j).unwrap_or(I1::ZERO));
+                let carry = res.data[i].carry_add(c.0, I1::ZERO);
+                res.data[i + 1].carry_add(c.1, carry);
+            }
+        }
+        for j in 0..len {
+            let c = self.data[len - 1 - j].widening_mul(rhs.get_int::<I1>(j).unwrap_or(I1::ZERO));
+            res.data[len - 1].carry_add(c.0, I1::ZERO);
+        }
+
+        res.mod2n(self.length);
+        res
+    }
+}
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Mul<BV<I2, N2>> for &'_ BV<I1, N1>
+where
+    I2: StaticCast<I1>,
+{
+    type Output = BV<I1, N1>;
+    fn mul(self, rhs: BV<I2, N2>) -> BV<I1, N1> {
+        self.mul(&rhs)
+    }
+}
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Mul<&'_ BV<I2, N2>> for BV<I1, N1>
+where
+    I2: StaticCast<I1>,
+{
+    type Output = BV<I1, N1>;
+    fn mul(self, rhs: &'_ BV<I2, N2>) -> BV<I1, N1> {
+        (&self).mul(rhs)
+    }
+}
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Mul<BV<I2, N2>> for BV<I1, N1>
+where
+    I2: StaticCast<I1>,
+{
+    type Output = BV<I1, N1>;
+    fn mul(self, rhs: BV<I2, N2>) -> BV<I1, N1> {
+        (&self).mul(&rhs)
+    }
+}
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> MulAssign<&'_ BV<I2, N2>>
+    for BV<I1, N1>
+where
+    I2: StaticCast<I1>,
+{
+    fn mul_assign(&mut self, rhs: &'_ BV<I2, N2>) {
+        *self = Mul::mul(&*self, rhs);
+    }
+}
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> MulAssign<BV<I2, N2>>
+    for BV<I1, N1>
+where
+    I2: StaticCast<I1>,
+{
+    fn mul_assign(&mut self, rhs: BV<I2, N2>) {
+        *self = Mul::mul(&*self, &rhs);
+    }
+}
 
 impl<I1: Integer, const N: usize> IArray<I1> for BV<I1, N> {
     fn int_len<I2: Integer>(&self) -> usize {

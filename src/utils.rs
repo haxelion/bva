@@ -106,7 +106,6 @@ impl Integer for u8 {
         let (v2, c2) = v1.overflowing_add(carry);
         *self = v2;
         return (c1 || c2) as Self;
-
     }
 
     fn carry_sub(&mut self, rhs: Self, carry: Self) -> Self {
@@ -118,7 +117,7 @@ impl Integer for u8 {
 
     fn widening_mul(&self, rhs: Self) -> (Self, Self) {
         let res = (*self as u16) * (rhs as u16);
-        ((res >> Self::BITS) as Self, res as Self)
+        (res as Self, (res >> Self::BITS) as Self)
     }
 }
 
@@ -128,7 +127,6 @@ impl Integer for u16 {
         let (v2, c2) = v1.overflowing_add(carry);
         *self = v2;
         return (c1 || c2) as Self;
-
     }
 
     fn carry_sub(&mut self, rhs: Self, carry: Self) -> Self {
@@ -140,7 +138,7 @@ impl Integer for u16 {
 
     fn widening_mul(&self, rhs: Self) -> (Self, Self) {
         let res = (*self as u32) * (rhs as u32);
-        ((res >> Self::BITS) as Self, res as Self)
+        (res as Self, (res >> Self::BITS) as Self)
     }
 }
 
@@ -150,7 +148,6 @@ impl Integer for u32 {
         let (v2, c2) = v1.overflowing_add(carry);
         *self = v2;
         return (c1 || c2) as Self;
-
     }
 
     fn carry_sub(&mut self, rhs: Self, carry: Self) -> Self {
@@ -162,7 +159,7 @@ impl Integer for u32 {
 
     fn widening_mul(&self, rhs: Self) -> (Self, Self) {
         let res = (*self as u64) * (rhs as u64);
-        ((res >> Self::BITS) as Self, res as Self)
+        (res as Self, (res >> Self::BITS) as Self)
     }
 }
 
@@ -172,7 +169,6 @@ impl Integer for u64 {
         let (v2, c2) = v1.overflowing_add(carry);
         *self = v2;
         return (c1 || c2) as Self;
-
     }
 
     fn carry_sub(&mut self, rhs: Self, carry: Self) -> Self {
@@ -184,7 +180,7 @@ impl Integer for u64 {
 
     fn widening_mul(&self, rhs: Self) -> (Self, Self) {
         let res = (*self as u128) * (rhs as u128);
-        ((res >> Self::BITS) as Self, res as Self)
+        (res as Self, (res >> Self::BITS) as Self)
     }
 }
 
@@ -194,7 +190,6 @@ impl Integer for usize {
         let (v2, c2) = v1.overflowing_add(carry);
         *self = v2;
         return (c1 || c2) as Self;
-
     }
 
     fn carry_sub(&mut self, rhs: Self, carry: Self) -> Self {
@@ -206,7 +201,7 @@ impl Integer for usize {
 
     fn widening_mul(&self, rhs: Self) -> (Self, Self) {
         let res = (*self as u128) * (rhs as u128);
-        ((res >> Self::BITS) as Self, res as Self)
+        (res as Self, (res >> Self::BITS) as Self)
     }
 }
 
@@ -216,7 +211,6 @@ impl Integer for u128 {
         let (v2, c2) = v1.overflowing_add(carry);
         *self = v2;
         return (c1 || c2) as Self;
-
     }
 
     fn carry_sub(&mut self, rhs: Self, carry: Self) -> Self {
