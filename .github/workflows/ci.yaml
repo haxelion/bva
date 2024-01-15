@@ -1,28 +1,44 @@
 name: CI
 
-on:
-  push:
-    branches: ["master"]
-  pull_request:
-    branches: ["master"]
+on: [push, pull_request]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   check:
+    name: Check code with rustfmt and clippy
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - name: Rustfmt
+    - uses: actions/checkout@v4
+    - name: Check code with rustfmt
       run: cargo fmt --check
-    - name: Clippy
+    - name: Check code with clippy
       run: cargo clippy
-  build:
+  test:
+    name: Build and run tests
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - name: Build
+    - uses: actions/checkout@v4
+    - name: Build library
       run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose
+  coverage:
+    name: Run tests and generate coverage report
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install rust nighlty toolchain and llvm tools
+      run: |
+        rustup toolchain install nightly
+        rustup default nightly
+        rustup component add llvm-tools
+    - name: Compile and run instrumented tests
+      run: RUSTFLAGS="-C instrument-coverage" cargo test
+    - name: Merge coverage data
+      run: rust-profdata merge -sparse *.profraw -o tests_coverage.profdata
+    - name: Generate coverage report
+      run: rust-cov report --use-color --ignore-filename-regex='/.cargo/registry' --ignore-filename-regex='src/tests/'  --ignore-filename-regex='library/std/src/' --instr-profile=tests_coverage.profdata --object ../target/debug/deps/bva-*
+
