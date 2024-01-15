@@ -11,7 +11,7 @@ use std::io::{Read, Write};
 use std::iter::repeat;
 use std::mem::size_of;
 use std::ops::{
-    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Mul, MulAssign, 
+    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Mul, MulAssign,
     Not, Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
@@ -1060,7 +1060,7 @@ impl MulAssign<BVN> for BVN {
     }
 }
 
-impl<I: Integer, const N: usize> Mul<& '_ BV<I, N>> for &'_ BVN {
+impl<I: Integer, const N: usize> Mul<&'_ BV<I, N>> for &'_ BVN {
     type Output = BVN;
     fn mul(self, rhs: &'_ BV<I, N>) -> BVN {
         let mut res = BVN::zeros(self.length);
@@ -1091,7 +1091,7 @@ impl<I: Integer, const N: usize> Mul<BV<I, N>> for &'_ BVN {
     }
 }
 
-impl<I: Integer, const N: usize> Mul<& '_ BV<I, N>> for BVN {
+impl<I: Integer, const N: usize> Mul<&'_ BV<I, N>> for BVN {
     type Output = BVN;
     fn mul(self, rhs: &'_ BV<I, N>) -> BVN {
         (&self).mul(rhs)
@@ -1105,7 +1105,7 @@ impl<I: Integer, const N: usize> Mul<BV<I, N>> for BVN {
     }
 }
 
-impl<I: Integer, const N: usize> MulAssign<& '_ BV<I, N>> for BVN {
+impl<I: Integer, const N: usize> MulAssign<&'_ BV<I, N>> for BVN {
     fn mul_assign(&mut self, rhs: &'_ BV<I, N>) {
         *self = Mul::mul(&*self, rhs);
     }
