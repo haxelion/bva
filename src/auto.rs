@@ -13,8 +13,8 @@ use std::convert::{From, TryFrom};
 use std::fmt::{Binary, Display, LowerHex, Octal, UpperHex};
 
 use std::ops::{
-    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Range,
-    Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Mul, MulAssign,
+    Not, Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
 use crate::dynamic::BVN;
@@ -767,11 +767,13 @@ macro_rules! impl_all_ops { ({$($sbv:ty),*}, {$($ubv:ty),*}) => {
     impl_op_assign!(BitXorAssign, bitxor_assign, {$($sbv),*}, {$($ubv),*});
     impl_op_assign!(AddAssign, add_assign, {$($sbv),*}, {$($ubv),*});
     impl_op_assign!(SubAssign, sub_assign, {$($sbv),*}, {$($ubv),*});
+    impl_op_assign!(MulAssign, mul_assign, {$($sbv),*}, {$($ubv),*});
     impl_op!(BitAnd, bitand, bitand_assign, {$($sbv),* , $($ubv),*});
     impl_op!(BitOr, bitor, bitor_assign, {$($sbv),* , $($ubv),*});
     impl_op!(BitXor, bitxor, bitxor_assign, {$($sbv),* , $($ubv),*});
     impl_op!(Add, add, add_assign, {$($sbv),* , $($ubv),*});
     impl_op!(Sub, sub, sub_assign, {$($sbv),* , $($ubv),*});
+    impl_op!(Mul, mul, mul_assign, {$($sbv),* , $($ubv),*});
 }}
 
 #[cfg(target_pointer_width = "16")]
