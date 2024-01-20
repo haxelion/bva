@@ -679,9 +679,6 @@ macro_rules! impl_op_assign { ($trait:ident, $method:ident, {$($sbv:ty),*}, {$($
     $(
         impl $trait<&'_ $ubv> for BV {
             fn $method(&mut self, b: &'_ $ubv) {
-                if b.len() > self.len() {
-                    self.reserve(b.len() - self.len());
-                }
                 match self {
                     BV::Fixed(s) => s.$method(BVF::try_from(b).unwrap()),
                     BV::Dynamic(s) => s.$method(b)
