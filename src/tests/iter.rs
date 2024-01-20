@@ -1,5 +1,5 @@
-use crate::dynamic::BVN;
-use crate::fixed::BV;
+use crate::dynamic::BVD;
+use crate::fixed::BVF;
 use crate::utils::Integer;
 use crate::{Bit, BitVector};
 
@@ -42,8 +42,8 @@ fn iter_inner<B: BitVector>(capacity: usize) {
 }
 
 fn iter_fixed_inner<I: Integer, const N: usize>() {
-    let capacity = BV::<I, N>::capacity();
-    iter_inner::<BV<I, N>>(capacity);
+    let capacity = BVF::<I, N>::capacity();
+    iter_inner::<BVF<I, N>>(capacity);
 }
 
 #[test]
@@ -73,6 +73,6 @@ fn iter_fixed() {
 #[test]
 fn iter_dynamic() {
     for capacity in 1..512 {
-        iter_inner::<BVN>(capacity);
+        iter_inner::<BVD>(capacity);
     }
 }

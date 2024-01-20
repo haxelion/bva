@@ -8,30 +8,30 @@ use std::ops::{
     Not, Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
-use crate::dynamic::BVN;
+use crate::dynamic::BVD;
 use crate::iter::BitIterator;
 use crate::utils::{IArray, IArrayMut, Integer, StaticCast};
 use crate::{Bit, BitVector, ConvertError, Endianness};
 
-pub type BV8 = BV<u8, 1>;
-pub type BV16 = BV<u16, 1>;
-pub type BV32 = BV<u32, 1>;
-pub type BV64 = BV<u64, 1>;
-pub type BV128 = BV<u64, 2>;
-pub type BV192 = BV<u64, 3>;
-pub type BV256 = BV<u64, 4>;
-pub type BV320 = BV<u64, 5>;
-pub type BV384 = BV<u64, 6>;
-pub type BV448 = BV<u64, 7>;
-pub type BV512 = BV<u64, 8>;
+pub type BV8 = BVF<u8, 1>;
+pub type BV16 = BVF<u16, 1>;
+pub type BV32 = BVF<u32, 1>;
+pub type BV64 = BVF<u64, 1>;
+pub type BV128 = BVF<u64, 2>;
+pub type BV192 = BVF<u64, 3>;
+pub type BV256 = BVF<u64, 4>;
+pub type BV320 = BVF<u64, 5>;
+pub type BV384 = BVF<u64, 6>;
+pub type BV448 = BVF<u64, 7>;
+pub type BV512 = BVF<u64, 8>;
 
 #[derive(Copy, Clone, Debug)]
-pub struct BV<I: Integer, const N: usize> {
+pub struct BVF<I: Integer, const N: usize> {
     data: [I; N],
     length: usize,
 }
 
-impl<I: Integer, const N: usize> BV<I, N> {
+impl<I: Integer, const N: usize> BVF<I, N> {
     const BYTE_UNIT: usize = size_of::<I>();
     const NIBBLE_UNIT: usize = size_of::<I>() * 2;
     const BIT_UNIT: usize = size_of::<I>() * 8;
@@ -63,7 +63,7 @@ impl<I: Integer, const N: usize> BV<I, N> {
     }
 }
 
-impl<I: Integer, const N: usize> BitVector for BV<I, N>
+impl<I: Integer, const N: usize> BitVector for BVF<I, N>
 where
     I: StaticCast<I>,
 {
@@ -255,7 +255,7 @@ where
             *last &= Self::mask(length.wrapping_sub(1) % Self::BIT_UNIT + 1);
         }
 
-        BV::<I, N> { data, length }
+        BVF::<I, N> { data, length }
     }
 
     fn push(&mut self, bit: Bit) {
@@ -381,13 +381,13 @@ where
     }
 }
 
-impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> PartialEq<BV<I1, N1>>
-    for BV<I2, N2>
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> PartialEq<BVF<I1, N1>>
+    for BVF<I2, N2>
 where
     I1: StaticCast<I1>,
     I2: StaticCast<I1>,
 {
-    fn eq(&self, other: &BV<I1, N1>) -> bool {
+    fn eq(&self, other: &BVF<I1, N1>) -> bool {
         for i in 0..usize::max(self.int_len::<I1>(), other.int_len::<I1>()) {
             if self.data.get_int::<I1>(i).unwrap_or(I1::ZERO)
                 != other.data.get_int::<I1>(i).unwrap_or(I1::ZERO)
@@ -399,15 +399,15 @@ where
     }
 }
 
-impl<I: Integer, const N: usize> Eq for BV<I, N> where I: StaticCast<I> {}
+impl<I: Integer, const N: usize> Eq for BVF<I, N> where I: StaticCast<I> {}
 
-impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> PartialOrd<BV<I1, N1>>
-    for BV<I2, N2>
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> PartialOrd<BVF<I1, N1>>
+    for BVF<I2, N2>
 where
     I1: StaticCast<I1>,
     I2: StaticCast<I1>,
 {
-    fn partial_cmp(&self, other: &BV<I1, N1>) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &BVF<I1, N1>) -> Option<std::cmp::Ordering> {
         for i in (0..usize::max(self.int_len::<I1>(), other.int_len::<I1>())).rev() {
             match self
                 .data
@@ -423,7 +423,7 @@ where
     }
 }
 
-impl<I: Integer, const N: usize> Ord for BV<I, N>
+impl<I: Integer, const N: usize> Ord for BVF<I, N>
 where
     I: StaticCast<I>,
 {
@@ -433,7 +433,7 @@ where
     }
 }
 
-impl<I: Integer, const N: usize> fmt::Binary for BV<I, N>
+impl<I: Integer, const N: usize> fmt::Binary for BVF<I, N>
 where
     I: StaticCast<I>,
 {
@@ -453,14 +453,14 @@ where
     }
 }
 
-impl<I: Integer, const N: usize> fmt::Display for BV<I, N> {
+impl<I: Integer, const N: usize> fmt::Display for BVF<I, N> {
     fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // TODO: waiting for div and mod operations
         todo!()
     }
 }
 
-impl<I: Integer, const N: usize> fmt::Octal for BV<I, N> {
+impl<I: Integer, const N: usize> fmt::Octal for BVF<I, N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         const SEMI_NIBBLE: [char; 8] = ['0', '1', '2', '3', '4', '5', '6', '7'];
         let length = (self.length + 2) / 3;
@@ -479,7 +479,7 @@ impl<I: Integer, const N: usize> fmt::Octal for BV<I, N> {
     }
 }
 
-impl<I: Integer, const N: usize> fmt::LowerHex for BV<I, N> {
+impl<I: Integer, const N: usize> fmt::LowerHex for BVF<I, N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         const NIBBLE: [char; 16] = [
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
@@ -500,7 +500,7 @@ impl<I: Integer, const N: usize> fmt::LowerHex for BV<I, N> {
     }
 }
 
-impl<I: Integer, const N: usize> fmt::UpperHex for BV<I, N> {
+impl<I: Integer, const N: usize> fmt::UpperHex for BVF<I, N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         const NIBBLE: [char; 16] = [
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
@@ -523,7 +523,7 @@ impl<I: Integer, const N: usize> fmt::UpperHex for BV<I, N> {
 
 macro_rules! impl_tryfrom { ($($type:ty),+) => {
     $(
-        impl<I: Integer, const N: usize> TryFrom<$type> for BV<I, N>
+        impl<I: Integer, const N: usize> TryFrom<$type> for BVF<I, N>
             where I: StaticCast<$type>
         {
             type Error = ConvertError;
@@ -533,7 +533,7 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
                 if size_of::<I>() >= size_of::<$type>() {
                     let mut data = [I::ZERO; N];
                     data[0] = I::cast_from(int);
-                    return Ok(BV {
+                    return Ok(BVF {
                         data,
                         length: <$type>::BITS as usize
                     });
@@ -547,7 +547,7 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
                     for i in 0..N {
                         data[i] = I::cast_from(int.shr(i * Self::BIT_UNIT));
                     }
-                    return Ok(BV {
+                    return Ok(BVF {
                         data,
                         length: Self::capacity()
                     });
@@ -555,11 +555,11 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
             }
         }
 
-        impl<I: Integer, const N: usize> TryFrom<&'_ BV<I, N>> for $type
+        impl<I: Integer, const N: usize> TryFrom<&'_ BVF<I, N>> for $type
             where I: StaticCast<$type>
         {
             type Error = ConvertError;
-            fn try_from(bv: &'_ BV<I, N>) -> Result<Self, Self::Error> {
+            fn try_from(bv: &'_ BVF<I, N>) -> Result<Self, Self::Error> {
                 // Check if the bit vector overflow I
                 if bv.length > <$type>::BITS as usize {
                     Err(ConvertError::NotEnoughCapacity)
@@ -570,11 +570,11 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
             }
         }
 
-        impl<I: Integer, const N: usize> TryFrom<BV<I, N>> for $type
+        impl<I: Integer, const N: usize> TryFrom<BVF<I, N>> for $type
             where I: StaticCast<$type>
         {
             type Error = ConvertError;
-            fn try_from(bv: BV<I, N>) -> Result<Self, Self::Error> {
+            fn try_from(bv: BVF<I, N>) -> Result<Self, Self::Error> {
                 Self::try_from(&bv)
             }
         }
@@ -583,64 +583,64 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
 
 impl_tryfrom!(u8, u16, u32, u64, u128, usize);
 
-impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> TryFrom<&'_ BV<I1, N1>>
-    for BV<I2, N2>
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> TryFrom<&'_ BVF<I1, N1>>
+    for BVF<I2, N2>
 where
     I1: StaticCast<I2>,
 {
     type Error = ConvertError;
 
-    fn try_from(bvn: &'_ BV<I1, N1>) -> Result<Self, Self::Error> {
-        if Self::capacity() < bvn.length {
+    fn try_from(bvd: &'_ BVF<I1, N1>) -> Result<Self, Self::Error> {
+        if Self::capacity() < bvd.length {
             Err(ConvertError::NotEnoughCapacity)
         } else {
             let mut data = [I2::ZERO; N2];
-            for i in 0..usize::min(N2, bvn.data.int_len::<I2>()) {
-                data[i] = bvn.get_int::<I2>(i).unwrap();
+            for i in 0..usize::min(N2, bvd.data.int_len::<I2>()) {
+                data[i] = bvd.get_int::<I2>(i).unwrap();
             }
-            Ok(BV::<I2, N2> {
+            Ok(BVF::<I2, N2> {
                 data,
-                length: bvn.length,
+                length: bvd.length,
             })
         }
     }
 }
 
-impl<I: Integer, const N: usize> TryFrom<&'_ BVN> for BV<I, N>
+impl<I: Integer, const N: usize> TryFrom<&'_ BVD> for BVF<I, N>
 where
     u64: StaticCast<I>,
 {
     type Error = ConvertError;
-    fn try_from(bvn: &'_ BVN) -> Result<Self, Self::Error> {
-        if bvn.len() > BV::<I, N>::capacity() {
+    fn try_from(bvd: &'_ BVD) -> Result<Self, Self::Error> {
+        if bvd.len() > BVF::<I, N>::capacity() {
             Err(ConvertError::NotEnoughCapacity)
         } else {
             let mut data = [I::ZERO; N];
             for i in 0..N {
-                data[i] = bvn.get_int(i).unwrap_or(I::ZERO);
+                data[i] = bvd.get_int(i).unwrap_or(I::ZERO);
             }
-            Ok(BV::<I, N> {
+            Ok(BVF::<I, N> {
                 data,
-                length: bvn.len(),
+                length: bvd.len(),
             })
         }
     }
 }
 
-impl<I: Integer, const N: usize> TryFrom<BVN> for BV<I, N>
+impl<I: Integer, const N: usize> TryFrom<BVD> for BVF<I, N>
 where
     u64: StaticCast<I>,
 {
     type Error = ConvertError;
-    fn try_from(bvn: BVN) -> Result<Self, Self::Error> {
-        Self::try_from(&bvn)
+    fn try_from(bvd: BVD) -> Result<Self, Self::Error> {
+        Self::try_from(&bvd)
     }
 }
 
-impl<I: Integer, const N: usize> Not for BV<I, N> {
-    type Output = BV<I, N>;
+impl<I: Integer, const N: usize> Not for BVF<I, N> {
+    type Output = BVF<I, N>;
 
-    fn not(mut self) -> BV<I, N> {
+    fn not(mut self) -> BVF<I, N> {
         for i in 0..N {
             self.data[i] = !self.data[i];
         }
@@ -649,17 +649,17 @@ impl<I: Integer, const N: usize> Not for BV<I, N> {
     }
 }
 
-impl<I: Integer, const N: usize> Not for &'_ BV<I, N> {
-    type Output = BV<I, N>;
+impl<I: Integer, const N: usize> Not for &'_ BVF<I, N> {
+    type Output = BVF<I, N>;
 
-    fn not(self) -> BV<I, N> {
+    fn not(self) -> BVF<I, N> {
         (*self).not()
     }
 }
 
 macro_rules! impl_shifts {({$($rhs:ty),+}) => {
     $(
-        impl<I: Integer, const N: usize> ShlAssign<$rhs> for BV<I, N> {
+        impl<I: Integer, const N: usize> ShlAssign<$rhs> for BVF<I, N> {
             fn shl_assign(&mut self, rhs: $rhs) {
                 let shift = usize::try_from(rhs).map_or(0, |s| s);
                 if shift == 0 {
@@ -684,43 +684,43 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
         }
 
 
-        impl<I: Integer, const N: usize> ShlAssign<&'_ $rhs> for BV<I, N> {
+        impl<I: Integer, const N: usize> ShlAssign<&'_ $rhs> for BVF<I, N> {
             fn shl_assign(&mut self, rhs: &'_ $rhs) {
                 self.shl_assign(*rhs);
             }
         }
 
-        impl<I: Integer, const N: usize> Shl<$rhs> for BV<I, N> {
-            type Output = BV<I, N>;
+        impl<I: Integer, const N: usize> Shl<$rhs> for BVF<I, N> {
+            type Output = BVF<I, N>;
             fn shl(mut self, rhs: $rhs) -> Self {
                 self.shl_assign(rhs);
                 return self;
             }
         }
 
-        impl<I: Integer, const N: usize> Shl<&'_ $rhs> for BV<I, N> {
-            type Output = BV<I, N>;
+        impl<I: Integer, const N: usize> Shl<&'_ $rhs> for BVF<I, N> {
+            type Output = BVF<I, N>;
             fn shl(mut self, rhs: &'_ $rhs) -> Self {
                 self.shl_assign(rhs);
                 return self;
             }
         }
 
-        impl<I: Integer, const N: usize> Shl<$rhs> for &'_ BV<I, N> {
-            type Output = BV<I, N>;
-            fn shl(self, rhs: $rhs) -> BV<I, N> {
+        impl<I: Integer, const N: usize> Shl<$rhs> for &'_ BVF<I, N> {
+            type Output = BVF<I, N>;
+            fn shl(self, rhs: $rhs) -> BVF<I, N> {
                 return (*self).shl(rhs);
             }
         }
 
-        impl<I: Integer, const N: usize> Shl<&'_ $rhs> for &'_ BV<I, N> {
-            type Output = BV<I, N>;
-            fn shl(self, rhs: &'_ $rhs) -> BV<I, N> {
+        impl<I: Integer, const N: usize> Shl<&'_ $rhs> for &'_ BVF<I, N> {
+            type Output = BVF<I, N>;
+            fn shl(self, rhs: &'_ $rhs) -> BVF<I, N> {
                 self.shl(*rhs)
             }
         }
 
-        impl<I: Integer, const N: usize> ShrAssign<$rhs> for BV<I, N> {
+        impl<I: Integer, const N: usize> ShrAssign<$rhs> for BVF<I, N> {
             fn shr_assign(&mut self, rhs: $rhs) {
                 let shift = usize::try_from(rhs).map_or(0, |s| s);
                 if shift == 0 {
@@ -744,38 +744,38 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
             }
         }
 
-        impl<I: Integer, const N: usize> ShrAssign<&'_ $rhs> for BV<I, N> {
+        impl<I: Integer, const N: usize> ShrAssign<&'_ $rhs> for BVF<I, N> {
             fn shr_assign(&mut self, rhs: &'_ $rhs) {
                 self.shr_assign(*rhs);
             }
         }
 
-        impl<I: Integer, const N: usize> Shr<$rhs> for BV<I, N> {
-            type Output = BV<I, N>;
+        impl<I: Integer, const N: usize> Shr<$rhs> for BVF<I, N> {
+            type Output = BVF<I, N>;
             fn shr(mut self, rhs: $rhs) -> Self {
                 self.shr_assign(rhs);
                 return self;
             }
         }
 
-        impl<I: Integer, const N: usize> Shr<&'_ $rhs> for BV<I, N> {
-            type Output = BV<I, N>;
+        impl<I: Integer, const N: usize> Shr<&'_ $rhs> for BVF<I, N> {
+            type Output = BVF<I, N>;
             fn shr(mut self, rhs: &'_ $rhs) -> Self {
                 self.shr_assign(rhs);
                 return self;
             }
         }
 
-        impl<I: Integer, const N: usize> Shr<$rhs> for &'_ BV<I, N> {
-            type Output = BV<I, N>;
-            fn shr(self, rhs: $rhs) -> BV<I, N> {
+        impl<I: Integer, const N: usize> Shr<$rhs> for &'_ BVF<I, N> {
+            type Output = BVF<I, N>;
+            fn shr(self, rhs: $rhs) -> BVF<I, N> {
                 return (*self).shr(rhs);
             }
         }
 
-        impl<I: Integer, const N: usize> Shr<&'_ $rhs> for &'_ BV<I, N> {
-            type Output = BV<I, N>;
-            fn shr(self, rhs: &'_ $rhs) -> BV<I, N> {
+        impl<I: Integer, const N: usize> Shr<&'_ $rhs> for &'_ BVF<I, N> {
+            type Output = BVF<I, N>;
+            fn shr(self, rhs: &'_ $rhs) -> BVF<I, N> {
                 self.shr(*rhs)
             }
         }
@@ -786,12 +786,12 @@ impl_shifts!({u8, u16, u32, u64, u128, usize});
 
 macro_rules! impl_binop_assign {
     ($trait:ident, $method:ident) => {
-        impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<&BV<I2, N2>>
-            for BV<I1, N1>
+        impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<&BVF<I2, N2>>
+            for BVF<I1, N1>
         where
             I2: StaticCast<I1>,
         {
-            fn $method(&mut self, rhs: &BV<I2, N2>) {
+            fn $method(&mut self, rhs: &BVF<I2, N2>) {
                 if size_of::<I1>() == size_of::<I2>() {
                     for i in 0..usize::min(N1, N2) {
                         self.data[i].$method(StaticCast::<I1>::cast_to(rhs.data[i]));
@@ -807,12 +807,12 @@ macro_rules! impl_binop_assign {
             }
         }
 
-        impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<BV<I2, N2>>
-            for BV<I1, N1>
+        impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<BVF<I2, N2>>
+            for BVF<I1, N1>
         where
             I2: StaticCast<I1>,
         {
-            fn $method(&mut self, rhs: BV<I2, N2>) {
+            fn $method(&mut self, rhs: BVF<I2, N2>) {
                 self.$method(&rhs);
             }
         }
@@ -825,12 +825,12 @@ impl_binop_assign!(BitXorAssign, bitxor_assign);
 
 macro_rules! impl_addsub_assign {
     ($trait:ident, $method:ident, $carry_method:ident) => {
-        impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<&BV<I2, N2>>
-            for BV<I1, N1>
+        impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<&BVF<I2, N2>>
+            for BVF<I1, N1>
         where
             I2: StaticCast<I1>,
         {
-            fn $method(&mut self, rhs: &BV<I2, N2>) {
+            fn $method(&mut self, rhs: &BVF<I2, N2>) {
                 if size_of::<I1>() == size_of::<I2>() {
                     let mut carry = I1::ZERO;
 
@@ -853,12 +853,12 @@ macro_rules! impl_addsub_assign {
             }
         }
 
-        impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<BV<I2, N2>>
-            for BV<I1, N1>
+        impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<BVF<I2, N2>>
+            for BVF<I1, N1>
         where
             I2: StaticCast<I1>,
         {
-            fn $method(&mut self, rhs: BV<I2, N2>) {
+            fn $method(&mut self, rhs: BVF<I2, N2>) {
                 self.$method(&rhs);
             }
         }
@@ -870,48 +870,48 @@ impl_addsub_assign!(SubAssign, sub_assign, carry_sub);
 
 macro_rules! impl_op {
     ($trait:ident, $method:ident, $assign_method:ident) => {
-        impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<BV<I2, N2>>
-            for BV<I1, N1>
+        impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<BVF<I2, N2>>
+            for BVF<I1, N1>
         where
             I2: StaticCast<I1>,
         {
-            type Output = BV<I1, N1>;
-            fn $method(mut self, rhs: BV<I2, N2>) -> BV<I1, N1> {
+            type Output = BVF<I1, N1>;
+            fn $method(mut self, rhs: BVF<I2, N2>) -> BVF<I1, N1> {
                 self.$assign_method(rhs);
                 return self;
             }
         }
 
-        impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<&'_ BV<I2, N2>>
-            for BV<I1, N1>
+        impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<&'_ BVF<I2, N2>>
+            for BVF<I1, N1>
         where
             I2: StaticCast<I1>,
         {
-            type Output = BV<I1, N1>;
-            fn $method(mut self, rhs: &'_ BV<I2, N2>) -> BV<I1, N1> {
+            type Output = BVF<I1, N1>;
+            fn $method(mut self, rhs: &'_ BVF<I2, N2>) -> BVF<I1, N1> {
                 self.$assign_method(rhs);
                 return self;
             }
         }
 
-        impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<BV<I2, N2>>
-            for &'_ BV<I1, N1>
+        impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<BVF<I2, N2>>
+            for &'_ BVF<I1, N1>
         where
             I2: StaticCast<I1>,
         {
-            type Output = BV<I1, N1>;
-            fn $method(self, rhs: BV<I2, N2>) -> BV<I1, N1> {
+            type Output = BVF<I1, N1>;
+            fn $method(self, rhs: BVF<I2, N2>) -> BVF<I1, N1> {
                 return (*self).$method(rhs);
             }
         }
 
-        impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<&'_ BV<I2, N2>>
-            for &'_ BV<I1, N1>
+        impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<&'_ BVF<I2, N2>>
+            for &'_ BVF<I1, N1>
         where
             I2: StaticCast<I1>,
         {
-            type Output = BV<I1, N1>;
-            fn $method(self, rhs: &'_ BV<I2, N2>) -> BV<I1, N1> {
+            type Output = BVF<I1, N1>;
+            fn $method(self, rhs: &'_ BVF<I2, N2>) -> BVF<I1, N1> {
                 return (*self).$method(rhs);
             }
         }
@@ -924,14 +924,14 @@ impl_op!(BitXor, bitxor, bitxor_assign);
 impl_op!(Add, add, add_assign);
 impl_op!(Sub, sub, sub_assign);
 
-impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Mul<&'_ BV<I2, N2>>
-    for &'_ BV<I1, N1>
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Mul<&'_ BVF<I2, N2>>
+    for &'_ BVF<I1, N1>
 where
     I2: StaticCast<I1>,
 {
-    type Output = BV<I1, N1>;
-    fn mul(self, rhs: &'_ BV<I2, N2>) -> BV<I1, N1> {
-        let mut res = BV::<I1, N1>::zeros(self.length);
+    type Output = BVF<I1, N1>;
+    fn mul(self, rhs: &'_ BVF<I2, N2>) -> BVF<I1, N1> {
+        let mut res = BVF::<I1, N1>::zeros(self.length);
         let len = res.int_len::<I1>();
         for i in 0..(len - 1) {
             for j in 0..(i + 1) {
@@ -950,57 +950,59 @@ where
     }
 }
 
-impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Mul<BV<I2, N2>> for &'_ BV<I1, N1>
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Mul<BVF<I2, N2>>
+    for &'_ BVF<I1, N1>
 where
     I2: StaticCast<I1>,
 {
-    type Output = BV<I1, N1>;
-    fn mul(self, rhs: BV<I2, N2>) -> BV<I1, N1> {
+    type Output = BVF<I1, N1>;
+    fn mul(self, rhs: BVF<I2, N2>) -> BVF<I1, N1> {
         self.mul(&rhs)
     }
 }
 
-impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Mul<&'_ BV<I2, N2>> for BV<I1, N1>
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Mul<&'_ BVF<I2, N2>>
+    for BVF<I1, N1>
 where
     I2: StaticCast<I1>,
 {
-    type Output = BV<I1, N1>;
-    fn mul(self, rhs: &'_ BV<I2, N2>) -> BV<I1, N1> {
+    type Output = BVF<I1, N1>;
+    fn mul(self, rhs: &'_ BVF<I2, N2>) -> BVF<I1, N1> {
         (&self).mul(rhs)
     }
 }
 
-impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Mul<BV<I2, N2>> for BV<I1, N1>
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Mul<BVF<I2, N2>> for BVF<I1, N1>
 where
     I2: StaticCast<I1>,
 {
-    type Output = BV<I1, N1>;
-    fn mul(self, rhs: BV<I2, N2>) -> BV<I1, N1> {
+    type Output = BVF<I1, N1>;
+    fn mul(self, rhs: BVF<I2, N2>) -> BVF<I1, N1> {
         (&self).mul(&rhs)
     }
 }
 
-impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> MulAssign<&'_ BV<I2, N2>>
-    for BV<I1, N1>
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> MulAssign<&'_ BVF<I2, N2>>
+    for BVF<I1, N1>
 where
     I2: StaticCast<I1>,
 {
-    fn mul_assign(&mut self, rhs: &'_ BV<I2, N2>) {
+    fn mul_assign(&mut self, rhs: &'_ BVF<I2, N2>) {
         *self = Mul::mul(&*self, rhs);
     }
 }
 
-impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> MulAssign<BV<I2, N2>>
-    for BV<I1, N1>
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> MulAssign<BVF<I2, N2>>
+    for BVF<I1, N1>
 where
     I2: StaticCast<I1>,
 {
-    fn mul_assign(&mut self, rhs: BV<I2, N2>) {
+    fn mul_assign(&mut self, rhs: BVF<I2, N2>) {
         *self = Mul::mul(&*self, &rhs);
     }
 }
 
-impl<I1: Integer, const N: usize> IArray<I1> for BV<I1, N> {
+impl<I1: Integer, const N: usize> IArray<I1> for BVF<I1, N> {
     fn int_len<I2: Integer>(&self) -> usize {
         (self.length + size_of::<I2>() * 8 - 1) / (size_of::<I2>() * 8)
     }
@@ -1017,7 +1019,7 @@ impl<I1: Integer, const N: usize> IArray<I1> for BV<I1, N> {
     }
 }
 
-impl<I1: Integer, const N: usize> IArrayMut<I1> for BV<I1, N> {
+impl<I1: Integer, const N: usize> IArrayMut<I1> for BVF<I1, N> {
     fn set_int<I2: Integer>(&mut self, idx: usize, v: I2) -> Option<I2>
     where
         I1: StaticCast<I2>,
@@ -1030,9 +1032,9 @@ impl<I1: Integer, const N: usize> IArrayMut<I1> for BV<I1, N> {
     }
 }
 
-impl<'a, I: Integer, const N: usize> IntoIterator for &'a BV<I, N> {
+impl<'a, I: Integer, const N: usize> IntoIterator for &'a BVF<I, N> {
     type Item = Bit;
-    type IntoIter = BitIterator<'a, BV<I, N>>;
+    type IntoIter = BitIterator<'a, BVF<I, N>>;
 
     fn into_iter(self) -> Self::IntoIter {
         BitIterator::new(self)
