@@ -6,7 +6,7 @@
 
 use std::cmp::Ordering;
 use std::convert::{From, TryFrom};
-use std::fmt::{Binary, Display, LowerHex, Octal, UpperHex};
+use std::fmt;
 use std::io::{Read, Write};
 use std::iter::repeat;
 use std::mem::size_of;
@@ -20,6 +20,11 @@ use crate::fixed::BVF;
 use crate::iter::BitIterator;
 use crate::utils::{IArray, IArrayMut, Integer, StaticCast};
 use crate::{Bit, BitVector, ConvertError, Endianness};
+
+
+// ------------------------------------------------------------------------------------------------
+// Bit Vector Dynamic allocation implementation
+// ------------------------------------------------------------------------------------------------
 
 /// A bit vector with dynamic capacity.
 #[derive(Clone, Debug)]
@@ -82,6 +87,10 @@ impl BVD {
     }
 }
 
+// ------------------------------------------------------------------------------------------------
+// BVD - Integer Array traits
+// ------------------------------------------------------------------------------------------------
+
 impl<I: Integer> IArray<I> for BVD
 where
     u64: StaticCast<I>,
@@ -111,6 +120,10 @@ where
         }
     }
 }
+
+// ------------------------------------------------------------------------------------------------
+// BVD - Bit Vector core trait
+// ------------------------------------------------------------------------------------------------
 
 impl BitVector for BVD {
     fn with_capacity(capacity: usize) -> Self {
@@ -422,7 +435,33 @@ impl BitVector for BVD {
     }
 }
 
-impl Binary for BVD {
+// ------------------------------------------------------------------------------------------------
+// BVD - Bit iterator traits
+// ------------------------------------------------------------------------------------------------
+
+impl<'a> IntoIterator for &'a BVD {
+    type Item = Bit;
+    type IntoIter = BitIterator<'a, BVD>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        BitIterator::new(self)
+    }
+}
+
+impl FromIterator<Bit> for BVD {
+    fn from_iter<T: IntoIterator<Item = Bit>>(iter: T) -> Self {
+        let iter = iter.into_iter();
+        let mut bv = BVD::with_capacity(iter.size_hint().0);
+        iter.for_each(|b| bv.push(b));
+        bv
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+// BVD - Formatting traits
+// ------------------------------------------------------------------------------------------------
+
+impl fmt::Binary for BVD {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = String::with_capacity(self.length);
         for i in (0..self.length).rev() {
@@ -440,10 +479,10 @@ impl Binary for BVD {
 }
 
 /// Warning: this implementation is broken for bit vector longer than 128 bits.
-impl Display for BVD {
+impl fmt::Display for BVD {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Ok(b) = BV128::try_from(self) {
-            Display::fmt(&b, f)
+            fmt::Display::fmt(&b, f)
         } else {
             // TODO: waiting for div and mod operations
             todo!()
@@ -451,7 +490,27 @@ impl Display for BVD {
     }
 }
 
-impl LowerHex for BVD {
+impl fmt::Octal for BVD {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        const SEMI_NIBBLE: [char; 8] = ['0', '1', '2', '3', '4', '5', '6', '7'];
+        let length = (self.length + 2) / 3;
+        let mut s = String::with_capacity(length);
+        for i in (0..length).rev() {
+            s.push(
+                SEMI_NIBBLE[(self.data[i / Self::SEMI_NIBBLE_UNIT]
+                    >> ((i % Self::SEMI_NIBBLE_UNIT) * 4)
+                    & 0x7) as usize],
+            );
+        }
+        if f.alternate() {
+            write!(f, "0x{}", s.as_str())
+        } else {
+            write!(f, "{}", s.as_str())
+        }
+    }
+}
+
+impl fmt::LowerHex for BVD {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         const NIBBLE: [char; 16] = [
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
@@ -472,7 +531,7 @@ impl LowerHex for BVD {
     }
 }
 
-impl UpperHex for BVD {
+impl fmt::UpperHex for BVD {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         const NIBBLE: [char; 16] = [
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
@@ -493,25 +552,9 @@ impl UpperHex for BVD {
     }
 }
 
-impl Octal for BVD {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        const SEMI_NIBBLE: [char; 8] = ['0', '1', '2', '3', '4', '5', '6', '7'];
-        let length = (self.length + 2) / 3;
-        let mut s = String::with_capacity(length);
-        for i in (0..length).rev() {
-            s.push(
-                SEMI_NIBBLE[(self.data[i / Self::SEMI_NIBBLE_UNIT]
-                    >> ((i % Self::SEMI_NIBBLE_UNIT) * 4)
-                    & 0x7) as usize],
-            );
-        }
-        if f.alternate() {
-            write!(f, "0x{}", s.as_str())
-        } else {
-            write!(f, "{}", s.as_str())
-        }
-    }
-}
+// ------------------------------------------------------------------------------------------------
+// BVD - Comparison traits
+// ------------------------------------------------------------------------------------------------
 
 impl PartialEq for BVD {
     fn eq(&self, other: &Self) -> bool {
@@ -521,31 +564,6 @@ impl PartialEq for BVD {
             }
         }
         true
-    }
-}
-
-impl Eq for BVD {}
-
-impl Ord for BVD {
-    fn cmp(&self, other: &Self) -> Ordering {
-        for i in (0..usize::max(self.data.len(), other.data.len())).rev() {
-            match self
-                .data
-                .get(i)
-                .unwrap_or(&0)
-                .cmp(other.data.get(i).unwrap_or(&0))
-            {
-                Ordering::Equal => continue,
-                ord => return ord,
-            }
-        }
-        Ordering::Equal
-    }
-}
-
-impl PartialOrd for BVD {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
     }
 }
 
@@ -560,9 +578,11 @@ impl<I: Integer, const N: usize> PartialEq<BVF<I, N>> for BVD {
     }
 }
 
-impl<I: Integer, const N: usize> PartialEq<BVD> for BVF<I, N> {
-    fn eq(&self, other: &BVD) -> bool {
-        other.eq(self)
+impl Eq for BVD {}
+
+impl PartialOrd for BVD {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -583,9 +603,20 @@ impl<I: Integer, const N: usize> PartialOrd<BVF<I, N>> for BVD {
     }
 }
 
-impl<I: Integer, const N: usize> PartialOrd<BVD> for BVF<I, N> {
-    fn partial_cmp(&self, other: &BVD) -> Option<Ordering> {
-        other.partial_cmp(self).map(|o| o.reverse())
+impl Ord for BVD {
+    fn cmp(&self, other: &Self) -> Ordering {
+        for i in (0..usize::max(self.data.len(), other.data.len())).rev() {
+            match self
+                .data
+                .get(i)
+                .unwrap_or(&0)
+                .cmp(other.data.get(i).unwrap_or(&0))
+            {
+                Ordering::Equal => continue,
+                ord => return ord,
+            }
+        }
+        Ordering::Equal
     }
 }
 
@@ -1115,23 +1146,5 @@ impl<I: Integer, const N: usize> MulAssign<&'_ BVF<I, N>> for BVD {
 impl<I: Integer, const N: usize> MulAssign<BVF<I, N>> for BVD {
     fn mul_assign(&mut self, rhs: BVF<I, N>) {
         *self = Mul::mul(&*self, &rhs);
-    }
-}
-
-impl<'a> IntoIterator for &'a BVD {
-    type Item = Bit;
-    type IntoIter = BitIterator<'a, BVD>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        BitIterator::new(self)
-    }
-}
-
-impl FromIterator<Bit> for BVD {
-    fn from_iter<T: IntoIterator<Item = Bit>>(iter: T) -> Self {
-        let iter = iter.into_iter();
-        let mut bv = BVD::with_capacity(iter.size_hint().0);
-        iter.for_each(|b| bv.push(b));
-        bv
     }
 }

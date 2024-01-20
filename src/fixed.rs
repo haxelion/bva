@@ -25,6 +25,11 @@ pub type BV384 = BVF<u64, 6>;
 pub type BV448 = BVF<u64, 7>;
 pub type BV512 = BVF<u64, 8>;
 
+// ------------------------------------------------------------------------------------------------
+// Bit Vector Fixed allocation implementation
+// ------------------------------------------------------------------------------------------------
+
+/// A bit vector with fixed capacity.
 #[derive(Copy, Clone, Debug)]
 pub struct BVF<I: Integer, const N: usize> {
     data: [I; N],
@@ -62,6 +67,44 @@ impl<I: Integer, const N: usize> BVF<I, N> {
         }
     }
 }
+
+// ------------------------------------------------------------------------------------------------
+// BVF - Integer Array traits
+// ------------------------------------------------------------------------------------------------
+
+impl<I: Integer, J: Integer, const N: usize> IArray<I> for BVF<J, N>
+where
+    J: StaticCast<I>,
+{
+    fn int_len(&self) -> usize {
+        (self.length + size_of::<I>() * 8 - 1) / (size_of::<I>() * 8)
+    }
+
+    fn get_int(&self, idx: usize) -> Option<I> {
+        if idx < IArray::<I>::int_len(self) {
+            IArray::<I>::get_int(self.data.as_ref(), idx)
+        } else {
+            None
+        }
+    }
+}
+
+impl<I: Integer, J: Integer, const N: usize> IArrayMut<I> for BVF<J, N>
+where
+    J: StaticCast<I>,
+{
+    fn set_int(&mut self, idx: usize, v: I) -> Option<I> {
+        if idx < IArray::<I>::int_len(self) {
+            IArrayMut::<I>::set_int(self.data.as_mut(), idx, v)
+        } else {
+            None
+        }
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+// BVF - Bit Vector core trait
+// ------------------------------------------------------------------------------------------------
 
 impl<I: Integer, const N: usize> BitVector for BVF<I, N>
 where
@@ -381,55 +424,34 @@ where
     }
 }
 
-impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> PartialEq<BVF<I1, N1>>
-    for BVF<I2, N2>
-where
-    I1: StaticCast<I1>,
-    I2: StaticCast<I1>,
-{
-    fn eq(&self, other: &BVF<I1, N1>) -> bool {
-        for i in 0..usize::max(IArray::<I1>::int_len(self), IArray::<I1>::int_len(self)) {
-            if IArray::<I1>::get_int(self, i).unwrap_or(I1::ZERO)
-                != IArray::<I1>::get_int(other, i).unwrap_or(I1::ZERO)
-            {
-                return false;
-            }
-        }
-        true
+// ------------------------------------------------------------------------------------------------
+// BVF - Bit iterator trait
+// ------------------------------------------------------------------------------------------------
+
+impl<'a, I: Integer, const N: usize> IntoIterator for &'a BVF<I, N> {
+    type Item = Bit;
+    type IntoIter = BitIterator<'a, BVF<I, N>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        BitIterator::new(self)
     }
 }
 
-impl<I: Integer, const N: usize> Eq for BVF<I, N> where I: StaticCast<I> {}
-
-impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> PartialOrd<BVF<I1, N1>>
-    for BVF<I2, N2>
-where
-    I1: StaticCast<I1>,
-    I2: StaticCast<I1>,
-{
-    fn partial_cmp(&self, other: &BVF<I1, N1>) -> Option<std::cmp::Ordering> {
-        for i in (0..usize::max(IArray::<I1>::int_len(self), IArray::<I1>::int_len(other))).rev() {
-            match IArray::<I1>::get_int(self, i)
-                .unwrap_or(I1::ZERO)
-                .cmp(&IArray::<I1>::get_int(other, i).unwrap_or(I1::ZERO))
-            {
-                Ordering::Equal => continue,
-                ord => return Some(ord),
-            }
-        }
-        Some(Ordering::Equal)
-    }
-}
-
-impl<I: Integer, const N: usize> Ord for BVF<I, N>
+impl<I: Integer, const N: usize> FromIterator<Bit> for BVF<I, N>
 where
     I: StaticCast<I>,
 {
-    fn cmp(&self, other: &Self) -> Ordering {
-        // Partial Cmp never returns None
-        self.partial_cmp(other).unwrap()
+    fn from_iter<T: IntoIterator<Item = Bit>>(iter: T) -> Self {
+        let iter = iter.into_iter();
+        let mut bv = Self::with_capacity(iter.size_hint().0);
+        iter.for_each(|b| bv.push(b));
+        bv
     }
 }
+
+// ------------------------------------------------------------------------------------------------
+// BVF - Formatting traits
+// ------------------------------------------------------------------------------------------------
 
 impl<I: Integer, const N: usize> fmt::Binary for BVF<I, N>
 where
@@ -518,6 +540,76 @@ impl<I: Integer, const N: usize> fmt::UpperHex for BVF<I, N> {
         }
     }
 }
+
+// ------------------------------------------------------------------------------------------------
+// BVF - Comparison traits
+// ------------------------------------------------------------------------------------------------
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> PartialEq<BVF<I1, N1>>
+    for BVF<I2, N2>
+where
+    I1: StaticCast<I1>,
+    I2: StaticCast<I1>,
+{
+    fn eq(&self, other: &BVF<I1, N1>) -> bool {
+        for i in 0..usize::max(IArray::<I1>::int_len(self), IArray::<I1>::int_len(self)) {
+            if IArray::<I1>::get_int(self, i).unwrap_or(I1::ZERO)
+                != IArray::<I1>::get_int(other, i).unwrap_or(I1::ZERO)
+            {
+                return false;
+            }
+        }
+        true
+    }
+}
+
+impl<I: Integer, const N: usize> PartialEq<BVD> for BVF<I, N> {
+    fn eq(&self, other: &BVD) -> bool {
+        other.eq(self)
+    }
+}
+
+impl<I: Integer, const N: usize> Eq for BVF<I, N> where I: StaticCast<I> {}
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> PartialOrd<BVF<I1, N1>>
+    for BVF<I2, N2>
+where
+    I1: StaticCast<I1>,
+    I2: StaticCast<I1>,
+{
+    fn partial_cmp(&self, other: &BVF<I1, N1>) -> Option<std::cmp::Ordering> {
+        for i in (0..usize::max(IArray::<I1>::int_len(self), IArray::<I1>::int_len(other))).rev() {
+            match IArray::<I1>::get_int(self, i)
+                .unwrap_or(I1::ZERO)
+                .cmp(&IArray::<I1>::get_int(other, i).unwrap_or(I1::ZERO))
+            {
+                Ordering::Equal => continue,
+                ord => return Some(ord),
+            }
+        }
+        Some(Ordering::Equal)
+    }
+}
+
+impl<I: Integer, const N: usize> PartialOrd<BVD> for BVF<I, N> {
+    fn partial_cmp(&self, other: &BVD) -> Option<Ordering> {
+        other.partial_cmp(self).map(|o| o.reverse())
+    }
+}
+
+impl<I: Integer, const N: usize> Ord for BVF<I, N>
+where
+    I: StaticCast<I>,
+{
+    fn cmp(&self, other: &Self) -> Ordering {
+        // Partial Cmp never returns None
+        self.partial_cmp(other).unwrap()
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+// BVF - Conversion traits
+// ------------------------------------------------------------------------------------------------
 
 macro_rules! impl_tryfrom { ($($type:ty),+) => {
     $(
@@ -634,6 +726,10 @@ where
         Self::try_from(&bvd)
     }
 }
+
+// ------------------------------------------------------------------------------------------------
+// BVF - Binary operators
+// ------------------------------------------------------------------------------------------------
 
 impl<I: Integer, const N: usize> Not for BVF<I, N> {
     type Output = BVF<I, N>;
@@ -821,6 +917,10 @@ impl_binop_assign!(BitAndAssign, bitand_assign);
 impl_binop_assign!(BitOrAssign, bitor_assign);
 impl_binop_assign!(BitXorAssign, bitxor_assign);
 
+// ------------------------------------------------------------------------------------------------
+// BVF - Arithmetic operators
+// ------------------------------------------------------------------------------------------------
+
 macro_rules! impl_addsub_assign {
     ($trait:ident, $method:ident, $carry_method:ident) => {
         impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<&BVF<I2, N2>>
@@ -1001,44 +1101,5 @@ where
 {
     fn mul_assign(&mut self, rhs: BVF<I2, N2>) {
         *self = Mul::mul(&*self, &rhs);
-    }
-}
-
-impl<I: Integer, J: Integer, const N: usize> IArray<I> for BVF<J, N>
-where
-    J: StaticCast<I>,
-{
-    fn int_len(&self) -> usize {
-        (self.length + size_of::<I>() * 8 - 1) / (size_of::<I>() * 8)
-    }
-
-    fn get_int(&self, idx: usize) -> Option<I> {
-        if idx < IArray::<I>::int_len(self) {
-            IArray::<I>::get_int(self.data.as_ref(), idx)
-        } else {
-            None
-        }
-    }
-}
-
-impl<I: Integer, J: Integer, const N: usize> IArrayMut<I> for BVF<J, N>
-where
-    J: StaticCast<I>,
-{
-    fn set_int(&mut self, idx: usize, v: I) -> Option<I> {
-        if idx < IArray::<I>::int_len(self) {
-            IArrayMut::<I>::set_int(self.data.as_mut(), idx, v)
-        } else {
-            None
-        }
-    }
-}
-
-impl<'a, I: Integer, const N: usize> IntoIterator for &'a BVF<I, N> {
-    type Item = Bit;
-    type IntoIter = BitIterator<'a, BVF<I, N>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        BitIterator::new(self)
     }
 }
