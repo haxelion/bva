@@ -35,15 +35,15 @@ where
     let byte_len = size_of::<I1>() * N1;
     let n2 = (byte_len + size_of::<I2>() - 1) / size_of::<I2>();
 
-    assert_eq!(N1, array.int_len::<I1>());
-    assert_eq!(n2, array.int_len::<I2>());
-    assert_eq!(None, array.get_int::<I1>(N1));
-    assert_eq!(None, array.get_int::<I2>(n2));
+    assert_eq!(N1, IArray::<I1>::int_len(array.as_ref()));
+    assert_eq!(n2, IArray::<I2>::int_len(array.as_ref()));
+    assert_eq!(None, IArray::<I1>::get_int(array.as_ref(), N1));
+    assert_eq!(None, IArray::<I2>::get_int(array.as_ref(), n2));
     for i in 0..N1 {
-        assert_eq!(array.get_int::<I1>(i), Some(I1::ZERO));
+        assert_eq!(IArray::<I1>::get_int(array.as_ref(), i), Some(I1::ZERO));
     }
     for i in 0..n2 {
-        assert_eq!(array.get_int::<I2>(i), Some(I2::ZERO));
+        assert_eq!(IArray::<I2>::get_int(array.as_ref(), i), Some(I2::ZERO));
     }
 }
 
@@ -60,11 +60,17 @@ where
     I2: StaticCast<usize>,
 {
     let mut array = [I1::ZERO; N1];
-    for i in 0..array.int_len::<I2>() {
-        assert_eq!(array.set_int::<I2>(i, I2::cast_from(i)), Some(I2::ZERO));
+    for i in 0..IArray::<I2>::int_len(array.as_ref()) {
+        assert_eq!(
+            IArrayMut::<I2>::set_int(array.as_mut(), i, I2::cast_from(i)),
+            Some(I2::ZERO)
+        );
     }
-    for i in 0..array.int_len::<I2>() {
-        assert_eq!(array.get_int::<I2>(i), Some(I2::cast_from(i)));
+    for i in 0..IArray::<I2>::int_len(array.as_ref()) {
+        assert_eq!(
+            IArray::<I2>::get_int(array.as_ref(), i),
+            Some(I2::cast_from(i))
+        );
     }
 }
 
