@@ -82,30 +82,30 @@ impl BVD {
     }
 }
 
-impl IArray<u64> for BVD {
-    fn int_len<I2: Integer>(&self) -> usize {
-        (self.len() + size_of::<I2>() * 8 - 1) / (size_of::<I2>() * 8)
+impl<I: Integer> IArray<I> for BVD
+where
+    u64: StaticCast<I>,
+{
+    fn int_len(&self) -> usize {
+        (self.len() + size_of::<I>() * 8 - 1) / (size_of::<I>() * 8)
     }
 
-    fn get_int<I2: Integer>(&self, idx: usize) -> Option<I2>
-    where
-        u64: StaticCast<I2>,
-    {
-        if idx < self.int_len::<I2>() {
-            self.data.get_int::<I2>(idx)
+    fn get_int(&self, idx: usize) -> Option<I> {
+        if idx < IArray::<I>::int_len(self) {
+            IArray::<I>::get_int(self.data.as_ref(), idx)
         } else {
             None
         }
     }
 }
 
-impl IArrayMut<u64> for BVD {
-    fn set_int<I2: Integer>(&mut self, idx: usize, v: I2) -> Option<I2>
-    where
-        u64: StaticCast<I2>,
-    {
-        if idx < self.int_len::<I2>() {
-            self.data.set_int::<I2>(idx, v)
+impl<I: Integer> IArrayMut<I> for BVD
+where
+    u64: StaticCast<I>,
+{
+    fn set_int(&mut self, idx: usize, v: I) -> Option<I> {
+        if idx < IArray::<I>::int_len(self) {
+            IArrayMut::<I>::set_int(self.data.as_mut(), idx, v)
         } else {
             None
         }
@@ -551,8 +551,8 @@ impl PartialOrd for BVD {
 
 impl<I: Integer, const N: usize> PartialEq<BVF<I, N>> for BVD {
     fn eq(&self, other: &BVF<I, N>) -> bool {
-        for i in 0..usize::max(self.len(), other.int_len::<u64>()) {
-            if *self.data.get(i).unwrap_or(&0) != other.get_int::<u64>(i).unwrap_or(0) {
+        for i in 0..usize::max(self.len(), IArray::<u64>::int_len(other)) {
+            if *self.data.get(i).unwrap_or(&0) != IArray::<u64>::get_int(other, i).unwrap_or(0) {
                 return false;
             }
         }
@@ -568,12 +568,12 @@ impl<I: Integer, const N: usize> PartialEq<BVD> for BVF<I, N> {
 
 impl<I: Integer, const N: usize> PartialOrd<BVF<I, N>> for BVD {
     fn partial_cmp(&self, other: &BVF<I, N>) -> Option<Ordering> {
-        for i in (0..usize::max(self.len(), other.int_len::<u64>())).rev() {
+        for i in (0..usize::max(self.len(), IArray::<u64>::int_len(other))).rev() {
             match self
                 .data
                 .get(i)
                 .unwrap_or(&0)
-                .cmp(&other.get_int::<u64>(i).unwrap_or(0))
+                .cmp(&IArray::<u64>::get_int(other, i).unwrap_or(0))
             {
                 Ordering::Equal => continue,
                 ord => return Some(ord),
@@ -778,7 +778,7 @@ macro_rules! impl_from_ints {($($st:ty),+) => {
                 let array = [st];
                 BVD {
                     length: <$st>::BITS as usize,
-                    data: (0..array.int_len::<u64>()).map(|i| array.get_int::<u64>(i).unwrap()).collect(),
+                    data: (0..IArray::<u64>::int_len(array.as_ref())).map(|i| IArray::<u64>::get_int(array.as_ref(), i).unwrap()).collect(),
                 }
             }
         }
@@ -815,8 +815,8 @@ impl<I: Integer, const N: usize> From<&BVF<I, N>> for BVD {
     fn from(rhs: &BVF<I, N>) -> BVD {
         BVD {
             length: rhs.len(),
-            data: (0..rhs.int_len::<u64>())
-                .map(|i| rhs.get_int::<u64>(i).unwrap())
+            data: (0..IArray::<u64>::int_len(rhs))
+                .map(|i| IArray::<u64>::get_int(rhs, i).unwrap())
                 .collect(),
         }
     }
@@ -851,10 +851,10 @@ macro_rules! impl_binop_assign {
 
         impl<I: Integer, const N: usize> $trait<&'_ BVF<I, N>> for BVD {
             fn $method(&mut self, rhs: &'_ BVF<I, N>) {
-                for i in 0..usize::min(rhs.int_len::<u64>(), self.data.len()) {
-                    self.data[i].$method(rhs.get_int::<u64>(i).unwrap());
+                for i in 0..usize::min(IArray::<u64>::int_len(rhs), self.data.len()) {
+                    self.data[i].$method(IArray::<u64>::get_int(rhs, i).unwrap());
                 }
-                for i in usize::min(rhs.int_len::<u64>(), self.data.len())..self.data.len() {
+                for i in usize::min(IArray::<u64>::int_len(rhs), self.data.len())..self.data.len() {
                     self.data[i].$method(0);
                 }
             }
@@ -905,13 +905,13 @@ macro_rules! impl_addsub_assign {
         impl<I: Integer, const N: usize> $trait<&'_ BVF<I, N>> for BVD {
             fn $method(&mut self, rhs: &'_ BVF<I, N>) {
                 let mut carry = 0;
-                for i in 0..rhs.int_len::<u64>() {
+                for i in 0..IArray::<u64>::int_len(rhs) {
                     let (d1, c1) = self.data[i].$overflowing_method(carry);
-                    let (d2, c2) = d1.$overflowing_method(rhs.get_int::<u64>(i).unwrap());
+                    let (d2, c2) = d1.$overflowing_method(IArray::<u64>::get_int(rhs, i).unwrap());
                     self.data[i] = d2;
                     carry = (c1 | c2) as u64;
                 }
-                for i in rhs.int_len::<u64>()..Self::capacity_from_bit_len(self.length) {
+                for i in IArray::<u64>::int_len(rhs)..Self::capacity_from_bit_len(self.length) {
                     let (d, c) = self.data[i].$overflowing_method(carry);
                     self.data[i] = d;
                     carry = c as u64;
@@ -1064,16 +1064,17 @@ impl<I: Integer, const N: usize> Mul<&'_ BVF<I, N>> for &'_ BVD {
     type Output = BVD;
     fn mul(self, rhs: &'_ BVF<I, N>) -> BVD {
         let mut res = BVD::zeros(self.length);
-        let len = res.int_len::<u64>();
+        let len = IArray::<u64>::int_len(&res);
         for i in 0..(len - 1) {
             for j in 0..(i + 1) {
-                let c = self.data[i - j].widening_mul(rhs.get_int::<u64>(j).unwrap_or(0));
+                let c = self.data[i - j].widening_mul(IArray::<u64>::get_int(rhs, j).unwrap_or(0));
                 let carry = res.data[i].carry_add(c.0, 0);
                 res.data[i + 1].carry_add(c.1, carry);
             }
         }
         for j in 0..len {
-            let c = self.data[len - 1 - j].widening_mul(rhs.get_int::<u64>(j).unwrap_or(0));
+            let c =
+                self.data[len - 1 - j].widening_mul(IArray::<u64>::get_int(rhs, j).unwrap_or(0));
             res.data[len - 1].carry_add(c.0, 0);
         }
         if let Some(l) = res.data.get_mut(res.length / BVD::BIT_UNIT) {
