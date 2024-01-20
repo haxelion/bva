@@ -10,7 +10,7 @@ use rand::{random, thread_rng};
 use crate::fixed::{BV128, BV16, BV192, BV256, BV32, BV320, BV384, BV448, BV512, BV64, BV8};
 use crate::{Bit, BitVector, Endianness};
 
-fn random_bv<B: BitVector>(length: usize) -> B {
+fn random_bvf<B: BitVector>(length: usize) -> B {
     let mut bv = B::zeros(length);
     for i in 0..length {
         bv.set(i, Bit::from(random::<bool>()));
@@ -180,7 +180,7 @@ fn resize_slice() {
 
 fn from_to_bytes_inner<B: BitVector>(max_length: usize) {
     for length in (8..=max_length).step_by(8) {
-        let bv = random_bv::<B>(length);
+        let bv = random_bvf::<B>(length);
 
         let buf1 = bv.to_vec(Endianness::LE);
         let bv1 = B::from_bytes(&buf1, Endianness::LE).unwrap();
@@ -212,7 +212,7 @@ fn read_write_inner<B: BitVector>(max_length: usize) {
     let mut buf: Cursor<Vec<u8>> = Cursor::new(repeat(0u8).take(num_bytes).collect());
 
     for length in (1..=max_length).rev() {
-        let bv = random_bv::<B>(length);
+        let bv = random_bvf::<B>(length);
 
         buf.set_position(0);
         bv.write(&mut buf, Endianness::LE).unwrap();
@@ -245,7 +245,7 @@ fn read_write() {
 
 fn hex_inner<B: BitVector>(max_length: usize) {
     for length in (4..=max_length).step_by(4) {
-        let bv = random_bv::<B>(length);
+        let bv = random_bvf::<B>(length);
 
         let s1 = format!("{:x}", bv);
         let bv1 = B::from_hex(s1).unwrap();
@@ -284,7 +284,7 @@ fn hex() {
 
 fn binary_inner<B: BitVector>(max_length: usize) {
     for length in (4..=max_length).step_by(4) {
-        let bv = random_bv::<B>(length);
+        let bv = random_bvf::<B>(length);
 
         let s1 = format!("{:b}", bv);
         let bv1 = B::from_binary(s1).unwrap();

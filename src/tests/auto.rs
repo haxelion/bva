@@ -8,19 +8,19 @@ use rand::seq::SliceRandom;
 use rand::{random, thread_rng, RngCore};
 
 use crate::auto::BV;
-use crate::dynamic::BVN;
+use crate::dynamic::BVD;
 use crate::fixed::{BV128, BV16, BV32, BV64, BV8};
 use crate::{Bit, BitVector, Endianness};
 
 const MAX_TESTED_SIZE: usize = 256;
 
-fn random_bvn(length: usize) -> BVN {
+fn random_bvd(length: usize) -> BVD {
     let byte_length = (length + 7) / 8;
     let mut bytes: Vec<u8> = repeat(0u8).take(byte_length).collect();
     thread_rng().fill_bytes(&mut bytes[..]);
-    let mut bvn = BVN::from_bytes(&bytes, Endianness::LE).unwrap();
-    bvn.resize(length, Bit::Zero);
-    return bvn;
+    let mut bvd = BVD::from_bytes(&bytes, Endianness::LE).unwrap();
+    bvd.resize(length, Bit::Zero);
+    return bvd;
 }
 
 fn random_bv(length: usize) -> BV {
@@ -302,51 +302,51 @@ fn from_try_from() {
         BV128::try_from(BV::from(BV128::try_from(v).unwrap())).unwrap()
     );
     for l in 128..=MAX_TESTED_SIZE {
-        let v: BVN = random_bvn(l);
-        assert_eq!(v, BVN::from(BV::from(&v)));
+        let v: BVD = random_bvd(l);
+        assert_eq!(v, BVD::from(BV::from(&v)));
     }
 }
 
 #[test]
 fn op() {
     for i in 1..=MAX_TESTED_SIZE {
-        let a = random_bvn(i);
-        let mut b = random_bvn(i);
+        let a = random_bvd(i);
+        let mut b = random_bvd(i);
         let bva = BV::from(&a);
         let mut bvb = BV::from(&b);
 
         // Test non assign variant first
-        assert_eq!(!&a, BVN::from(!&bva));
-        assert_eq!(&a & &b, BVN::from(&bva & &bvb));
-        assert_eq!(&a | &b, BVN::from(&bva | &bvb));
-        assert_eq!(&a ^ &b, BVN::from(&bva ^ &bvb));
-        assert_eq!(&a + &b, BVN::from(&bva + &bvb));
-        assert_eq!(&a - &b, BVN::from(&bva - &bvb));
-        assert_eq!(&a * &b, BVN::from(&bva * &bvb));
+        assert_eq!(!&a, BVD::from(!&bva));
+        assert_eq!(&a & &b, BVD::from(&bva & &bvb));
+        assert_eq!(&a | &b, BVD::from(&bva | &bvb));
+        assert_eq!(&a ^ &b, BVD::from(&bva ^ &bvb));
+        assert_eq!(&a + &b, BVD::from(&bva + &bvb));
+        assert_eq!(&a - &b, BVD::from(&bva - &bvb));
+        assert_eq!(&a * &b, BVD::from(&bva * &bvb));
         // BitAndAssign
         b &= &a;
         bvb &= &bva;
-        assert_eq!(b, BVN::from(&bvb));
+        assert_eq!(b, BVD::from(&bvb));
         // AddAssign
         b += &a;
         bvb += &bva;
-        assert_eq!(b, BVN::from(&bvb));
+        assert_eq!(b, BVD::from(&bvb));
         // BitOrAssign
         b |= &a;
         bvb |= &bva;
-        assert_eq!(b, BVN::from(&bvb));
+        assert_eq!(b, BVD::from(&bvb));
         // SubAssign
         b -= &a;
         bvb -= &bva;
-        assert_eq!(b, BVN::from(&bvb));
+        assert_eq!(b, BVD::from(&bvb));
         // BitXorAssign
         b ^= &a;
         bvb ^= &bva;
-        assert_eq!(b, BVN::from(&bvb));
+        assert_eq!(b, BVD::from(&bvb));
         // BitXorAssign
         b *= &a;
         bvb *= &bva;
-        assert_eq!(b, BVN::from(&bvb));
+        assert_eq!(b, BVD::from(&bvb));
     }
 }
 

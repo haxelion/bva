@@ -17,14 +17,14 @@ use std::ops::{
     Not, Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
-use crate::dynamic::BVN;
+use crate::dynamic::BVD;
 #[allow(unused_imports)]
 use crate::fixed::{BV128, BV16, BV32, BV64, BV8};
 use crate::iter::BitIterator;
 use crate::Bit;
 use crate::{BitVector, ConvertError, Endianness};
 
-// Choose a fixed BV type which should match the size of BVN inside the enum
+// Choose a fixed BV type which should match the size of BVD inside the enum
 #[cfg(target_pointer_width = "16")]
 type BVF = BV32;
 #[cfg(target_pointer_width = "32")]
@@ -36,7 +36,7 @@ type BVF = BV128;
 #[derive(Clone, Debug)]
 pub enum BV {
     Fixed(BVF),
-    Dynamic(BVN),
+    Dynamic(BVD),
 }
 
 impl BV {
@@ -49,7 +49,7 @@ impl BV {
         match self {
             &mut BV::Fixed(ref b) => {
                 if b.len() + additional > BVF::capacity() {
-                    let mut new_b = BVN::from(b);
+                    let mut new_b = BVD::from(b);
                     new_b.reserve(additional);
                     *self = BV::Dynamic(new_b);
                 }
@@ -79,7 +79,7 @@ impl BitVector for BV {
         if capacity <= BVF::capacity() {
             BV::with_capacity(capacity)
         } else {
-            BV::Dynamic(BVN::with_capacity(capacity))
+            BV::Dynamic(BVD::with_capacity(capacity))
         }
     }
 
@@ -87,7 +87,7 @@ impl BitVector for BV {
         if length <= BVF::capacity() {
             BV::Fixed(BVF::zeros(length))
         } else {
-            BV::Dynamic(BVN::zeros(length))
+            BV::Dynamic(BVD::zeros(length))
         }
     }
 
@@ -95,7 +95,7 @@ impl BitVector for BV {
         if length <= BVF::capacity() {
             BV::Fixed(BVF::ones(length))
         } else {
-            BV::Dynamic(BVN::ones(length))
+            BV::Dynamic(BVD::ones(length))
         }
     }
 
@@ -103,7 +103,7 @@ impl BitVector for BV {
         if string.as_ref().len() <= BVF::capacity() {
             Ok(BV::Fixed(BVF::from_binary(string)?))
         } else {
-            Ok(BV::Dynamic(BVN::from_binary(string)?))
+            Ok(BV::Dynamic(BVD::from_binary(string)?))
         }
     }
 
@@ -111,7 +111,7 @@ impl BitVector for BV {
         if string.as_ref().len() * 4 <= BVF::capacity() {
             Ok(BV::Fixed(BVF::from_hex(string)?))
         } else {
-            Ok(BV::Dynamic(BVN::from_hex(string)?))
+            Ok(BV::Dynamic(BVD::from_hex(string)?))
         }
     }
 
@@ -119,7 +119,7 @@ impl BitVector for BV {
         if bytes.as_ref().len() * 8 <= BVF::capacity() {
             Ok(BV::Fixed(BVF::from_bytes(bytes, endianness)?))
         } else {
-            Ok(BV::Dynamic(BVN::from_bytes(bytes, endianness)?))
+            Ok(BV::Dynamic(BVD::from_bytes(bytes, endianness)?))
         }
     }
 
@@ -138,7 +138,7 @@ impl BitVector for BV {
         if length <= BVF::capacity() {
             Ok(BV::Fixed(BVF::read(reader, length, endianness)?))
         } else {
-            Ok(BV::Dynamic(BVN::read(reader, length, endianness)?))
+            Ok(BV::Dynamic(BVD::read(reader, length, endianness)?))
         }
     }
 
@@ -374,11 +374,11 @@ macro_rules! impl_ord { ({$($rhs:ty),+}) => {
     )+
 }}
 
-impl_eq!({BV8, BV16, BV32, BV64, BV128, BVN});
-impl_ord!({BV8, BV16, BV32, BV64, BV128, BVN});
+impl_eq!({BV8, BV16, BV32, BV64, BV128, BVD});
+impl_ord!({BV8, BV16, BV32, BV64, BV128, BVD});
 
-impl From<BVN> for BV {
-    fn from(b: BVN) -> Self {
+impl From<BVD> for BV {
+    fn from(b: BVD) -> Self {
         if let Ok(bvf) = BVF::try_from(&b) {
             BV::Fixed(bvf)
         } else {
@@ -387,8 +387,8 @@ impl From<BVN> for BV {
     }
 }
 
-impl From<&'_ BVN> for BV {
-    fn from(b: &'_ BVN) -> Self {
+impl From<&'_ BVD> for BV {
+    fn from(b: &'_ BVD) -> Self {
         if let Ok(bvf) = BVF::try_from(b) {
             BV::Fixed(bvf)
         } else {
@@ -397,19 +397,19 @@ impl From<&'_ BVN> for BV {
     }
 }
 
-impl From<&'_ BV> for BVN {
+impl From<&'_ BV> for BVD {
     fn from(bv: &'_ BV) -> Self {
         match bv {
-            BV::Fixed(b) => BVN::from(b),
+            BV::Fixed(b) => BVD::from(b),
             BV::Dynamic(b) => b.clone(),
         }
     }
 }
 
-impl From<BV> for BVN {
+impl From<BV> for BVD {
     fn from(bv: BV) -> Self {
         match bv {
-            BV::Fixed(b) => BVN::from(b),
+            BV::Fixed(b) => BVD::from(b),
             BV::Dynamic(b) => b,
         }
     }
@@ -424,7 +424,7 @@ macro_rules! impl_froms {({$(($sbv:ty, $sst:ty)),+}, {$(($ubv:ty, $ust:ty)),+}) 
                     BV::Fixed(BVF::try_from(sst).unwrap())
                 }
                 else {
-                    BV::Dynamic(BVN::try_from(sst).unwrap())
+                    BV::Dynamic(BVD::try_from(sst).unwrap())
                 }
             }
         }
@@ -436,7 +436,7 @@ macro_rules! impl_froms {({$(($sbv:ty, $sst:ty)),+}, {$(($ubv:ty, $ust:ty)),+}) 
                     BV::Fixed(BVF::try_from(b).unwrap())
                 }
                 else {
-                    BV::Dynamic(BVN::try_from(b).unwrap())
+                    BV::Dynamic(BVD::try_from(b).unwrap())
                 }
             }
         }
@@ -448,7 +448,7 @@ macro_rules! impl_froms {({$(($sbv:ty, $sst:ty)),+}, {$(($ubv:ty, $ust:ty)),+}) 
                     BV::Fixed(BVF::try_from(&b).unwrap())
                 }
                 else {
-                    BV::Dynamic(BVN::from(b))
+                    BV::Dynamic(BVD::from(b))
                 }
             }
         }
@@ -491,7 +491,7 @@ macro_rules! impl_froms {({$(($sbv:ty, $sst:ty)),+}, {$(($ubv:ty, $ust:ty)),+}) 
     $(
         impl From<$ust> for BV {
             fn from(ust: $ust) -> Self {
-                BV::Dynamic(BVN::from(ust))
+                BV::Dynamic(BVD::from(ust))
             }
         }
 
@@ -501,7 +501,7 @@ macro_rules! impl_froms {({$(($sbv:ty, $sst:ty)),+}, {$(($ubv:ty, $ust:ty)),+}) 
                     BV::Fixed(BVF::try_from(*ubv).unwrap())
                 }
                 else {
-                    BV::Dynamic(BVN::from(ubv))
+                    BV::Dynamic(BVD::from(ubv))
                 }
             }
         }
@@ -777,11 +777,11 @@ macro_rules! impl_all_ops { ({$($sbv:ty),*}, {$($ubv:ty),*}) => {
 }}
 
 #[cfg(target_pointer_width = "16")]
-impl_all_ops!({BV8, BV16, BV32}, {BV64, BV128, BVN});
+impl_all_ops!({BV8, BV16, BV32}, {BV64, BV128, BVD});
 #[cfg(target_pointer_width = "32")]
-impl_all_ops!({BV8, BV16, BV32, BV64}, {BV128, BVN});
+impl_all_ops!({BV8, BV16, BV32, BV64}, {BV128, BVD});
 #[cfg(target_pointer_width = "64")]
-impl_all_ops!({BV8, BV16, BV32, BV64, BV128}, {BVN});
+impl_all_ops!({BV8, BV16, BV32, BV64, BV128}, {BVD});
 
 impl<'a> IntoIterator for &'a BV {
     type Item = Bit;
