@@ -19,23 +19,28 @@ use std::ops::{
 
 use crate::dynamic::BVD;
 #[allow(unused_imports)]
-use crate::fixed::{BV128, BV16, BV32, BV64, BV8};
+use crate::fixed::{BV128, BV16, BV32, BV64, BV8, BVF};
 use crate::iter::BitIterator;
+use crate::utils::{IArray, IArrayMut, Integer, StaticCast};
 use crate::Bit;
 use crate::{BitVector, ConvertError, Endianness};
 
-// Choose a fixed BV type which should match the size of BVD inside the enum
+// Choose a fixed BVF type which should match the size of BVD inside the enum
 #[cfg(target_pointer_width = "16")]
-type BVF = BV32;
+type BVP = BV32;
 #[cfg(target_pointer_width = "32")]
-type BVF = BV64;
+type BVP = BV64;
 #[cfg(target_pointer_width = "64")]
-type BVF = BV128;
+type BVP = BV128;
+
+// ------------------------------------------------------------------------------------------------
+// Bit Vector automatic allocation implementation
+// ------------------------------------------------------------------------------------------------
 
 /// A bit vector with automatic capacity management.
 #[derive(Clone, Debug)]
 pub enum BV {
-    Fixed(BVF),
+    Fixed(BVP),
     Dynamic(BVD),
 }
 
@@ -48,7 +53,7 @@ impl BV {
     pub fn reserve(&mut self, additional: usize) {
         match self {
             &mut BV::Fixed(ref b) => {
-                if b.len() + additional > BVF::capacity() {
+                if b.len() + additional > BVP::capacity() {
                     let mut new_b = BVD::from(b);
                     new_b.reserve(additional);
                     *self = BV::Dynamic(new_b);
@@ -64,8 +69,8 @@ impl BV {
     /// allocated memory.
     pub fn shrink_to_fit(&mut self) {
         if let BV::Dynamic(b) = self {
-            if b.len() <= BVF::capacity() {
-                let new_b = BVF::try_from(&*b).unwrap();
+            if b.len() <= BVP::capacity() {
+                let new_b = BVP::try_from(&*b).unwrap();
                 *self = BV::Fixed(new_b);
             } else {
                 b.shrink_to_fit();
@@ -74,9 +79,48 @@ impl BV {
     }
 }
 
+// ------------------------------------------------------------------------------------------------
+// BV - Integer Array traits
+// ------------------------------------------------------------------------------------------------
+
+impl<I: Integer> IArray<I> for BV
+where
+    u64: StaticCast<I>,
+{
+    fn int_len(&self) -> usize {
+        match self {
+            BV::Fixed(bvf) => IArray::<I>::int_len(bvf),
+            BV::Dynamic(bvd) => IArray::<I>::int_len(bvd),
+        }
+    }
+
+    fn get_int(&self, idx: usize) -> Option<I> {
+        match self {
+            BV::Fixed(bvf) => IArray::<I>::get_int(bvf, idx),
+            BV::Dynamic(bvd) => IArray::<I>::get_int(bvd, idx),
+        }
+    }
+}
+
+impl<I: Integer> IArrayMut<I> for BV
+where
+    u64: StaticCast<I>,
+{
+    fn set_int(&mut self, idx: usize, v: I) -> Option<I> {
+        match self {
+            BV::Fixed(bvf) => IArrayMut::<I>::set_int(bvf, idx, v),
+            BV::Dynamic(bvd) => IArrayMut::<I>::set_int(bvd, idx, v),
+        }
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+// BV - Bit Vector core trait
+// ------------------------------------------------------------------------------------------------
+
 impl BitVector for BV {
     fn with_capacity(capacity: usize) -> Self {
-        if capacity <= BVF::capacity() {
+        if capacity <= BVP::capacity() {
             BV::with_capacity(capacity)
         } else {
             BV::Dynamic(BVD::with_capacity(capacity))
@@ -84,40 +128,40 @@ impl BitVector for BV {
     }
 
     fn zeros(length: usize) -> Self {
-        if length <= BVF::capacity() {
-            BV::Fixed(BVF::zeros(length))
+        if length <= BVP::capacity() {
+            BV::Fixed(BVP::zeros(length))
         } else {
             BV::Dynamic(BVD::zeros(length))
         }
     }
 
     fn ones(length: usize) -> Self {
-        if length <= BVF::capacity() {
-            BV::Fixed(BVF::ones(length))
+        if length <= BVP::capacity() {
+            BV::Fixed(BVP::ones(length))
         } else {
             BV::Dynamic(BVD::ones(length))
         }
     }
 
     fn from_binary<S: AsRef<str>>(string: S) -> Result<Self, ConvertError> {
-        if string.as_ref().len() <= BVF::capacity() {
-            Ok(BV::Fixed(BVF::from_binary(string)?))
+        if string.as_ref().len() <= BVP::capacity() {
+            Ok(BV::Fixed(BVP::from_binary(string)?))
         } else {
             Ok(BV::Dynamic(BVD::from_binary(string)?))
         }
     }
 
     fn from_hex<S: AsRef<str>>(string: S) -> Result<Self, ConvertError> {
-        if string.as_ref().len() * 4 <= BVF::capacity() {
-            Ok(BV::Fixed(BVF::from_hex(string)?))
+        if string.as_ref().len() * 4 <= BVP::capacity() {
+            Ok(BV::Fixed(BVP::from_hex(string)?))
         } else {
             Ok(BV::Dynamic(BVD::from_hex(string)?))
         }
     }
 
     fn from_bytes<B: AsRef<[u8]>>(bytes: B, endianness: Endianness) -> Result<Self, ConvertError> {
-        if bytes.as_ref().len() * 8 <= BVF::capacity() {
-            Ok(BV::Fixed(BVF::from_bytes(bytes, endianness)?))
+        if bytes.as_ref().len() * 8 <= BVP::capacity() {
+            Ok(BV::Fixed(BVP::from_bytes(bytes, endianness)?))
         } else {
             Ok(BV::Dynamic(BVD::from_bytes(bytes, endianness)?))
         }
@@ -135,8 +179,8 @@ impl BitVector for BV {
         length: usize,
         endianness: Endianness,
     ) -> std::io::Result<Self> {
-        if length <= BVF::capacity() {
-            Ok(BV::Fixed(BVF::read(reader, length, endianness)?))
+        if length <= BVP::capacity() {
+            Ok(BV::Fixed(BVP::read(reader, length, endianness)?))
         } else {
             Ok(BV::Dynamic(BVD::read(reader, length, endianness)?))
         }
@@ -172,8 +216,8 @@ impl BitVector for BV {
             BV::Fixed(b) => BV::Fixed(b.copy_slice(range)),
             BV::Dynamic(b) => {
                 let s = b.copy_slice(range);
-                if s.len() <= BVF::capacity() {
-                    BV::Fixed(BVF::try_from(s).unwrap())
+                if s.len() <= BVP::capacity() {
+                    BV::Fixed(BVP::try_from(s).unwrap())
                 } else {
                     BV::Dynamic(s)
                 }
@@ -246,6 +290,32 @@ impl BitVector for BV {
     }
 }
 
+// ------------------------------------------------------------------------------------------------
+// BV - Bit iterator trait
+// ------------------------------------------------------------------------------------------------
+
+impl<'a> IntoIterator for &'a BV {
+    type Item = Bit;
+    type IntoIter = BitIterator<'a, BV>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        BitIterator::new(self)
+    }
+}
+
+impl FromIterator<Bit> for BV {
+    fn from_iter<T: IntoIterator<Item = Bit>>(iter: T) -> Self {
+        let iter = iter.into_iter();
+        let mut bv = BV::with_capacity(iter.size_hint().0);
+        iter.for_each(|b| bv.push(b));
+        bv
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+// BV - Formatting traits
+// ------------------------------------------------------------------------------------------------
+
 impl Binary for BV {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -255,7 +325,7 @@ impl Binary for BV {
     }
 }
 
-/// Warning: this implementation is broken for bit vector longer than 128 bits.
+/// TODO: this implementation is broken for bit vector longer than 128 bits.
 impl Display for BV {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -292,6 +362,10 @@ impl Octal for BV {
     }
 }
 
+// ------------------------------------------------------------------------------------------------
+// BV - Comparison traits
+// ------------------------------------------------------------------------------------------------
+
 impl PartialEq for BV {
     fn eq(&self, other: &Self) -> bool {
         match self {
@@ -307,7 +381,55 @@ impl PartialEq for BV {
     }
 }
 
+impl PartialEq<BVD> for BV {
+    fn eq(&self, other: &BVD) -> bool {
+        match self {
+            BV::Fixed(bvf) => bvf.eq(other),
+            BV::Dynamic(bvd) => bvd.eq(other),
+        }
+    }
+}
+
+impl<I: Integer, const N: usize> PartialEq<BVF<I, N>> for BV
+where
+    u64: StaticCast<I>,
+{
+    fn eq(&self, other: &BVF<I, N>) -> bool {
+        match self {
+            BV::Fixed(bvf) => bvf.eq(other),
+            BV::Dynamic(bvd) => bvd.eq(other),
+        }
+    }
+}
+
 impl Eq for BV {}
+
+impl PartialOrd for BV {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<I: Integer, const N: usize> PartialOrd<BVF<I, N>> for BV
+where
+    u64: StaticCast<I>,
+{
+    fn partial_cmp(&self, other: &BVF<I, N>) -> Option<Ordering> {
+        match self {
+            BV::Fixed(bvf) => bvf.partial_cmp(other).map(|o| o.reverse()),
+            BV::Dynamic(bvd) => bvd.partial_cmp(other).map(|o| o.reverse()),
+        }
+    }
+}
+
+impl PartialOrd<BVD> for BV {
+    fn partial_cmp(&self, other: &BVD) -> Option<Ordering> {
+        match self {
+            BV::Fixed(bvf) => bvf.partial_cmp(other).map(|o| o.reverse()),
+            BV::Dynamic(bvd) => bvd.partial_cmp(other).map(|o| o.reverse()),
+        }
+    }
+}
 
 impl Ord for BV {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -324,62 +446,13 @@ impl Ord for BV {
     }
 }
 
-impl PartialOrd for BV {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-macro_rules! impl_eq { ({$($rhs:ty),+}) => {
-    $(
-        impl PartialEq<$rhs> for BV {
-            fn eq(&self, other: &$rhs) -> bool {
-                match self {
-                    BV::Fixed(b) => b.eq(other),
-                    BV::Dynamic(b) => b.eq(other),
-                }
-            }
-        }
-
-        impl PartialEq<BV> for $rhs {
-            fn eq(&self, other: &BV) -> bool {
-                match other {
-                    BV::Fixed(b) => self.eq(b),
-                    BV::Dynamic(b) => self.eq(b),
-                }
-            }
-        }
-    )+
-}}
-
-macro_rules! impl_ord { ({$($rhs:ty),+}) => {
-    $(
-        impl PartialOrd<$rhs> for BV {
-            fn partial_cmp(&self, other: &$rhs) -> Option<Ordering> {
-                match self {
-                    BV::Fixed(b) => b.partial_cmp(other),
-                    BV::Dynamic(b) => b.partial_cmp(other),
-                }
-            }
-        }
-
-        impl PartialOrd<BV> for $rhs {
-            fn partial_cmp(&self, other: &BV) -> Option<Ordering> {
-                match other {
-                    BV::Fixed(b) => self.partial_cmp(b),
-                    BV::Dynamic(b) => self.partial_cmp(b),
-                }
-            }
-        }
-    )+
-}}
-
-impl_eq!({BV8, BV16, BV32, BV64, BV128, BVD});
-impl_ord!({BV8, BV16, BV32, BV64, BV128, BVD});
+// ------------------------------------------------------------------------------------------------
+// BV - Conversion traits
+// ------------------------------------------------------------------------------------------------
 
 impl From<BVD> for BV {
     fn from(b: BVD) -> Self {
-        if let Ok(bvf) = BVF::try_from(&b) {
+        if let Ok(bvf) = BVP::try_from(&b) {
             BV::Fixed(bvf)
         } else {
             BV::Dynamic(b)
@@ -389,7 +462,7 @@ impl From<BVD> for BV {
 
 impl From<&'_ BVD> for BV {
     fn from(b: &'_ BVD) -> Self {
-        if let Ok(bvf) = BVF::try_from(b) {
+        if let Ok(bvf) = BVP::try_from(b) {
             BV::Fixed(bvf)
         } else {
             BV::Dynamic(b.clone())
@@ -397,163 +470,62 @@ impl From<&'_ BVD> for BV {
     }
 }
 
-impl From<&'_ BV> for BVD {
-    fn from(bv: &'_ BV) -> Self {
-        match bv {
-            BV::Fixed(b) => BVD::from(b),
-            BV::Dynamic(b) => b.clone(),
+impl<I: Integer, const N: usize> From<&BVF<I, N>> for BV {
+    fn from(b: &BVF<I, N>) -> Self {
+        if BVF::<I, N>::capacity() <= BVP::capacity() {
+            BV::Fixed(b.try_into().unwrap())
+        } else {
+            BV::Dynamic(b.into())
         }
     }
 }
 
-impl From<BV> for BVD {
-    fn from(bv: BV) -> Self {
-        match bv {
-            BV::Fixed(b) => BVD::from(b),
-            BV::Dynamic(b) => b,
-        }
+impl<I: Integer, const N: usize> From<BVF<I, N>> for BV {
+    fn from(b: BVF<I, N>) -> Self {
+        BV::from(&b)
     }
 }
 
-macro_rules! impl_froms {({$(($sbv:ty, $sst:ty)),+}, {$(($ubv:ty, $ust:ty)),+}) => {
+macro_rules! impl_tryfrom { ($($type:ty),+) => {
     $(
-        impl From<$sst> for BV {
-            fn from(sst: $sst) -> Self {
-                if <$sst>::BITS as usize <= BVF::capacity() {
-                    // Call should never fail because we check for capacity
-                    BV::Fixed(BVF::try_from(sst).unwrap())
+        impl From<$type> for BV {
+            fn from(int: $type) -> Self {
+                // Branch should be optimized at compile time
+                if std::mem::size_of::<$type>() * 8 <= BVP::capacity() {
+                    BV::Fixed(BVP::try_from(int).unwrap())
                 }
                 else {
-                    BV::Dynamic(BVD::try_from(sst).unwrap())
+                    BV::Dynamic(BVD::from(int))
                 }
             }
         }
 
-        impl From<&'_ $sbv> for BV {
-            fn from(b: &'_ $sbv) -> Self {
-                // Call should never fail because we check for capacity
-                if <$sbv>::capacity() <= BVF::capacity() {
-                    BV::Fixed(BVF::try_from(b).unwrap())
-                }
-                else {
-                    BV::Dynamic(BVD::try_from(b).unwrap())
-                }
-            }
-        }
-
-        impl From<$sbv> for BV {
-            fn from(b: $sbv) -> Self {
-                if <$sbv>::capacity() <= BVF::capacity() {
-                    // Call should never fail because we check for capacity
-                    BV::Fixed(BVF::try_from(&b).unwrap())
-                }
-                else {
-                    BV::Dynamic(BVD::from(b))
-                }
-            }
-        }
-
-        impl TryFrom<&'_ BV> for $sst {
+        impl TryFrom<&BV> for $type
+        {
             type Error = ConvertError;
-            fn try_from(bv: &'_ BV) -> Result<Self, Self::Error> {
+            fn try_from(bv: &BV) -> Result<Self, Self::Error> {
                 match bv {
-                    BV::Fixed(b) => <$sst>::try_from(b),
-                    BV::Dynamic(b) => <$sst>::try_from(b),
+                    BV::Fixed(b) => Ok(b.try_into()?),
+                    BV::Dynamic(b) => Ok(b.try_into()?),
                 }
             }
         }
 
-        impl TryFrom<BV> for $sst {
+        impl TryFrom<BV> for $type
+        {
             type Error = ConvertError;
             fn try_from(bv: BV) -> Result<Self, Self::Error> {
-                <$sst>::try_from(&bv)
-            }
-        }
-
-        impl TryFrom<&'_ BV> for $sbv {
-            type Error = ConvertError;
-            fn try_from(bv: &'_ BV) -> Result<Self, Self::Error> {
-                match bv {
-                    BV::Fixed(b) => <$sbv>::try_from(b),
-                    BV::Dynamic(b) => <$sbv>::try_from(b),
-                }
-            }
-        }
-
-        impl TryFrom<BV> for $sbv {
-            type Error = ConvertError;
-            fn try_from(bv: BV) -> Result<Self, Self::Error> {
-                <$sbv>::try_from(&bv)
-            }
-        }
-    )+
-
-    $(
-        impl From<$ust> for BV {
-            fn from(ust: $ust) -> Self {
-                BV::Dynamic(BVD::from(ust))
-            }
-        }
-
-        impl From<&'_ $ubv> for BV {
-            fn from(ubv: &'_ $ubv) -> Self {
-                if ubv.len() <= BVF::capacity() {
-                    BV::Fixed(BVF::try_from(*ubv).unwrap())
-                }
-                else {
-                    BV::Dynamic(BVD::from(ubv))
-                }
-            }
-        }
-
-        impl From<$ubv> for BV {
-            fn from(ubv: $ubv) -> Self {
-                BV::from(&ubv)
-            }
-        }
-
-        impl TryFrom<&'_ BV> for $ust {
-            type Error = ConvertError;
-            fn try_from(bv: &'_ BV) -> Result<Self, Self::Error> {
-                match bv {
-                    BV::Fixed(b) => Ok(<$ust>::try_from(b).unwrap()),
-                    BV::Dynamic(b) => <$ust>::try_from(b),
-                }
-            }
-        }
-
-        impl TryFrom<BV> for $ust {
-            type Error = ConvertError;
-            fn try_from(bv: BV) -> Result<Self, Self::Error> {
-                <$ust>::try_from(&bv)
-            }
-        }
-
-        impl TryFrom<&'_ BV> for $ubv {
-            type Error = ConvertError;
-            fn try_from(bv: &'_ BV) -> Result<Self, Self::Error> {
-                match bv {
-                    BV::Fixed(b) => Ok(<$ubv>::from(*b)),
-                    BV::Dynamic(b) => <$ubv>::try_from(b),
-                }
-            }
-        }
-
-        impl TryFrom<BV> for $ubv {
-            type Error = ConvertError;
-            fn try_from(bv: BV) -> Result<Self, Self::Error> {
-                <$ubv>::try_from(&bv)
+                Self::try_from(&bv)
             }
         }
     )+
 }}
 
-#[cfg(target_pointer_width = "16")]
-impl_froms!({(BV8, u8), (BV16, u16)}, {(BV32, u32), (BV64, u64), (BV128, u128)});
-#[cfg(target_pointer_width = "32")]
-impl_froms!({(BV8, u8), (BV16, u16), (BV32, u32)}, {(BV64, u64), (BV128, u128)});
-#[cfg(target_pointer_width = "64")]
-impl_froms!({(BV8, u8), (BV16, u16), (BV32, u32), (BV64, u64)}, {(BV128, u128)});
+impl_tryfrom!(u8, u16, u32, u64, u128, usize);
+
+// ------------------------------------------------------------------------------------------------
+// BV - Unary operator & shifts
+// ------------------------------------------------------------------------------------------------
 
 impl Not for BV {
     type Output = BV;
@@ -643,157 +615,105 @@ macro_rules! impl_shift {($trait:ident, $method:ident, {$($rhs:ty),+}) => {
 impl_shift!(Shl, shl, {u8, u16, u32, u64, u128, usize});
 impl_shift!(Shr, shr, {u8, u16, u32, u64, u128, usize});
 
-macro_rules! impl_op_assign { ($trait:ident, $method:ident, {$($sbv:ty),*}, {$($ubv:ty),*}) => {
-    impl $trait<&'_ BV> for BV {
-        fn $method(&mut self, bv: &'_ BV) {
-            match bv {
-                BV::Fixed(b) => self.$method(b),
-                BV::Dynamic(b) => self.$method(b)
-            }
-        }
-    }
+// ------------------------------------------------------------------------------------------------
+// BV - Arithmetic operators (assignment kind)
+// ------------------------------------------------------------------------------------------------
 
-    impl $trait<BV> for BV {
-        fn $method(&mut self, rhs: BV) {
-            self.$method(&rhs);
-        }
-    }
-
-    $(
-        impl $trait<&'_ $sbv> for BV {
-            fn $method(&mut self, b: &'_ $sbv) {
-                match self {
-                    BV::Fixed(s) => s.$method(b),
-                    BV::Dynamic(s) => s.$method(b)
+macro_rules! impl_op_assign {
+    ($trait:ident, $method:ident) => {
+        impl $trait<&BV> for BV {
+            fn $method(&mut self, bv: &BV) {
+                match bv {
+                    BV::Fixed(b) => self.$method(b),
+                    BV::Dynamic(b) => self.$method(b),
                 }
             }
         }
 
-        impl $trait<$sbv> for BV {
-            fn $method(&mut self, b: $sbv) {
-                self.$method(&b);
-            }
-        }
-    )+
-
-    $(
-        impl $trait<&'_ $ubv> for BV {
-            fn $method(&mut self, b: &'_ $ubv) {
-                match self {
-                    BV::Fixed(s) => s.$method(BVF::try_from(b).unwrap()),
-                    BV::Dynamic(s) => s.$method(b)
+        impl $trait<BV> for BV {
+            fn $method(&mut self, bv: BV) {
+                match bv {
+                    BV::Fixed(b) => self.$method(b),
+                    BV::Dynamic(b) => self.$method(b),
                 }
             }
         }
 
-        impl $trait<$ubv> for BV {
-            fn $method(&mut self, b: $ubv) {
-                self.$method(&b);
+        impl<I: Integer, const N: usize> $trait<&BVF<I, N>> for BV {
+            fn $method(&mut self, bvf: &BVF<I, N>) {
+                match self {
+                    BV::Fixed(b) => b.$method(bvf),
+                    BV::Dynamic(b) => b.$method(bvf),
+                }
             }
         }
-    )+
-}}
 
-macro_rules! impl_op { ($trait:ident, $method:ident, $assign_method:ident, {$($rhs:ty),+}) => {
-    impl $trait<BV> for BV {
-        type Output = BV;
-        fn $method(mut self, rhs: BV) -> BV {
-            self.$assign_method(rhs);
-            return self;
+        impl<I: Integer, const N: usize> $trait<BVF<I, N>> for BV {
+            fn $method(&mut self, bvf: BVF<I, N>) {
+                match self {
+                    BV::Fixed(b) => b.$method(bvf),
+                    BV::Dynamic(b) => b.$method(bvf),
+                }
+            }
         }
-    }
 
-    impl $trait<&'_ BV> for BV {
-        type Output = BV;
-        fn $method(mut self, rhs: &'_ BV) -> BV {
-            self.$assign_method(rhs);
-            return self;
+        impl $trait<BVD> for BV {
+            fn $method(&mut self, bvd: BVD) {
+                match self {
+                    BV::Fixed(b) => b.$method(bvd),
+                    BV::Dynamic(b) => b.$method(bvd),
+                }
+            }
         }
-    }
 
-    impl $trait<BV> for &'_ BV {
-        type Output = BV;
-        fn $method(self, rhs: BV) -> BV {
-            return self.clone().$method(rhs);
+        impl $trait<&BVD> for BV {
+            fn $method(&mut self, bvd: &BVD) {
+                match self {
+                    BV::Fixed(b) => b.$method(bvd),
+                    BV::Dynamic(b) => b.$method(bvd),
+                }
+            }
         }
-    }
+    };
+}
 
-    impl $trait<&'_ BV> for &'_ BV {
-        type Output = BV;
-        fn $method(self, rhs: &'_ BV) -> BV {
-            return self.clone().$method(rhs);
-        }
-    }
+impl_op_assign!(BitAndAssign, bitand_assign);
+impl_op_assign!(BitOrAssign, bitor_assign);
+impl_op_assign!(BitXorAssign, bitxor_assign);
+impl_op_assign!(AddAssign, add_assign);
+impl_op_assign!(SubAssign, sub_assign);
+impl_op_assign!(MulAssign, mul_assign);
 
-    $(
-        impl $trait<$rhs> for BV {
+macro_rules! impl_op {
+    ($trait:ident, $method:ident, $assign_trait:ident, $assign_method:ident) => {
+        impl<T> $trait<T> for BV
+        where
+            BV: $assign_trait<T>,
+        {
             type Output = BV;
-            fn $method(mut self, rhs: $rhs) -> BV {
+            fn $method(mut self, rhs: T) -> BV {
                 self.$assign_method(rhs);
                 return self;
             }
         }
 
-        impl $trait<&'_ $rhs> for BV {
+        impl<T> $trait<T> for &BV
+        where
+            BV: $assign_trait<T>,
+        {
             type Output = BV;
-            fn $method(mut self, rhs: &'_ $rhs) -> BV {
-                self.$assign_method(rhs);
-                return self;
+            fn $method(self, rhs: T) -> BV {
+                let mut result = self.clone();
+                result.$assign_method(rhs);
+                return result;
             }
         }
-
-        impl $trait<$rhs> for &'_ BV {
-            type Output = BV;
-            fn $method(self, rhs: $rhs) -> BV {
-                return self.clone().$method(rhs);
-            }
-        }
-
-        impl $trait<&'_ $rhs> for &'_ BV {
-            type Output = BV;
-            fn $method(self, rhs: &'_ $rhs) -> BV {
-                return self.clone().$method(rhs);
-            }
-        }
-    )+
-}}
-
-macro_rules! impl_all_ops { ({$($sbv:ty),*}, {$($ubv:ty),*}) => {
-    impl_op_assign!(BitAndAssign, bitand_assign, {$($sbv),*}, {$($ubv),*});
-    impl_op_assign!(BitOrAssign, bitor_assign, {$($sbv),*}, {$($ubv),*});
-    impl_op_assign!(BitXorAssign, bitxor_assign, {$($sbv),*}, {$($ubv),*});
-    impl_op_assign!(AddAssign, add_assign, {$($sbv),*}, {$($ubv),*});
-    impl_op_assign!(SubAssign, sub_assign, {$($sbv),*}, {$($ubv),*});
-    impl_op_assign!(MulAssign, mul_assign, {$($sbv),*}, {$($ubv),*});
-    impl_op!(BitAnd, bitand, bitand_assign, {$($sbv),* , $($ubv),*});
-    impl_op!(BitOr, bitor, bitor_assign, {$($sbv),* , $($ubv),*});
-    impl_op!(BitXor, bitxor, bitxor_assign, {$($sbv),* , $($ubv),*});
-    impl_op!(Add, add, add_assign, {$($sbv),* , $($ubv),*});
-    impl_op!(Sub, sub, sub_assign, {$($sbv),* , $($ubv),*});
-    impl_op!(Mul, mul, mul_assign, {$($sbv),* , $($ubv),*});
-}}
-
-#[cfg(target_pointer_width = "16")]
-impl_all_ops!({BV8, BV16, BV32}, {BV64, BV128, BVD});
-#[cfg(target_pointer_width = "32")]
-impl_all_ops!({BV8, BV16, BV32, BV64}, {BV128, BVD});
-#[cfg(target_pointer_width = "64")]
-impl_all_ops!({BV8, BV16, BV32, BV64, BV128}, {BVD});
-
-impl<'a> IntoIterator for &'a BV {
-    type Item = Bit;
-    type IntoIter = BitIterator<'a, BV>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        BitIterator::new(self)
-    }
+    };
 }
 
-impl FromIterator<Bit> for BV {
-    fn from_iter<T: IntoIterator<Item = Bit>>(iter: T) -> Self {
-        let iter = iter.into_iter();
-        let mut bv = BV::with_capacity(iter.size_hint().0);
-        iter.for_each(|b| bv.push(b));
-        bv
-    }
-}
+impl_op!(BitAnd, bitand, BitAndAssign, bitand_assign);
+impl_op!(BitOr, bitor, BitOrAssign, bitor_assign);
+impl_op!(BitXor, bitxor, BitXorAssign, bitxor_assign);
+impl_op!(Add, add, AddAssign, add_assign);
+impl_op!(Sub, sub, SubAssign, sub_assign);
+impl_op!(Mul, mul, MulAssign, mul_assign);

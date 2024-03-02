@@ -15,8 +15,8 @@ use std::ops::{
     Not, Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
-use crate::fixed::BV128;
-use crate::fixed::BVF;
+use crate::auto::BV;
+use crate::fixed::{BV128, BVF};
 use crate::iter::BitIterator;
 use crate::utils::{IArray, IArrayMut, Integer, StaticCast};
 use crate::{Bit, BitVector, ConvertError, Endianness};
@@ -577,7 +577,11 @@ impl<I: Integer, const N: usize> PartialEq<BVF<I, N>> for BVD {
     }
 }
 
-// TODO: implement PartialEq<BVA> for BVD
+impl PartialEq<BV> for BVD {
+    fn eq(&self, other: &BV) -> bool {
+        other.eq(self)
+    }
+}
 
 impl Eq for BVD {}
 
@@ -604,7 +608,11 @@ impl<I: Integer, const N: usize> PartialOrd<BVF<I, N>> for BVD {
     }
 }
 
-// TODO: implement PartialOrd<BVA> for BVD
+impl PartialOrd<BV> for BVD {
+    fn partial_cmp(&self, other: &BV) -> Option<Ordering> {
+        other.partial_cmp(self).map(|o| o.reverse())
+    }
+}
 
 impl Ord for BVD {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -665,7 +673,7 @@ macro_rules! impl_from_ints {($($st:ty),+) => {
     )+
 }}
 
-impl_from_ints!(u8, u16, u32, u64, u128);
+impl_from_ints!(u8, u16, u32, u64, u128, usize);
 
 impl<I: Integer, const N: usize> From<&BVF<I, N>> for BVD {
     fn from(rhs: &BVF<I, N>) -> BVD {
@@ -684,7 +692,23 @@ impl<I: Integer, const N: usize> From<BVF<I, N>> for BVD {
     }
 }
 
-// TODO: implement From<BVA> for BVD
+impl From<&'_ BV> for BVD {
+    fn from(bv: &'_ BV) -> Self {
+        match bv {
+            BV::Fixed(b) => BVD::from(b),
+            BV::Dynamic(b) => b.clone(),
+        }
+    }
+}
+
+impl From<BV> for BVD {
+    fn from(bv: BV) -> Self {
+        match bv {
+            BV::Fixed(b) => BVD::from(b),
+            BV::Dynamic(b) => b,
+        }
+    }
+}
 
 // ------------------------------------------------------------------------------------------------
 // BVD - Unary operator & shifts
@@ -914,7 +938,20 @@ macro_rules! impl_binop_assign {
             }
         }
 
-        // TODO: implement $trait<&BVA> for BVD
+        impl $trait<&BV> for BVD {
+            fn $method(&mut self, rhs: &BV) {
+                match rhs {
+                    BV::Fixed(bvf) => self.$method(bvf),
+                    BV::Dynamic(bvd) => self.$method(bvd),
+                }
+            }
+        }
+
+        impl $trait<BV> for BVD {
+            fn $method(&mut self, rhs: BV) {
+                self.$method(&rhs);
+            }
+        }
     };
 }
 
@@ -978,7 +1015,20 @@ macro_rules! impl_addsub_assign {
             }
         }
 
-        // impl $trait<&BVA> for BVD {
+        impl $trait<&BV> for BVD {
+            fn $method(&mut self, rhs: &BV) {
+                match rhs {
+                    BV::Fixed(bvf) => self.$method(bvf),
+                    BV::Dynamic(bvd) => self.$method(bvd),
+                }
+            }
+        }
+
+        impl $trait<BV> for BVD {
+            fn $method(&mut self, rhs: BV) {
+                self.$method(&rhs);
+            }
+        }
     };
 }
 
@@ -990,76 +1040,37 @@ impl_addsub_assign!(SubAssign, sub_assign, overflowing_sub);
 // ------------------------------------------------------------------------------------------------
 
 macro_rules! impl_op {
-    ($trait:ident, $method:ident, $assign_method:ident) => {
-        impl $trait<BVD> for BVD {
+    ($trait:ident, $method:ident, $assign_trait:ident, $assign_method:ident) => {
+        impl<T> $trait<T> for BVD
+        where
+            BVD: $assign_trait<T>,
+        {
             type Output = BVD;
-            fn $method(mut self, rhs: BVD) -> BVD {
+            fn $method(mut self, rhs: T) -> BVD {
                 self.$assign_method(rhs);
                 return self;
             }
         }
 
-        impl $trait<&BVD> for BVD {
+        impl<T> $trait<T> for &BVD
+        where
+            BVD: $assign_trait<T>,
+        {
             type Output = BVD;
-            fn $method(mut self, rhs: &BVD) -> BVD {
-                self.$assign_method(rhs);
-                return self;
+            fn $method(self, rhs: T) -> BVD {
+                let mut result = self.clone();
+                result.$assign_method(rhs);
+                return result;
             }
         }
-
-        impl $trait<BVD> for &BVD {
-            type Output = BVD;
-            fn $method(self, rhs: BVD) -> BVD {
-                return self.clone().$method(rhs);
-            }
-        }
-
-        impl $trait<&BVD> for &BVD {
-            type Output = BVD;
-            fn $method(self, rhs: &BVD) -> BVD {
-                return self.clone().$method(rhs);
-            }
-        }
-
-        impl<I: Integer, const N: usize> $trait<BVF<I, N>> for BVD {
-            type Output = BVD;
-            fn $method(mut self, rhs: BVF<I, N>) -> BVD {
-                self.$assign_method(rhs);
-                return self;
-            }
-        }
-
-        impl<I: Integer, const N: usize> $trait<&BVF<I, N>> for BVD {
-            type Output = BVD;
-            fn $method(mut self, rhs: &BVF<I, N>) -> BVD {
-                self.$assign_method(rhs);
-                return self;
-            }
-        }
-
-        impl<I: Integer, const N: usize> $trait<BVF<I, N>> for &BVD {
-            type Output = BVD;
-            fn $method(self, rhs: BVF<I, N>) -> BVD {
-                return self.clone().$method(rhs);
-            }
-        }
-
-        impl<I: Integer, const N: usize> $trait<&BVF<I, N>> for &BVD {
-            type Output = BVD;
-            fn $method(self, rhs: &BVF<I, N>) -> BVD {
-                return self.clone().$method(rhs);
-            }
-        }
-
-        // TODO: impl $trait<&BVA> for BVD
     };
 }
 
-impl_op!(BitAnd, bitand, bitand_assign);
-impl_op!(BitOr, bitor, bitor_assign);
-impl_op!(BitXor, bitxor, bitxor_assign);
-impl_op!(Add, add, add_assign);
-impl_op!(Sub, sub, sub_assign);
+impl_op!(BitAnd, bitand, BitAndAssign, bitand_assign);
+impl_op!(BitOr, bitor, BitOrAssign, bitor_assign);
+impl_op!(BitXor, bitxor, BitXorAssign, bitxor_assign);
+impl_op!(Add, add, AddAssign, add_assign);
+impl_op!(Sub, sub, SubAssign, sub_assign);
 
 // ------------------------------------------------------------------------------------------------
 // BVD - Multiplication
@@ -1110,18 +1121,6 @@ impl Mul<BVD> for BVD {
     }
 }
 
-impl MulAssign<&BVD> for BVD {
-    fn mul_assign(&mut self, rhs: &BVD) {
-        *self = Mul::mul(&*self, rhs);
-    }
-}
-
-impl MulAssign<BVD> for BVD {
-    fn mul_assign(&mut self, rhs: BVD) {
-        *self = Mul::mul(&*self, &rhs);
-    }
-}
-
 impl<I: Integer, const N: usize> Mul<&BVF<I, N>> for &BVD {
     type Output = BVD;
     fn mul(self, rhs: &BVF<I, N>) -> BVD {
@@ -1168,6 +1167,49 @@ impl<I: Integer, const N: usize> Mul<BVF<I, N>> for BVD {
     }
 }
 
+impl Mul<&BV> for &BVD {
+    type Output = BVD;
+    fn mul(self, rhs: &BV) -> BVD {
+        match rhs {
+            BV::Fixed(bvf) => self.mul(bvf),
+            BV::Dynamic(bvd) => self.mul(bvd),
+        }
+    }
+}
+
+impl Mul<BV> for &BVD {
+    type Output = BVD;
+    fn mul(self, rhs: BV) -> BVD {
+        self.mul(&rhs)
+    }
+}
+
+impl Mul<&BV> for BVD {
+    type Output = BVD;
+    fn mul(self, rhs: &BV) -> BVD {
+        (&self).mul(rhs)
+    }
+}
+
+impl Mul<BV> for BVD {
+    type Output = BVD;
+    fn mul(self, rhs: BV) -> BVD {
+        (&self).mul(&rhs)
+    }
+}
+
+impl MulAssign<&BVD> for BVD {
+    fn mul_assign(&mut self, rhs: &BVD) {
+        *self = Mul::mul(&*self, rhs);
+    }
+}
+
+impl MulAssign<BVD> for BVD {
+    fn mul_assign(&mut self, rhs: BVD) {
+        *self = Mul::mul(&*self, &rhs);
+    }
+}
+
 impl<I: Integer, const N: usize> MulAssign<&BVF<I, N>> for BVD {
     fn mul_assign(&mut self, rhs: &BVF<I, N>) {
         *self = Mul::mul(&*self, rhs);
@@ -1180,4 +1222,14 @@ impl<I: Integer, const N: usize> MulAssign<BVF<I, N>> for BVD {
     }
 }
 
-// TODL: impl Mul<&BVA> for &BVD
+impl MulAssign<&BV> for BVD {
+    fn mul_assign(&mut self, rhs: &BV) {
+        *self = Mul::mul(&*self, rhs);
+    }
+}
+
+impl MulAssign<BV> for BVD {
+    fn mul_assign(&mut self, rhs: BV) {
+        *self = Mul::mul(&*self, &rhs);
+    }
+}
