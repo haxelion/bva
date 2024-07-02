@@ -1,4 +1,3 @@
-use std::convert::From;
 use std::fmt::Display;
 
 /// Enumeration representing a single bit.

@@ -1,6 +1,7 @@
+use crate::auto::BV;
 use crate::dynamic::BVD;
 use crate::fixed::BVF;
-use crate::utils::Integer;
+use crate::tests::bvf_inner_unroll_cap;
 use crate::{Bit, BitVector};
 
 use rand::{thread_rng, Rng};
@@ -23,10 +24,13 @@ fn iter_inner<B: BitVector>(capacity: usize) {
 
     let mut it1 = bits.iter();
     let mut it2 = bv.iter();
-    for _ in 0..capacity / 2 {
+    for _ in 0..(capacity + 1) / 2 {
         assert_eq!(it1.next().copied(), it2.next());
         assert_eq!(it1.next_back().copied(), it2.next_back());
     }
+    assert_eq!(it2.next(), None);
+    assert_eq!(it2.next_back(), None);
+    assert_eq!(it1.last().copied(), it2.last());
 
     let mut it1 = bits.iter();
     let mut it2 = bv.iter();
@@ -35,44 +39,28 @@ fn iter_inner<B: BitVector>(capacity: usize) {
         assert_eq!(it1.nth_back(3).copied(), it2.nth_back(3));
     }
 
-    assert_eq!(bits.iter().count(), bv.iter().count());
+    assert_eq!(bits.len(), bv.iter().count());
+    assert_eq!(bits.iter().last().copied(), bv.iter().last());
 
     let bits2: Vec<Bit> = bv.iter().collect();
     assert_eq!(bits, bits2);
 }
 
-fn iter_fixed_inner<I: Integer, const N: usize>() {
-    let capacity = BVF::<I, N>::capacity();
-    iter_inner::<BVF<I, N>>(capacity);
-}
-
 #[test]
 fn iter_fixed() {
-    iter_fixed_inner::<u8, 1>();
-    iter_fixed_inner::<u8, 2>();
-    iter_fixed_inner::<u8, 3>();
-    iter_fixed_inner::<u8, 4>();
-    iter_fixed_inner::<u16, 1>();
-    iter_fixed_inner::<u16, 2>();
-    iter_fixed_inner::<u16, 3>();
-    iter_fixed_inner::<u16, 4>();
-    iter_fixed_inner::<u32, 1>();
-    iter_fixed_inner::<u32, 2>();
-    iter_fixed_inner::<u32, 3>();
-    iter_fixed_inner::<u32, 4>();
-    iter_fixed_inner::<u64, 1>();
-    iter_fixed_inner::<u64, 2>();
-    iter_fixed_inner::<u64, 3>();
-    iter_fixed_inner::<u64, 4>();
-    iter_fixed_inner::<u128, 1>();
-    iter_fixed_inner::<u128, 2>();
-    iter_fixed_inner::<u128, 3>();
-    iter_fixed_inner::<u128, 4>();
+    bvf_inner_unroll_cap!(iter_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
 }
 
 #[test]
 fn iter_dynamic() {
     for capacity in 1..512 {
         iter_inner::<BVD>(capacity);
+    }
+}
+
+#[test]
+fn iter_auto() {
+    for capacity in 1..512 {
+        iter_inner::<BV>(capacity);
     }
 }

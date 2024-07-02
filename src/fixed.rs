@@ -1,5 +1,4 @@
 use std::cmp::Ordering;
-use std::convert::TryFrom;
 use std::fmt;
 use std::iter::repeat;
 use std::mem::size_of;
@@ -12,7 +11,7 @@ use crate::auto::BV;
 use crate::dynamic::BVD;
 use crate::iter::BitIterator;
 use crate::utils::{IArray, IArrayMut, Integer, StaticCast};
-use crate::{Bit, BitVector, ConvertError, Endianness};
+use crate::{Bit, BitVector, ConvertionError, Endianness};
 
 pub type BV8 = BVF<u8, 1>;
 pub type BV16 = BVF<u16, 1>;
@@ -132,10 +131,10 @@ where
         ones
     }
 
-    fn from_binary<S: AsRef<str>>(string: S) -> Result<Self, ConvertError> {
+    fn from_binary<S: AsRef<str>>(string: S) -> Result<Self, ConvertionError> {
         let length = string.as_ref().chars().count();
         if length > Self::capacity() {
-            return Err(ConvertError::NotEnoughCapacity);
+            return Err(ConvertionError::NotEnoughCapacity);
         }
         let mut data = [I::ZERO; N];
 
@@ -145,16 +144,16 @@ where
                 | match c {
                     '0' => I::ZERO,
                     '1' => I::ONE,
-                    _ => return Err(ConvertError::InvalidFormat(i)),
+                    _ => return Err(ConvertionError::InvalidFormat(i)),
                 };
         }
         Ok(Self { data, length })
     }
 
-    fn from_hex<S: AsRef<str>>(string: S) -> Result<Self, ConvertError> {
+    fn from_hex<S: AsRef<str>>(string: S) -> Result<Self, ConvertionError> {
         let length = string.as_ref().chars().count();
         if length * 4 > Self::capacity() {
-            return Err(ConvertError::NotEnoughCapacity);
+            return Err(ConvertionError::NotEnoughCapacity);
         }
         let mut data = [I::ZERO; N];
 
@@ -163,7 +162,7 @@ where
             data[j] = (data[j] << 4)
                 | match c.to_digit(16) {
                     Some(d) => I::cast_from(d as u8),
-                    None => return Err(ConvertError::InvalidFormat(i)),
+                    None => return Err(ConvertionError::InvalidFormat(i)),
                 };
         }
         Ok(Self {
@@ -172,10 +171,13 @@ where
         })
     }
 
-    fn from_bytes<B: AsRef<[u8]>>(bytes: B, endianness: Endianness) -> Result<Self, ConvertError> {
+    fn from_bytes<B: AsRef<[u8]>>(
+        bytes: B,
+        endianness: Endianness,
+    ) -> Result<Self, ConvertionError> {
         let byte_length = bytes.as_ref().len();
         if byte_length * 8 > Self::capacity() {
-            return Err(ConvertError::NotEnoughCapacity);
+            return Err(ConvertionError::NotEnoughCapacity);
         }
         let mut data = [I::ZERO; N];
 
@@ -239,7 +241,7 @@ where
         if length > Self::capacity() {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
-                ConvertError::NotEnoughCapacity,
+                ConvertionError::NotEnoughCapacity,
             ));
         }
         let num_bytes = (length + 7) / 8;
@@ -274,7 +276,7 @@ where
         self.data[index / Self::BIT_UNIT] = (self.data[index / Self::BIT_UNIT] & mask) | b;
     }
 
-    fn copy_slice(&self, range: Range<usize>) -> Self {
+    fn copy_range(&self, range: Range<usize>) -> Self {
         debug_assert!(range.start < self.len() && range.end <= self.len());
         let length = range.end - usize::min(range.start, range.end);
         let mut data = [I::ZERO; N];
@@ -416,6 +418,10 @@ where
         self.data = new_data;
     }
 
+    fn capacity(&self) -> usize {
+        BVF::<I, N>::capacity()
+    }
+
     fn len(&self) -> usize {
         self.length
     }
@@ -459,18 +465,24 @@ where
     I: StaticCast<I>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut i = self.length;
         let mut s = String::with_capacity(self.length);
-        for i in (0..self.length).rev() {
-            match self.get(i) {
+
+        while i > 0 && self.get(i - 1) == Bit::Zero {
+            i -= 1;
+        }
+        while i > 0 {
+            match self.get(i - 1) {
                 Bit::Zero => s.push('0'),
                 Bit::One => s.push('1'),
             }
+            i -= 1;
         }
-        if f.alternate() {
-            write!(f, "0b{}", s.as_str())
-        } else {
-            write!(f, "{}", s.as_str())
+        if s.is_empty() {
+            s.push('0');
         }
+
+        f.pad_integral(true, "0b", &s)
     }
 }
 
@@ -485,18 +497,25 @@ impl<I: Integer, const N: usize> fmt::Octal for BVF<I, N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         const SEMI_NIBBLE: [char; 8] = ['0', '1', '2', '3', '4', '5', '6', '7'];
         let length = (self.length + 2) / 3;
-        let mut s = String::with_capacity(length);
-        for i in (0..length).rev() {
-            let semi_nibble = StaticCast::<u8>::cast_to(
-                self.data[i / Self::NIBBLE_UNIT] >> ((i % Self::NIBBLE_UNIT) * 4),
-            ) & 0x7;
-            s.push(SEMI_NIBBLE[semi_nibble as usize]);
+        let mut s = Vec::<char>::with_capacity(length);
+        let mut it = self.iter();
+        let mut last_nz = 0;
+
+        while let Some(b0) = it.next() {
+            let b1 = it.next().unwrap_or(Bit::Zero);
+            let b2 = it.next().unwrap_or(Bit::Zero);
+            let octet = (b2 as u8) << 2 | (b1 as u8) << 1 | b0 as u8;
+            if octet != 0 {
+                last_nz = s.len();
+            }
+            s.push(SEMI_NIBBLE[octet as usize]);
         }
-        if f.alternate() {
-            write!(f, "0x{}", s.as_str())
-        } else {
-            write!(f, "{}", s.as_str())
+        if s.is_empty() {
+            s.push('0');
         }
+        s.truncate(last_nz + 1);
+
+        f.pad_integral(true, "0o", s.iter().rev().collect::<String>().as_str())
     }
 }
 
@@ -505,19 +524,29 @@ impl<I: Integer, const N: usize> fmt::LowerHex for BVF<I, N> {
         const NIBBLE: [char; 16] = [
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
         ];
-        let length = (self.length + 3) / 4;
-        let mut s = String::with_capacity(length);
-        for i in (0..length).rev() {
+        let mut i = (self.length + 3) / 4;
+        let mut s = String::with_capacity(i);
+
+        while i > 0
+            && StaticCast::<u8>::cast_to(
+                self.data[(i - 1) / Self::NIBBLE_UNIT] >> (((i - 1) % Self::NIBBLE_UNIT) * 4),
+            ) & 0xf
+                == 0
+        {
+            i -= 1;
+        }
+        while i > 0 {
             let nibble = StaticCast::<u8>::cast_to(
-                self.data[i / Self::NIBBLE_UNIT] >> ((i % Self::NIBBLE_UNIT) * 4),
+                self.data[(i - 1) / Self::NIBBLE_UNIT] >> (((i - 1) % Self::NIBBLE_UNIT) * 4),
             ) & 0xf;
             s.push(NIBBLE[nibble as usize]);
+            i -= 1;
         }
-        if f.alternate() {
-            write!(f, "0x{}", s.as_str())
-        } else {
-            write!(f, "{}", s.as_str())
+        if s.is_empty() {
+            s.push('0');
         }
+
+        f.pad_integral(true, "0x", &s)
     }
 }
 
@@ -526,19 +555,29 @@ impl<I: Integer, const N: usize> fmt::UpperHex for BVF<I, N> {
         const NIBBLE: [char; 16] = [
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
         ];
-        let length = (self.length + 3) / 4;
-        let mut s = String::with_capacity(length);
-        for i in (0..length).rev() {
+        let mut i = (self.length + 3) / 4;
+        let mut s = String::with_capacity(i);
+
+        while i > 0
+            && StaticCast::<u8>::cast_to(
+                self.data[(i - 1) / Self::NIBBLE_UNIT] >> (((i - 1) % Self::NIBBLE_UNIT) * 4),
+            ) & 0xf
+                == 0
+        {
+            i -= 1;
+        }
+        while i > 0 {
             let nibble = StaticCast::<u8>::cast_to(
-                self.data[i / Self::NIBBLE_UNIT] >> ((i % Self::NIBBLE_UNIT) * 4),
+                self.data[(i - 1) / Self::NIBBLE_UNIT] >> (((i - 1) % Self::NIBBLE_UNIT) * 4),
             ) & 0xf;
             s.push(NIBBLE[nibble as usize]);
+            i -= 1;
         }
-        if f.alternate() {
-            write!(f, "0x{}", s.as_str())
-        } else {
-            write!(f, "{}", s.as_str())
+        if s.is_empty() {
+            s.push('0');
         }
+
+        f.pad_integral(true, "0x", &s)
     }
 }
 
@@ -635,7 +674,7 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
         impl<I: Integer, const N: usize> TryFrom<$type> for BVF<I, N>
             where I: StaticCast<$type>
         {
-            type Error = ConvertError;
+            type Error = ConvertionError;
 
             fn try_from(int: $type) -> Result<Self, Self::Error> {
                 // Branch should be optimized at compile time
@@ -650,11 +689,11 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
                 else {
                     // Check if value overflow the bit vector
                     if <$type>::BITS as usize > Self::capacity() && int.shr(Self::capacity()) != 0 {
-                        return Err(ConvertError::NotEnoughCapacity);
+                        return Err(ConvertionError::NotEnoughCapacity);
                     }
                     let mut data = [I::ZERO; N];
                     for i in 0..N {
-                        data[i] = I::cast_from(int.shr(i * Self::BIT_UNIT));
+                        data[i] = I::cast_from(int.checked_shr((i * Self::BIT_UNIT) as u32).unwrap_or(0));
                     }
                     return Ok(BVF {
                         data,
@@ -667,11 +706,11 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
         impl<I: Integer, const N: usize> TryFrom<&BVF<I, N>> for $type
             where I: StaticCast<$type>
         {
-            type Error = ConvertError;
+            type Error = ConvertionError;
             fn try_from(bv: &BVF<I, N>) -> Result<Self, Self::Error> {
                 // Check if the bit vector overflow I
                 if bv.length > <$type>::BITS as usize {
-                    Err(ConvertError::NotEnoughCapacity)
+                    Err(ConvertionError::NotEnoughCapacity)
                 }
                 else {
                     Ok(IArray::<$type>::get_int(bv, 0).unwrap())
@@ -682,7 +721,7 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
         impl<I: Integer, const N: usize> TryFrom<BVF<I, N>> for $type
             where I: StaticCast<$type>
         {
-            type Error = ConvertError;
+            type Error = ConvertionError;
             fn try_from(bv: BVF<I, N>) -> Result<Self, Self::Error> {
                 Self::try_from(&bv)
             }
@@ -697,11 +736,11 @@ impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> TryFrom<&BVF<I1
 where
     I1: StaticCast<I2>,
 {
-    type Error = ConvertError;
+    type Error = ConvertionError;
 
     fn try_from(bvf: &BVF<I1, N1>) -> Result<Self, Self::Error> {
         if Self::capacity() < bvf.length {
-            Err(ConvertError::NotEnoughCapacity)
+            Err(ConvertionError::NotEnoughCapacity)
         } else {
             let mut data = [I2::ZERO; N2];
             for i in 0..usize::min(N2, IArray::<I2>::int_len(bvf)) {
@@ -719,10 +758,10 @@ impl<I: Integer, const N: usize> TryFrom<&BVD> for BVF<I, N>
 where
     u64: StaticCast<I>,
 {
-    type Error = ConvertError;
+    type Error = ConvertionError;
     fn try_from(bvd: &BVD) -> Result<Self, Self::Error> {
         if bvd.len() > BVF::<I, N>::capacity() {
-            Err(ConvertError::NotEnoughCapacity)
+            Err(ConvertionError::NotEnoughCapacity)
         } else {
             let mut data = [I::ZERO; N];
             for i in 0..N {
@@ -740,7 +779,7 @@ impl<I: Integer, const N: usize> TryFrom<BVD> for BVF<I, N>
 where
     u64: StaticCast<I>,
 {
-    type Error = ConvertError;
+    type Error = ConvertionError;
     fn try_from(bvd: BVD) -> Result<Self, Self::Error> {
         Self::try_from(&bvd)
     }
@@ -750,10 +789,10 @@ impl<I: Integer, const N: usize> TryFrom<&BV> for BVF<I, N>
 where
     u64: StaticCast<I>,
 {
-    type Error = ConvertError;
+    type Error = ConvertionError;
     fn try_from(bv: &BV) -> Result<Self, Self::Error> {
         if bv.len() > BVF::<I, N>::capacity() {
-            Err(ConvertError::NotEnoughCapacity)
+            Err(ConvertionError::NotEnoughCapacity)
         } else {
             let mut data = [I::ZERO; N];
             for i in 0..IArray::<I>::int_len(bv) {
@@ -771,7 +810,7 @@ impl<I: Integer, const N: usize> TryFrom<BV> for BVF<I, N>
 where
     u64: StaticCast<I>,
 {
-    type Error = ConvertError;
+    type Error = ConvertionError;
     fn try_from(bv: BV) -> Result<Self, Self::Error> {
         Self::try_from(&bv)
     }
@@ -810,7 +849,7 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
                     return;
                 }
                 let mut new_idx = self.length;
-                while new_idx - shift > 0 {
+                while new_idx > shift {
                     let l = (new_idx.wrapping_sub(1) % Self::BIT_UNIT + 1)
                             .min((new_idx - shift).wrapping_sub(1) % Self::BIT_UNIT + 1);
                     new_idx -= l;
@@ -1100,8 +1139,8 @@ macro_rules! impl_addsub_assign {
     };
 }
 
-impl_addsub_assign!(AddAssign, add_assign, carry_add);
-impl_addsub_assign!(SubAssign, sub_assign, carry_sub);
+impl_addsub_assign!(AddAssign, add_assign, cadd);
+impl_addsub_assign!(SubAssign, sub_assign, csub);
 
 // ------------------------------------------------------------------------------------------------
 // BVF - Arithmetic operators (general kind)
@@ -1152,18 +1191,12 @@ where
     fn mul(self, rhs: &BVF<I2, N2>) -> BVF<I1, N1> {
         let mut res = BVF::<I1, N1>::zeros(self.length);
         let len = IArray::<I1>::int_len(&res);
-        for i in 0..(len - 1) {
-            for j in 0..(i + 1) {
-                let c = self.data[i - j]
-                    .widening_mul(IArray::<I1>::get_int(rhs, j).unwrap_or(I1::ZERO));
-                let carry = res.data[i].carry_add(c.0, I1::ZERO);
-                res.data[i + 1].carry_add(c.1, carry);
+        for i in 0..len {
+            let mut carry = I1::ZERO;
+            for j in 0..(len - i) {
+                let product = self.data[i].wmul(IArray::<I1>::get_int(rhs, j).unwrap_or(I1::ZERO));
+                carry = res.data[i + j].cadd(product.0, carry) + product.1;
             }
-        }
-        for j in 0..len {
-            let c = self.data[len - 1 - j]
-                .widening_mul(IArray::<I1>::get_int(rhs, j).unwrap_or(I1::ZERO));
-            res.data[len - 1].carry_add(c.0, I1::ZERO);
         }
 
         res.mod2n(self.length);
@@ -1209,16 +1242,12 @@ where
     fn mul(self, rhs: &BVD) -> BVF<I, N> {
         let mut res = BVF::<I, N>::zeros(self.length);
         let len = IArray::<I>::int_len(&res);
-        for i in 0..(len - 1) {
-            for j in 0..(i + 1) {
-                let c = self.data[i - j].widening_mul(rhs.get_int(j).unwrap_or(I::ZERO));
-                let carry = res.data[i].carry_add(c.0, I::ZERO);
-                res.data[i + 1].carry_add(c.1, carry);
+        for i in 0..len {
+            let mut carry = I::ZERO;
+            for j in 0..(len - i) {
+                let product = self.data[i].wmul(IArray::<I>::get_int(rhs, j).unwrap_or(I::ZERO));
+                carry = res.data[i + j].cadd(product.0, carry) + product.1;
             }
-        }
-        for j in 0..len {
-            let c = self.data[len - 1 - j].widening_mul(rhs.get_int(j).unwrap_or(I::ZERO));
-            res.data[len - 1].carry_add(c.0, I::ZERO);
         }
 
         res.mod2n(self.length);

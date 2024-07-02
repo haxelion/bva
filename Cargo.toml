@@ -19,4 +19,5 @@ categories = ["data-structures", "encoding", "mathematics"]
 
 [dev-dependencies]
 
+num-bigint = "0.4.4"
 rand = "0.8.5"
