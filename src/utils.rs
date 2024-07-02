@@ -92,140 +92,145 @@ pub trait Integer:
     + SubAssign
     + Sized
     + StaticCast<u8>
+    + StaticCast<u16>
+    + StaticCast<u32>
     + StaticCast<u64>
+    + StaticCast<u128>
     + StaticCast<Self>
 {
-    fn carry_add(&mut self, rhs: Self, carry: Self) -> Self;
-    fn carry_sub(&mut self, rhs: Self, carry: Self) -> Self;
-    fn widening_mul(&self, rhs: Self) -> (Self, Self);
+    fn cadd(&mut self, rhs: Self, carry: Self) -> Self;
+    fn csub(&mut self, rhs: Self, carry: Self) -> Self;
+    fn wmul(&self, rhs: Self) -> (Self, Self);
 }
 
 impl Integer for u8 {
-    fn carry_add(&mut self, rhs: Self, carry: Self) -> Self {
+    fn cadd(&mut self, rhs: Self, carry: Self) -> Self {
         let (v1, c1) = self.overflowing_add(rhs);
         let (v2, c2) = v1.overflowing_add(carry);
         *self = v2;
-        (c1 || c2) as Self
+        c1 as Self + c2 as Self
     }
 
-    fn carry_sub(&mut self, rhs: Self, carry: Self) -> Self {
+    fn csub(&mut self, rhs: Self, carry: Self) -> Self {
         let (v1, c1) = self.overflowing_sub(rhs);
         let (v2, c2) = v1.overflowing_sub(carry);
         *self = v2;
-        (c1 || c2) as Self
+        c1 as Self + c2 as Self
     }
 
-    fn widening_mul(&self, rhs: Self) -> (Self, Self) {
+    fn wmul(&self, rhs: Self) -> (Self, Self) {
         let res = (*self as u16) * (rhs as u16);
         (res as Self, (res >> Self::BITS) as Self)
     }
 }
 
 impl Integer for u16 {
-    fn carry_add(&mut self, rhs: Self, carry: Self) -> Self {
+    fn cadd(&mut self, rhs: Self, carry: Self) -> Self {
         let (v1, c1) = self.overflowing_add(rhs);
         let (v2, c2) = v1.overflowing_add(carry);
         *self = v2;
-        (c1 || c2) as Self
+        c1 as Self + c2 as Self
     }
 
-    fn carry_sub(&mut self, rhs: Self, carry: Self) -> Self {
+    fn csub(&mut self, rhs: Self, carry: Self) -> Self {
         let (v1, c1) = self.overflowing_sub(rhs);
         let (v2, c2) = v1.overflowing_sub(carry);
         *self = v2;
-        (c1 || c2) as Self
+        c1 as Self + c2 as Self
     }
 
-    fn widening_mul(&self, rhs: Self) -> (Self, Self) {
+    fn wmul(&self, rhs: Self) -> (Self, Self) {
         let res = (*self as u32) * (rhs as u32);
         (res as Self, (res >> Self::BITS) as Self)
     }
 }
 
 impl Integer for u32 {
-    fn carry_add(&mut self, rhs: Self, carry: Self) -> Self {
+    fn cadd(&mut self, rhs: Self, carry: Self) -> Self {
         let (v1, c1) = self.overflowing_add(rhs);
         let (v2, c2) = v1.overflowing_add(carry);
         *self = v2;
-        (c1 || c2) as Self
+        c1 as Self + c2 as Self
     }
 
-    fn carry_sub(&mut self, rhs: Self, carry: Self) -> Self {
+    fn csub(&mut self, rhs: Self, carry: Self) -> Self {
         let (v1, c1) = self.overflowing_sub(rhs);
         let (v2, c2) = v1.overflowing_sub(carry);
         *self = v2;
-        (c1 || c2) as Self
+        c1 as Self + c2 as Self
     }
 
-    fn widening_mul(&self, rhs: Self) -> (Self, Self) {
+    fn wmul(&self, rhs: Self) -> (Self, Self) {
         let res = (*self as u64) * (rhs as u64);
         (res as Self, (res >> Self::BITS) as Self)
     }
 }
 
 impl Integer for u64 {
-    fn carry_add(&mut self, rhs: Self, carry: Self) -> Self {
+    fn cadd(&mut self, rhs: Self, carry: Self) -> Self {
         let (v1, c1) = self.overflowing_add(rhs);
         let (v2, c2) = v1.overflowing_add(carry);
         *self = v2;
-        (c1 || c2) as Self
+        c1 as Self + c2 as Self
     }
 
-    fn carry_sub(&mut self, rhs: Self, carry: Self) -> Self {
+    fn csub(&mut self, rhs: Self, carry: Self) -> Self {
         let (v1, c1) = self.overflowing_sub(rhs);
         let (v2, c2) = v1.overflowing_sub(carry);
         *self = v2;
-        (c1 || c2) as Self
+        c1 as Self + c2 as Self
     }
 
-    fn widening_mul(&self, rhs: Self) -> (Self, Self) {
+    fn wmul(&self, rhs: Self) -> (Self, Self) {
         let res = (*self as u128) * (rhs as u128);
         (res as Self, (res >> Self::BITS) as Self)
     }
 }
 
 impl Integer for usize {
-    fn carry_add(&mut self, rhs: Self, carry: Self) -> Self {
+    fn cadd(&mut self, rhs: Self, carry: Self) -> Self {
         let (v1, c1) = self.overflowing_add(rhs);
         let (v2, c2) = v1.overflowing_add(carry);
         *self = v2;
-        (c1 || c2) as Self
+        c1 as Self + c2 as Self
     }
 
-    fn carry_sub(&mut self, rhs: Self, carry: Self) -> Self {
+    fn csub(&mut self, rhs: Self, carry: Self) -> Self {
         let (v1, c1) = self.overflowing_sub(rhs);
         let (v2, c2) = v1.overflowing_sub(carry);
         *self = v2;
-        (c1 || c2) as Self
+        c1 as Self + c2 as Self
     }
 
-    fn widening_mul(&self, rhs: Self) -> (Self, Self) {
+    fn wmul(&self, rhs: Self) -> (Self, Self) {
         let res = (*self as u128) * (rhs as u128);
         (res as Self, (res >> Self::BITS) as Self)
     }
 }
 
 impl Integer for u128 {
-    fn carry_add(&mut self, rhs: Self, carry: Self) -> Self {
+    fn cadd(&mut self, rhs: Self, carry: Self) -> Self {
         let (v1, c1) = self.overflowing_add(rhs);
         let (v2, c2) = v1.overflowing_add(carry);
         *self = v2;
-        (c1 || c2) as Self
+        c1 as Self + c2 as Self
     }
 
-    fn carry_sub(&mut self, rhs: Self, carry: Self) -> Self {
+    fn csub(&mut self, rhs: Self, carry: Self) -> Self {
         let (v1, c1) = self.overflowing_sub(rhs);
         let (v2, c2) = v1.overflowing_sub(carry);
         *self = v2;
-        (c1 || c2) as Self
+        c1 as Self + c2 as Self
     }
 
-    fn widening_mul(&self, rhs: Self) -> (Self, Self) {
-        let a = self * rhs;
-        let b = (self >> 64) * rhs;
-        let c = self * (rhs >> 64);
-        let d = (self >> 64) * (rhs >> 64);
-        (d + (c >> 64) + (b >> 64), a)
+    fn wmul(&self, rhs: Self) -> (Self, Self) {
+        let mask = (1u128 << (Self::BITS / 2)) - 1;
+        let mut p0 = (self & mask).wrapping_mul(rhs & mask);
+        let p1 = (*self >> (Self::BITS / 2)).wrapping_mul(rhs & mask);
+        let p2 = (self & mask).wrapping_mul(rhs >> (Self::BITS / 2));
+        let p3 = (*self >> (Self::BITS / 2)).wrapping_mul(rhs >> (Self::BITS / 2));
+        let c = p0.cadd(p1 << 64, p2 << 64);
+        (p0, p3 + (p1 >> 64) + (p2 >> 64) + c)
     }
 }
 

@@ -3,6 +3,7 @@
 [![crates.io Version](https://img.shields.io/crates/v/bva.svg)](https://crates.io/crates/bva)
 [![Rayon documentation](https://img.shields.io/docsrs/bva/latest)](https://docs.rs/bva)
 ![Build Status](https://github.com/haxelion/bva/actions/workflows/ci.yaml/badge.svg)
+[![codecov](https://codecov.io/github/haxelion/bva/graph/badge.svg?token=UMXJD47JCY)](https://codecov.io/github/haxelion/bva)
 ![Minimum Rust 1.61](https://img.shields.io/badge/Rust-1.61+-red.svg)
 [![LICENSE](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 

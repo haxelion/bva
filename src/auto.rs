@@ -8,8 +8,7 @@
 //! application. It is designed for the case where most bit vector are expected to fit inside
 //! fixed capacity implementations but some outliers might not.
 
-use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
-use std::convert::{From, TryFrom};
+use std::cmp::Ordering;
 use std::fmt::{Binary, Display, LowerHex, Octal, UpperHex};
 
 use std::ops::{
@@ -23,7 +22,7 @@ use crate::fixed::{BV128, BV16, BV32, BV64, BV8, BVF};
 use crate::iter::BitIterator;
 use crate::utils::{IArray, IArrayMut, Integer, StaticCast};
 use crate::Bit;
-use crate::{BitVector, ConvertError, Endianness};
+use crate::{BitVector, ConvertionError, Endianness};
 
 // Choose a fixed BVF type which should match the size of BVD inside the enum
 #[cfg(target_pointer_width = "16")]
@@ -121,7 +120,7 @@ where
 impl BitVector for BV {
     fn with_capacity(capacity: usize) -> Self {
         if capacity <= BVP::capacity() {
-            BV::with_capacity(capacity)
+            BV::Fixed(BVP::with_capacity(capacity))
         } else {
             BV::Dynamic(BVD::with_capacity(capacity))
         }
@@ -143,7 +142,7 @@ impl BitVector for BV {
         }
     }
 
-    fn from_binary<S: AsRef<str>>(string: S) -> Result<Self, ConvertError> {
+    fn from_binary<S: AsRef<str>>(string: S) -> Result<Self, ConvertionError> {
         if string.as_ref().len() <= BVP::capacity() {
             Ok(BV::Fixed(BVP::from_binary(string)?))
         } else {
@@ -151,7 +150,7 @@ impl BitVector for BV {
         }
     }
 
-    fn from_hex<S: AsRef<str>>(string: S) -> Result<Self, ConvertError> {
+    fn from_hex<S: AsRef<str>>(string: S) -> Result<Self, ConvertionError> {
         if string.as_ref().len() * 4 <= BVP::capacity() {
             Ok(BV::Fixed(BVP::from_hex(string)?))
         } else {
@@ -159,7 +158,10 @@ impl BitVector for BV {
         }
     }
 
-    fn from_bytes<B: AsRef<[u8]>>(bytes: B, endianness: Endianness) -> Result<Self, ConvertError> {
+    fn from_bytes<B: AsRef<[u8]>>(
+        bytes: B,
+        endianness: Endianness,
+    ) -> Result<Self, ConvertionError> {
         if bytes.as_ref().len() * 8 <= BVP::capacity() {
             Ok(BV::Fixed(BVP::from_bytes(bytes, endianness)?))
         } else {
@@ -211,11 +213,11 @@ impl BitVector for BV {
         }
     }
 
-    fn copy_slice(&self, range: Range<usize>) -> Self {
+    fn copy_range(&self, range: Range<usize>) -> Self {
         match self {
-            BV::Fixed(b) => BV::Fixed(b.copy_slice(range)),
+            BV::Fixed(b) => BV::Fixed(b.copy_range(range)),
             BV::Dynamic(b) => {
-                let s = b.copy_slice(range);
+                let s = b.copy_range(range);
                 if s.len() <= BVP::capacity() {
                     BV::Fixed(BVP::try_from(s).unwrap())
                 } else {
@@ -275,6 +277,13 @@ impl BitVector for BV {
         match self {
             BV::Fixed(b) => b.rotr(rot),
             BV::Dynamic(b) => b.rotr(rot),
+        }
+    }
+
+    fn capacity(&self) -> usize {
+        match self {
+            BV::Fixed(_) => BVP::capacity(),
+            BV::Dynamic(b) => b.capacity(),
         }
     }
 
@@ -502,7 +511,7 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
 
         impl TryFrom<&BV> for $type
         {
-            type Error = ConvertError;
+            type Error = ConvertionError;
             fn try_from(bv: &BV) -> Result<Self, Self::Error> {
                 match bv {
                     BV::Fixed(b) => Ok(b.try_into()?),
@@ -513,7 +522,7 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
 
         impl TryFrom<BV> for $type
         {
-            type Error = ConvertError;
+            type Error = ConvertionError;
             fn try_from(bv: BV) -> Result<Self, Self::Error> {
                 Self::try_from(&bv)
             }

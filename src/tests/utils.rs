@@ -54,10 +54,8 @@ fn istream_len() {
 
 fn istream_get_set_inner<I1: Integer, I2: Integer, const N1: usize>()
 where
-    I1: StaticCast<I1>,
-    I1: StaticCast<I2>,
-    I2: StaticCast<I1>,
-    I2: StaticCast<usize>,
+    I1: Integer + StaticCast<I1> + StaticCast<I2>,
+    I2: Integer + StaticCast<I1> + StaticCast<usize>,
 {
     let mut array = [I1::ZERO; N1];
     for i in 0..IArray::<I2>::int_len(array.as_ref()) {

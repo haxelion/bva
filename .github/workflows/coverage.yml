@@ -1,36 +1,23 @@
-name: Code coverage
+name: coverage
 
-on: workflow_dispatch
-
-env:
-  CARGO_TERM_COLOR: always
-
+on: [push]
 jobs:
-  coverage:
-    name: Run tests and generate coverage report
+  test:
+    name: coverage
     runs-on: ubuntu-latest
+    container:
+      image: xd009642/tarpaulin:develop-nightly
+      options: --security-opt seccomp=unconfined
     steps:
-    - uses: actions/checkout@v4
-    - name: Install rust nighlty toolchain and llvm tools
-      run: |
-        rustup toolchain install nightly
-        rustup default nightly
-        rustup component add llvm-tools
-        cargo install cargo-binutils
-    - name: Compile and run instrumented tests
-      run: RUSTFLAGS="-C instrument-coverage" cargo test
-    - name: Merge coverage data
-      run: rust-profdata merge -sparse $(ls *.profraw) -o tests_coverage.profdata
-    - name: Generate coverage report
-      run: |
-        rust-cov report --use-color --ignore-filename-regex="/.cargo/registry" --ignore-filename-regex="tests/"  --ignore-filename-regex="library/std/src/" --instr-profile=tests_coverage.profdata $( \
-          for file in \
-            $( \
-               RUSTFLAGS="-C instrument-coverage" \
-               cargo test --no-run --message-format=json \
-                | jq -r "select(.profile.test == true) | .filenames[]" \
-                | grep -v dSYM - \
-            ); \
-          do \
-            printf "%s %s " -object $file; \
-          done )
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Generate code coverage
+        run: |
+          cargo +nightly tarpaulin --verbose --all-features --out xml
+
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v2
+        with:
+          token: ${{secrets.CODECOV_TOKEN}}
+          fail_ci_if_error: true

@@ -5,7 +5,6 @@
 //! a reallocation of the internal array.
 
 use std::cmp::Ordering;
-use std::convert::{From, TryFrom};
 use std::fmt;
 use std::io::{Read, Write};
 use std::iter::repeat;
@@ -19,7 +18,7 @@ use crate::auto::BV;
 use crate::fixed::{BV128, BVF};
 use crate::iter::BitIterator;
 use crate::utils::{IArray, IArrayMut, Integer, StaticCast};
-use crate::{Bit, BitVector, ConvertError, Endianness};
+use crate::{Bit, BitVector, ConvertionError, Endianness};
 
 // ------------------------------------------------------------------------------------------------
 // Bit Vector Dynamic allocation implementation
@@ -35,7 +34,6 @@ pub struct BVD {
 impl BVD {
     const BYTE_UNIT: usize = size_of::<u64>();
     const NIBBLE_UNIT: usize = size_of::<u64>() * 2;
-    const SEMI_NIBBLE_UNIT: usize = size_of::<u64>() * 4;
     const BIT_UNIT: usize = u64::BITS as usize;
 
     fn capacity_from_byte_len(byte_length: usize) -> usize {
@@ -159,7 +157,7 @@ impl BitVector for BVD {
         }
     }
 
-    fn from_binary<S: AsRef<str>>(string: S) -> Result<Self, ConvertError> {
+    fn from_binary<S: AsRef<str>>(string: S) -> Result<Self, ConvertionError> {
         let length = string.as_ref().chars().count();
         let offset = (Self::BIT_UNIT - length % Self::BIT_UNIT) % Self::BIT_UNIT;
         let mut data: Vec<u64> = repeat(0)
@@ -172,7 +170,7 @@ impl BitVector for BVD {
                 | match c {
                     '0' => 0,
                     '1' => 1,
-                    _ => return Err(ConvertError::InvalidFormat(i)),
+                    _ => return Err(ConvertionError::InvalidFormat(i)),
                 };
         }
         Ok(Self {
@@ -181,7 +179,7 @@ impl BitVector for BVD {
         })
     }
 
-    fn from_hex<S: AsRef<str>>(string: S) -> Result<Self, ConvertError> {
+    fn from_hex<S: AsRef<str>>(string: S) -> Result<Self, ConvertionError> {
         let length = string.as_ref().chars().count();
         let offset = (Self::NIBBLE_UNIT - length % Self::NIBBLE_UNIT) % Self::NIBBLE_UNIT;
         let mut data: Vec<u64> = repeat(0)
@@ -193,7 +191,7 @@ impl BitVector for BVD {
             data[j] = (data[j] << 4)
                 | match c.to_digit(16) {
                     Some(d) => d as u64,
-                    None => return Err(ConvertError::InvalidFormat(i)),
+                    None => return Err(ConvertionError::InvalidFormat(i)),
                 };
         }
         Ok(Self {
@@ -202,7 +200,10 @@ impl BitVector for BVD {
         })
     }
 
-    fn from_bytes<B: AsRef<[u8]>>(bytes: B, endianness: Endianness) -> Result<Self, ConvertError> {
+    fn from_bytes<B: AsRef<[u8]>>(
+        bytes: B,
+        endianness: Endianness,
+    ) -> Result<Self, ConvertionError> {
         let byte_length = bytes.as_ref().len();
         let mut data: Vec<u64> = repeat(0)
             .take(Self::capacity_from_byte_len(byte_length))
@@ -283,7 +284,7 @@ impl BitVector for BVD {
             | ((bit as u64) << (index % Self::BIT_UNIT));
     }
 
-    fn copy_slice(&self, range: Range<usize>) -> Self {
+    fn copy_range(&self, range: Range<usize>) -> Self {
         debug_assert!(range.start < self.len() && range.end <= self.len());
         let length = range.end - usize::min(range.start, range.end);
         let mut data: Vec<u64> = repeat(0)
@@ -425,6 +426,10 @@ impl BitVector for BVD {
         self.data = new_data.into_boxed_slice();
     }
 
+    fn capacity(&self) -> usize {
+        self.data.len() * Self::BIT_UNIT
+    }
+
     fn len(&self) -> usize {
         self.length
     }
@@ -462,18 +467,26 @@ impl FromIterator<Bit> for BVD {
 
 impl fmt::Binary for BVD {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut i = self.length;
+
+        // Skip trailling 0
+        while i > 0 && self.get(i - 1) == Bit::Zero {
+            i -= 1;
+        }
+
         let mut s = String::with_capacity(self.length);
-        for i in (0..self.length).rev() {
-            match self.get(i) {
+        while i > 0 {
+            match self.get(i - 1) {
                 Bit::Zero => s.push('0'),
                 Bit::One => s.push('1'),
             }
+            i -= 1;
         }
-        if f.alternate() {
-            write!(f, "0b{}", s.as_str())
-        } else {
-            write!(f, "{}", s.as_str())
+        if s.is_empty() {
+            s.push('0');
         }
+
+        f.pad_integral(true, "0b", &s)
     }
 }
 
@@ -493,19 +506,25 @@ impl fmt::Octal for BVD {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         const SEMI_NIBBLE: [char; 8] = ['0', '1', '2', '3', '4', '5', '6', '7'];
         let length = (self.length + 2) / 3;
-        let mut s = String::with_capacity(length);
-        for i in (0..length).rev() {
-            s.push(
-                SEMI_NIBBLE[(self.data[i / Self::SEMI_NIBBLE_UNIT]
-                    >> ((i % Self::SEMI_NIBBLE_UNIT) * 4)
-                    & 0x7) as usize],
-            );
+        let mut s = Vec::<char>::with_capacity(length);
+        let mut it = self.iter();
+        let mut last_nz = 0;
+
+        while let Some(b0) = it.next() {
+            let b1 = it.next().unwrap_or(Bit::Zero);
+            let b2 = it.next().unwrap_or(Bit::Zero);
+            let octet = (b2 as u8) << 2 | (b1 as u8) << 1 | b0 as u8;
+            if octet != 0 {
+                last_nz = s.len();
+            }
+            s.push(SEMI_NIBBLE[octet as usize]);
         }
-        if f.alternate() {
-            write!(f, "0x{}", s.as_str())
-        } else {
-            write!(f, "{}", s.as_str())
+        if s.is_empty() {
+            s.push('0');
         }
+        s.truncate(last_nz + 1);
+
+        f.pad_integral(true, "0o", s.iter().rev().collect::<String>().as_str())
     }
 }
 
@@ -514,19 +533,31 @@ impl fmt::LowerHex for BVD {
         const NIBBLE: [char; 16] = [
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
         ];
-        let length = (self.length + 3) / 4;
-        let mut s = String::with_capacity(length);
-        for i in (0..length).rev() {
-            s.push(
-                NIBBLE[(self.data[i / Self::NIBBLE_UNIT] >> ((i % Self::NIBBLE_UNIT) * 4) & 0xf)
-                    as usize],
-            );
+        let mut i = (self.length + 3) / 4;
+
+        // Skip trailling 0
+        while i > 0
+            && StaticCast::<u8>::cast_to(
+                self.data[(i - 1) / Self::NIBBLE_UNIT] >> (((i - 1) % Self::NIBBLE_UNIT) * 4),
+            ) & 0xf
+                == 0
+        {
+            i -= 1;
         }
-        if f.alternate() {
-            write!(f, "0x{}", s.as_str())
-        } else {
-            write!(f, "{}", s.as_str())
+
+        let mut s = String::with_capacity(i);
+        while i > 0 {
+            let nibble = StaticCast::<u8>::cast_to(
+                self.data[(i - 1) / Self::NIBBLE_UNIT] >> (((i - 1) % Self::NIBBLE_UNIT) * 4),
+            ) & 0xf;
+            s.push(NIBBLE[nibble as usize]);
+            i -= 1;
         }
+        if s.is_empty() {
+            s.push('0');
+        }
+
+        f.pad_integral(true, "0x", &s)
     }
 }
 
@@ -535,19 +566,29 @@ impl fmt::UpperHex for BVD {
         const NIBBLE: [char; 16] = [
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
         ];
-        let length = (self.length + 3) / 4;
-        let mut s = String::with_capacity(length);
-        for i in (0..length).rev() {
-            s.push(
-                NIBBLE[(self.data[i / Self::NIBBLE_UNIT] >> ((i % Self::NIBBLE_UNIT) * 4) & 0xf)
-                    as usize],
-            );
+        let mut i = (self.length + 3) / 4;
+        let mut s = String::with_capacity(i);
+
+        while i > 0
+            && StaticCast::<u8>::cast_to(
+                self.data[(i - 1) / Self::NIBBLE_UNIT] >> (((i - 1) % Self::NIBBLE_UNIT) * 4),
+            ) & 0xf
+                == 0
+        {
+            i -= 1;
         }
-        if f.alternate() {
-            write!(f, "0x{}", s.as_str())
-        } else {
-            write!(f, "{}", s.as_str())
+        while i > 0 {
+            let nibble = StaticCast::<u8>::cast_to(
+                self.data[(i - 1) / Self::NIBBLE_UNIT] >> (((i - 1) % Self::NIBBLE_UNIT) * 4),
+            ) & 0xf;
+            s.push(NIBBLE[nibble as usize]);
+            i -= 1;
         }
+        if s.is_empty() {
+            s.push('0');
+        }
+
+        f.pad_integral(true, "0x", &s)
     }
 }
 
@@ -648,11 +689,11 @@ macro_rules! impl_from_ints {($($st:ty),+) => {
         }
 
         impl TryFrom<&BVD> for $st {
-            type Error = ConvertError;
+            type Error = ConvertionError;
             #[allow(arithmetic_overflow)]
             fn try_from(bvd: &BVD) -> Result<Self, Self::Error> {
                 if bvd.length > <$st>::BITS as usize {
-                    return Err(ConvertError::NotEnoughCapacity);
+                    return Err(ConvertionError::NotEnoughCapacity);
                 }
                 else {
                     let mut r: $st = 0;
@@ -665,7 +706,7 @@ macro_rules! impl_from_ints {($($st:ty),+) => {
         }
 
         impl TryFrom<BVD> for $st {
-            type Error = ConvertError;
+            type Error = ConvertionError;
             fn try_from(bvd: BVD) -> Result<Self, Self::Error> {
                 <$st>::try_from(&bvd)
             }
@@ -753,7 +794,7 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
                     return;
                 }
                 let mut new_idx = self.length;
-                while new_idx - shift > 0 {
+                while new_idx > shift {
                     let l = (new_idx.wrapping_sub(1) % Self::BIT_UNIT + 1)
                             .min((new_idx - shift).wrapping_sub(1) % Self::BIT_UNIT + 1);
                     new_idx -= l;
@@ -798,7 +839,7 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
                 let shift = usize::try_from(rhs).map_or(0, |s| s);
                 let mut new_data: Vec<u64> = repeat(0).take(BVD::capacity_from_bit_len(self.length)).collect();
                 let mut new_idx = self.length;
-                while new_idx - shift > 0 {
+                while new_idx > shift {
                     let l = (new_idx.wrapping_sub(1) % BVD::BIT_UNIT + 1)
                             .min((new_idx - shift).wrapping_sub(1) % BVD::BIT_UNIT + 1);
                     new_idx -= l;
@@ -1081,17 +1122,15 @@ impl Mul<&BVD> for &BVD {
     fn mul(self, rhs: &BVD) -> BVD {
         let mut res = BVD::zeros(self.length);
         let len = BVD::capacity_from_bit_len(res.length);
-        for i in 0..(len - 1) {
-            for j in 0..(i + 1) {
-                let c = self.data[i - j].widening_mul(*rhs.data.get(j).unwrap_or(&0));
-                let carry = res.data[i].carry_add(c.0, 0);
-                res.data[i + 1].carry_add(c.1, carry);
+
+        for i in 0..len {
+            let mut carry = 0;
+            for j in 0..(len - i) {
+                let product = self.data[i].wmul(*rhs.data.get(j).unwrap_or(&0));
+                carry = res.data[i + j].cadd(product.0, carry) + product.1;
             }
         }
-        for j in 0..len {
-            let c = self.data[len - 1 - j].widening_mul(*rhs.data.get(j).unwrap_or(&0));
-            res.data[len - 1].carry_add(c.0, 0);
-        }
+
         if let Some(l) = res.data.get_mut(res.length / BVD::BIT_UNIT) {
             *l &= BVD::mask(res.length % BVD::BIT_UNIT);
         }
@@ -1126,18 +1165,15 @@ impl<I: Integer, const N: usize> Mul<&BVF<I, N>> for &BVD {
     fn mul(self, rhs: &BVF<I, N>) -> BVD {
         let mut res = BVD::zeros(self.length);
         let len = IArray::<u64>::int_len(&res);
-        for i in 0..(len - 1) {
-            for j in 0..(i + 1) {
-                let c = self.data[i - j].widening_mul(IArray::<u64>::get_int(rhs, j).unwrap_or(0));
-                let carry = res.data[i].carry_add(c.0, 0);
-                res.data[i + 1].carry_add(c.1, carry);
+
+        for i in 0..len {
+            let mut carry = 0;
+            for j in 0..(len - i) {
+                let product = self.data[i].wmul(IArray::<u64>::get_int(rhs, j).unwrap_or(0));
+                carry = res.data[i + j].cadd(product.0, carry) + product.1;
             }
         }
-        for j in 0..len {
-            let c =
-                self.data[len - 1 - j].widening_mul(IArray::<u64>::get_int(rhs, j).unwrap_or(0));
-            res.data[len - 1].carry_add(c.0, 0);
-        }
+
         if let Some(l) = res.data.get_mut(res.length / BVD::BIT_UNIT) {
             *l &= BVD::mask(res.length % BVD::BIT_UNIT);
         }
