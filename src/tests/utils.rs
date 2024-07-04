@@ -1,4 +1,7 @@
+use num_bigint::{BigInt, ToBigInt, ToBigUint};
 use std::mem::size_of;
+
+use rand::{thread_rng, Rng};
 
 use crate::utils::{IArray, IArrayMut, Integer, StaticCast};
 
@@ -75,4 +78,94 @@ where
 #[test]
 fn istream_get_set() {
     test_type_combination!(istream_get_set_inner, {u8, u16, u32, u64, u128, usize}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+}
+
+fn integer_cadd_inner<I: Integer + ToBigUint>() {
+    let mut rng = thread_rng();
+    for _ in 0..100 {
+        let a = I::cast_from(rng.gen::<u128>());
+        let b = I::cast_from(rng.gen::<u128>());
+        let c = I::cast_from(rng.gen::<bool>() as u8);
+        let mut res = a;
+        let carry = res.cadd(b, c);
+
+        let sum = a.to_biguint().unwrap() + b.to_biguint().unwrap() + c.to_biguint().unwrap();
+        if sum <= I::MAX.to_biguint().unwrap() {
+            assert_eq!(res.to_biguint().unwrap(), sum);
+            assert_eq!(carry, I::ZERO);
+        } else {
+            assert_eq!(
+                res.to_biguint().unwrap(),
+                &sum - (I::MAX.to_biguint().unwrap() + 1u32)
+            );
+            assert_eq!(carry, I::ONE);
+        }
+    }
+}
+
+#[test]
+fn integer_cadd() {
+    integer_cadd_inner::<u8>();
+    integer_cadd_inner::<u16>();
+    integer_cadd_inner::<u32>();
+    integer_cadd_inner::<u64>();
+    integer_cadd_inner::<u128>();
+    integer_cadd_inner::<usize>();
+}
+
+fn integer_csub_inner<I: Integer + ToBigInt>() {
+    let mut rng = thread_rng();
+    for _ in 0..100 {
+        let a = I::cast_from(rng.gen::<u128>());
+        let b = I::cast_from(rng.gen::<u128>());
+        let c = I::cast_from(rng.gen::<bool>() as u8);
+        let mut res = a;
+        let carry = res.csub(b, c);
+
+        let diff = a.to_bigint().unwrap() - b.to_bigint().unwrap() - c.to_bigint().unwrap();
+        if &diff >= &BigInt::ZERO {
+            assert_eq!(res.to_bigint().unwrap(), diff);
+            assert_eq!(carry, I::ZERO);
+        } else {
+            assert_eq!(
+                res.to_bigint().unwrap(),
+                &diff + (I::MAX.to_bigint().unwrap() + 1u32)
+            );
+            assert_eq!(carry, I::ONE);
+        }
+    }
+}
+
+#[test]
+fn integer_csub() {
+    integer_csub_inner::<u8>();
+    integer_csub_inner::<u16>();
+    integer_csub_inner::<u32>();
+    integer_csub_inner::<u64>();
+    integer_csub_inner::<usize>();
+}
+
+fn integer_wmul_inner<I: Integer + ToBigUint>() {
+    let mut rng = thread_rng();
+    for _ in 0..100 {
+        let a = I::cast_from(rng.gen::<u128>());
+        let b = I::cast_from(rng.gen::<u128>());
+        let (low, high) = a.wmul(b);
+
+        let prod = a.to_biguint().unwrap() * b.to_biguint().unwrap();
+        assert_eq!(high.to_biguint().unwrap(), &prod >> (size_of::<I>() * 8));
+        assert_eq!(
+            low.to_biguint().unwrap(),
+            &prod % (I::MAX.to_biguint().unwrap() + 1u32)
+        );
+    }
+}
+
+#[test]
+fn integer_wmul() {
+    integer_wmul_inner::<u8>();
+    integer_wmul_inner::<u16>();
+    integer_wmul_inner::<u32>();
+    integer_wmul_inner::<u64>();
+    integer_wmul_inner::<usize>();
 }
