@@ -101,6 +101,10 @@ pub trait Integer:
     fn cadd(&mut self, rhs: Self, carry: Self) -> Self;
     fn csub(&mut self, rhs: Self, carry: Self) -> Self;
     fn wmul(&self, rhs: Self) -> (Self, Self);
+    fn leading_zeros(&self) -> usize;
+    fn leading_ones(&self) -> usize;
+    fn trailing_zeros(&self) -> usize;
+    fn trailing_ones(&self) -> usize;
 }
 
 impl Integer for u8 {
@@ -121,6 +125,22 @@ impl Integer for u8 {
     fn wmul(&self, rhs: Self) -> (Self, Self) {
         let res = (*self as u16) * (rhs as u16);
         (res as Self, (res >> Self::BITS) as Self)
+    }
+
+    fn leading_zeros(&self) -> usize {
+        u8::leading_zeros(*self) as usize
+    }
+
+    fn leading_ones(&self) -> usize {
+        u8::leading_ones(*self) as usize
+    }
+
+    fn trailing_zeros(&self) -> usize {
+        u8::trailing_zeros(*self) as usize
+    }
+
+    fn trailing_ones(&self) -> usize {
+        u8::trailing_ones(*self) as usize
     }
 }
 
@@ -143,6 +163,22 @@ impl Integer for u16 {
         let res = (*self as u32) * (rhs as u32);
         (res as Self, (res >> Self::BITS) as Self)
     }
+
+    fn leading_zeros(&self) -> usize {
+        u16::leading_zeros(*self) as usize
+    }
+
+    fn leading_ones(&self) -> usize {
+        u16::leading_ones(*self) as usize
+    }
+
+    fn trailing_zeros(&self) -> usize {
+        u16::trailing_zeros(*self) as usize
+    }
+
+    fn trailing_ones(&self) -> usize {
+        u16::trailing_ones(*self) as usize
+    }
 }
 
 impl Integer for u32 {
@@ -163,6 +199,22 @@ impl Integer for u32 {
     fn wmul(&self, rhs: Self) -> (Self, Self) {
         let res = (*self as u64) * (rhs as u64);
         (res as Self, (res >> Self::BITS) as Self)
+    }
+
+    fn leading_zeros(&self) -> usize {
+        u32::leading_zeros(*self) as usize
+    }
+
+    fn leading_ones(&self) -> usize {
+        u32::leading_ones(*self) as usize
+    }
+
+    fn trailing_zeros(&self) -> usize {
+        u32::trailing_zeros(*self) as usize
+    }
+
+    fn trailing_ones(&self) -> usize {
+        u32::trailing_ones(*self) as usize
     }
 }
 
@@ -185,6 +237,22 @@ impl Integer for u64 {
         let res = (*self as u128) * (rhs as u128);
         (res as Self, (res >> Self::BITS) as Self)
     }
+
+    fn leading_zeros(&self) -> usize {
+        u64::leading_zeros(*self) as usize
+    }
+
+    fn leading_ones(&self) -> usize {
+        u64::leading_ones(*self) as usize
+    }
+
+    fn trailing_zeros(&self) -> usize {
+        u64::trailing_zeros(*self) as usize
+    }
+
+    fn trailing_ones(&self) -> usize {
+        u64::trailing_ones(*self) as usize
+    }
 }
 
 impl Integer for usize {
@@ -205,6 +273,22 @@ impl Integer for usize {
     fn wmul(&self, rhs: Self) -> (Self, Self) {
         let res = (*self as u128) * (rhs as u128);
         (res as Self, (res >> Self::BITS) as Self)
+    }
+
+    fn leading_zeros(&self) -> usize {
+        usize::leading_zeros(*self) as usize
+    }
+
+    fn leading_ones(&self) -> usize {
+        usize::leading_ones(*self) as usize
+    }
+
+    fn trailing_zeros(&self) -> usize {
+        usize::trailing_zeros(*self) as usize
+    }
+
+    fn trailing_ones(&self) -> usize {
+        usize::trailing_ones(*self) as usize
     }
 }
 
@@ -231,6 +315,22 @@ impl Integer for u128 {
         let p3 = (*self >> (Self::BITS / 2)).wrapping_mul(rhs >> (Self::BITS / 2));
         let c = p0.cadd(p1 << 64, p2 << 64);
         (p0, p3 + (p1 >> 64) + (p2 >> 64) + c)
+    }
+
+    fn leading_zeros(&self) -> usize {
+        u128::leading_zeros(*self) as usize
+    }
+
+    fn leading_ones(&self) -> usize {
+        u128::leading_ones(*self) as usize
+    }
+
+    fn trailing_zeros(&self) -> usize {
+        u128::trailing_zeros(*self) as usize
+    }
+
+    fn trailing_ones(&self) -> usize {
+        u128::trailing_ones(*self) as usize
     }
 }
 

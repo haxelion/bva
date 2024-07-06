@@ -297,6 +297,41 @@ impl BitVector for BV {
     fn iter(&self) -> BitIterator<'_, Self> {
         self.into_iter()
     }
+
+    fn leading_zeros(&self) -> usize {
+        match self {
+            BV::Fixed(b) => b.leading_zeros(),
+            BV::Dynamic(b) => b.leading_zeros(),
+        }
+    }
+
+    fn leading_ones(&self) -> usize {
+        match self {
+            BV::Fixed(b) => b.leading_ones(),
+            BV::Dynamic(b) => b.leading_ones(),
+        }
+    }
+
+    fn trailing_zeros(&self) -> usize {
+        match self {
+            BV::Fixed(b) => b.trailing_zeros(),
+            BV::Dynamic(b) => b.trailing_zeros(),
+        }
+    }
+
+    fn trailing_ones(&self) -> usize {
+        match self {
+            BV::Fixed(b) => b.trailing_ones(),
+            BV::Dynamic(b) => b.trailing_ones(),
+        }
+    }
+
+    fn is_zero(&self) -> bool {
+        match self {
+            BV::Fixed(b) => b.is_zero(),
+            BV::Dynamic(b) => b.is_zero(),
+        }
+    }
 }
 
 // ------------------------------------------------------------------------------------------------

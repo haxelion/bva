@@ -169,3 +169,13 @@ fn integer_wmul() {
     integer_wmul_inner::<u64>();
     integer_wmul_inner::<usize>();
 }
+
+#[test]
+fn integer_etc() {
+    let mut rng = thread_rng();
+    let a = rng.gen::<usize>();
+    assert_eq!(Integer::leading_zeros(&a), a.leading_zeros() as usize);
+    assert_eq!(Integer::leading_ones(&a), a.leading_ones() as usize);
+    assert_eq!(Integer::trailing_zeros(&a), a.trailing_zeros() as usize);
+    assert_eq!(Integer::trailing_ones(&a), a.trailing_ones() as usize);
+}

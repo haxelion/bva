@@ -422,6 +422,165 @@ fn rotr_bv() {
     rotr_inner::<BV>(256);
 }
 
+fn leading_zeros_inner<B: BitVector>(max_capacity: usize) {
+    let mut rng = thread_rng();
+    assert_eq!(B::zeros(0).leading_zeros(), 0);
+    for capacity in 1..max_capacity {
+        let split = rng.gen_range(0..capacity);
+        let mut bv = B::ones(split);
+        bv.resize(capacity, Bit::Zero);
+        assert_eq!(bv.leading_zeros(), capacity - split);
+    }
+}
+
+#[test]
+fn leading_zeros_bvf() {
+    bvf_inner_unroll_cap!(leading_zeros_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
+}
+
+#[test]
+fn leading_zeros_bvd() {
+    leading_zeros_inner::<BVD>(256);
+}
+
+#[test]
+fn leading_zeros_bv() {
+    leading_zeros_inner::<BV>(256);
+}
+
+fn leading_ones<B: BitVector>(max_capacity: usize) {
+    let mut rng = thread_rng();
+    assert_eq!(B::zeros(0).leading_ones(), 0);
+    for capacity in 1..max_capacity {
+        let split = rng.gen_range(0..capacity);
+        let mut bv = B::zeros(split);
+        bv.resize(capacity, Bit::One);
+        assert_eq!(bv.leading_ones(), capacity - split);
+    }
+}
+
+#[test]
+fn leading_ones_bvf() {
+    bvf_inner_unroll_cap!(leading_ones, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
+}
+
+#[test]
+fn leading_ones_bvd() {
+    leading_ones::<BVD>(256);
+}
+
+#[test]
+fn leading_ones_bv() {
+    leading_ones::<BV>(256);
+}
+
+fn trailing_zeros_inner<B: BitVector>(max_capacity: usize) {
+    let mut rng = thread_rng();
+    assert_eq!(B::zeros(0).trailing_zeros(), 0);
+    for capacity in 1..max_capacity {
+        let split = rng.gen_range(0..capacity);
+        let mut bv = B::zeros(split);
+        bv.resize(capacity, Bit::One);
+        assert_eq!(bv.trailing_zeros(), split);
+    }
+}
+
+#[test]
+fn trailing_zeros_bvf() {
+    bvf_inner_unroll_cap!(trailing_zeros_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
+}
+
+#[test]
+fn trailing_zeros_bvd() {
+    trailing_zeros_inner::<BVD>(256);
+}
+
+#[test]
+fn trailing_zeros_bv() {
+    trailing_zeros_inner::<BV>(256);
+}
+
+fn trailing_ones<B: BitVector>(max_capacity: usize) {
+    let mut rng = thread_rng();
+    assert_eq!(B::zeros(0).trailing_ones(), 0);
+    for capacity in 1..max_capacity {
+        let split = rng.gen_range(0..capacity);
+        let mut bv = B::ones(split);
+        bv.resize(capacity, Bit::Zero);
+        assert_eq!(bv.trailing_ones(), split);
+    }
+}
+
+#[test]
+fn trailing_ones_bvf() {
+    bvf_inner_unroll_cap!(trailing_ones, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
+}
+
+#[test]
+fn trailing_ones_bvd() {
+    trailing_ones::<BVD>(256);
+}
+
+#[test]
+fn trailing_ones_bv() {
+    trailing_ones::<BV>(256);
+}
+
+fn significant_bits_inner<B: BitVector>(max_capacity: usize) {
+    for capacity in 0..max_capacity {
+        let bv = random_bv::<B>(capacity);
+        assert_eq!(
+            bv.copy_range(bv.significant_bits()..bv.len()),
+            B::zeros(bv.len() - bv.significant_bits())
+        );
+        if bv.significant_bits() != 0 {
+            assert_ne!(
+                bv.copy_range(0..bv.significant_bits()),
+                B::zeros(bv.significant_bits())
+            );
+        }
+    }
+}
+
+#[test]
+fn significant_bits_bvf() {
+    bvf_inner_unroll_cap!(significant_bits_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
+}
+
+#[test]
+fn significant_bits_bvd() {
+    significant_bits_inner::<BVD>(256);
+}
+
+#[test]
+fn significant_bits_bv() {
+    significant_bits_inner::<BV>(256);
+}
+
+fn is_zero_inner<B: BitVector>(max_capacity: usize) {
+    for capacity in 1..max_capacity {
+        let bv = B::zeros(capacity);
+        assert!(bv.is_zero());
+        let bv = B::ones(capacity);
+        assert!(!bv.is_zero());
+    }
+}
+
+#[test]
+fn is_zero_bvf() {
+    bvf_inner_unroll_cap!(is_zero_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
+}
+
+#[test]
+fn is_zero_bvd() {
+    is_zero_inner::<BVD>(256);
+}
+
+#[test]
+fn is_zero_bv() {
+    is_zero_inner::<BV>(256);
+}
+
 fn is_empty_inner<B: BitVector>() {
     let bv = B::zeros(0);
     assert!(bv.is_empty());
