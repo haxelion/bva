@@ -50,7 +50,6 @@ impl<I: Integer, const N: usize> BVF<I, N> {
     }
 
     fn mask(length: usize) -> I {
-        // Re-implementation of checked_shr since we don't have a generic trait for it.
         if length == 0 {
             I::ZERO
         } else {
@@ -277,7 +276,7 @@ where
     }
 
     fn copy_range(&self, range: Range<usize>) -> Self {
-        debug_assert!(range.start < self.len() && range.end <= self.len());
+        debug_assert!(range.start <= self.len() && range.end <= self.len());
         let length = range.end - usize::min(range.start, range.end);
         let mut data = [I::ZERO; N];
         let offset = range.start / Self::BIT_UNIT;
@@ -428,6 +427,80 @@ where
 
     fn iter(&self) -> BitIterator<'_, Self> {
         self.into_iter()
+    }
+
+    fn leading_zeros(&self) -> usize {
+        let mut count = 0;
+        let mut i = Self::capacity_from_bit_len(self.length);
+        if i > 0 {
+            let lastbit = (self.length - 1) % Self::BIT_UNIT + 1;
+            let mut v = self.data[i - 1] & Self::mask(lastbit);
+            count = v.leading_zeros() - (Self::BIT_UNIT - lastbit);
+            i -= 1;
+            while v == I::ZERO && i > 0 {
+                v = self.data[i - 1];
+                count += v.leading_zeros();
+                i -= 1;
+            }
+        }
+        count
+    }
+
+    fn leading_ones(&self) -> usize {
+        let mut count = 0;
+        let mut i = Self::capacity_from_bit_len(self.length);
+        if i > 0 {
+            let lastbit = (self.length - 1) % Self::BIT_UNIT + 1;
+            let mut v = self.data[i - 1] | !Self::mask(lastbit);
+            count = v.leading_ones() - (Self::BIT_UNIT - lastbit);
+            i -= 1;
+            while v == I::MAX && i > 0 {
+                v = self.data[i - 1];
+                count += v.leading_ones();
+                i -= 1;
+            }
+        }
+        count
+    }
+
+    fn trailing_zeros(&self) -> usize {
+        let mut count = 0;
+        let mut i = 0;
+        if i < Self::capacity_from_bit_len(self.length) {
+            let mut v = I::ZERO;
+            while v == I::ZERO && i < Self::capacity_from_bit_len(self.length) - 1 {
+                v = self.data[i];
+                count += v.trailing_zeros();
+                i += 1;
+            }
+            if v == I::ZERO {
+                let lastbit = (self.length - 1) % Self::BIT_UNIT + 1;
+                count += usize::min(self.data[i].trailing_zeros(), lastbit);
+            }
+        }
+        count
+    }
+
+    fn trailing_ones(&self) -> usize {
+        let mut count = 0;
+        let mut i = 0;
+        if i < Self::capacity_from_bit_len(self.length) {
+            let mut v = I::MAX;
+            while v == I::MAX && i < Self::capacity_from_bit_len(self.length) - 1 {
+                v = self.data[i];
+                count += v.trailing_ones();
+                i += 1;
+            }
+            if v == I::MAX {
+                let lastbit = (self.length - 1) % Self::BIT_UNIT + 1;
+                count += usize::min(self.data[i].trailing_ones(), lastbit);
+            }
+        }
+        count
+    }
+
+    fn is_zero(&self) -> bool {
+        self.data.iter().all(|&v| v == I::ZERO)
     }
 }
 

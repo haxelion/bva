@@ -181,6 +181,27 @@ pub trait BitVector:
     // Will panic if the rotation amount is larger than this bit vector length.
     fn rotr(&mut self, rot: usize);
 
+    /// Return the number of leading (most significant) zeros in the bit vector.
+    fn leading_zeros(&self) -> usize;
+
+    /// Return the number of leading (most significant) ones in the bit vector.
+    fn leading_ones(&self) -> usize;
+
+    /// Return the number of trailing (least significant) zeros in the bit vector.
+    fn trailing_zeros(&self) -> usize;
+
+    /// Return the number of trailing (least significant) ones in the bit vector.
+    fn trailing_ones(&self) -> usize;
+
+    /// Return the number of significant bits in the bit vector.
+    fn significant_bits(&self) -> usize {
+        self.len() - self.leading_zeros()
+    }
+
+    /// Return whether the bit vector is all zeros.
+    /// By convention, the empty bit vector is considered to be zero.
+    fn is_zero(&self) -> bool;
+
     /// Return the cpacity of the bit vector in bits.
     fn capacity(&self) -> usize;
 
