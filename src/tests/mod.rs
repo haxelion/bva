@@ -138,8 +138,33 @@ macro_rules! op_test_block {
     };
 }
 
+// Variant more suited for division and modulo but also test lhs and rhs of different sizes.
+macro_rules! op_test_block2 {
+    ($lhs:ty, $rhs:ty, $op:path, $op_assign:path, $size:ident) => {
+        let modulo = BigInt::from(1u8) << $size;
+        let (bv1, bi1) = random_test_bv::<$lhs>($size);
+        let (mut bv2, mut bi2) = random_test_bv::<$rhs>(usize::min(1, $size));
+        while bv2.is_zero() {
+            (bv2, bi2) = random_test_bv::<$rhs>(usize::min(1, $size));
+        }
+        let reference = $op(&bi1, &bi2) % &modulo;
+        // Normal op
+        assert_eq!($op(&bv1, &bv2), reference);
+        assert_eq!($op(bv1.clone(), &bv2), reference);
+        assert_eq!($op(&bv1, bv2.clone()), reference);
+        assert_eq!($op(bv1.clone(), bv2.clone()), reference);
+        // Assign op
+        let mut bv3 = bv1.clone();
+        $op_assign(&mut bv3, &bv2);
+        assert_eq!(bv3, reference);
+        bv3 = bv1.clone();
+        $op_assign(&mut bv3, bv2);
+        assert_eq!(bv3, reference);
+    };
+}
+
 macro_rules! op_test_section {
-    ($op:path, $op_assign:path) => {
+    ($op:path, $op_assign:path, {$($block:path),+}) => {
         fn bvf_bvf_inner<
             I1: Integer + StaticCast<I2>,
             I2: Integer + StaticCast<I1>,
@@ -147,7 +172,9 @@ macro_rules! op_test_section {
             const N2: usize,
         >() {
             for size in 1..usize::min(BVF::<I1, N1>::capacity(), BVF::<I2, N2>::capacity()) {
-                op_test_block!(BVF<I1, N1>, BVF<I2, N2>, $op, $op_assign, size);
+                $(
+                    $block!(BVF<I1, N1>, BVF<I2, N2>, $op, $op_assign, size);
+                )+
             }
         }
 
@@ -161,8 +188,10 @@ macro_rules! op_test_section {
             u64: StaticCast<I>,
         {
             for size in 1..BVF::<I, N>::capacity() {
-                op_test_block!(BVF<I, N>, BVD, $op, $op_assign, size);
-                op_test_block!(BVD, BVF<I, N>, $op, $op_assign, size);
+                $(
+                    $block!(BVF<I, N>, BVD, $op, $op_assign, size);
+                    $block!(BVD, BVF<I, N>, $op, $op_assign, size);
+                )+
             }
         }
 
@@ -176,8 +205,10 @@ macro_rules! op_test_section {
             u64: StaticCast<I>,
         {
             for size in 1..BVF::<I, N>::capacity() {
-                op_test_block!(BVF<I, N>, BV, $op, $op_assign, size);
-                op_test_block!(BV, BVF<I, N>, $op, $op_assign, size);
+                $(
+                    $block!(BVF<I, N>, BV, $op, $op_assign, size);
+                    $block!(BV, BVF<I, N>, $op, $op_assign, size);
+                )+
             }
         }
 
@@ -189,22 +220,28 @@ macro_rules! op_test_section {
         #[test]
         fn bvd_bvd() {
             for size in 1..512 {
-                op_test_block!(BVD, BVD, $op, $op_assign, size);
+                $(
+                    $block!(BVD, BVD, $op, $op_assign, size);
+                )+
             }
         }
 
         #[test]
         fn bvd_bv() {
             for size in 1..512 {
-                op_test_block!(BVD, BV, $op, $op_assign, size);
-                op_test_block!(BV, BVD, $op, $op_assign, size);
+                $(
+                    $block!(BVD, BV, $op, $op_assign, size);
+                    $block!(BV, BVD, $op, $op_assign, size);
+                )+
             }
         }
 
         #[test]
         fn bv_bv() {
             for size in 1..512 {
-                op_test_block!(BV, BV, $op, $op_assign, size);
+                $(
+                    $block!(BV, BV, $op, $op_assign, size);
+                )+
             }
         }
     };
@@ -214,4 +251,5 @@ pub(crate) use bvf_bvf_inner_unroll;
 pub(crate) use bvf_inner_unroll;
 pub(crate) use bvf_inner_unroll_cap;
 pub(crate) use op_test_block;
+pub(crate) use op_test_block2;
 pub(crate) use op_test_section;

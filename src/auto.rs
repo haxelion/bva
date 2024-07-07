@@ -12,8 +12,8 @@ use std::cmp::Ordering;
 use std::fmt::{Binary, Display, LowerHex, Octal, UpperHex};
 
 use std::ops::{
-    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Mul, MulAssign,
-    Not, Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
+    Mul, MulAssign, Not, Range, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
 use crate::dynamic::BVD;
@@ -26,11 +26,11 @@ use crate::{BitVector, ConvertionError, Endianness};
 
 // Choose a fixed BVF type which should match the size of BVD inside the enum
 #[cfg(target_pointer_width = "16")]
-type BVP = BV32;
+pub(crate) type BVP = BV32;
 #[cfg(target_pointer_width = "32")]
-type BVP = BV64;
+pub(crate) type BVP = BV64;
 #[cfg(target_pointer_width = "64")]
-type BVP = BV128;
+pub(crate) type BVP = BV128;
 
 // ------------------------------------------------------------------------------------------------
 // Bit Vector automatic allocation implementation
@@ -331,6 +331,33 @@ impl BitVector for BV {
             BV::Fixed(b) => b.is_zero(),
             BV::Dynamic(b) => b.is_zero(),
         }
+    }
+
+    fn div_rem<B: BitVector>(&self, divisor: &B) -> (Self, Self)
+    where
+        Self: for<'a> TryFrom<&'a B, Error: std::fmt::Debug>,
+    {
+        assert!(!divisor.is_zero(), "Division by zero");
+        let mut quotient = BV::zeros(self.len());
+        let mut rem = self.clone();
+        if divisor.significant_bits() > self.significant_bits() {
+            return (quotient, rem);
+        }
+
+        let shift = self.significant_bits() - divisor.significant_bits();
+        let mut divisor: BV = divisor.try_into().expect("should never fail");
+        divisor.resize(self.len(), Bit::Zero);
+        divisor <<= shift;
+
+        for i in (0..shift + 1).rev() {
+            if rem >= divisor {
+                rem -= &divisor;
+                quotient.set(i, Bit::One);
+            }
+            divisor >>= 1u32;
+        }
+
+        (quotient, rem)
     }
 }
 
@@ -683,7 +710,10 @@ macro_rules! impl_op_assign {
             }
         }
 
-        impl<I: Integer, const N: usize> $trait<&BVF<I, N>> for BV {
+        impl<I: Integer, const N: usize> $trait<&BVF<I, N>> for BV
+        where
+            u64: StaticCast<I>,
+        {
             fn $method(&mut self, bvf: &BVF<I, N>) {
                 match self {
                     BV::Fixed(b) => b.$method(bvf),
@@ -692,7 +722,10 @@ macro_rules! impl_op_assign {
             }
         }
 
-        impl<I: Integer, const N: usize> $trait<BVF<I, N>> for BV {
+        impl<I: Integer, const N: usize> $trait<BVF<I, N>> for BV
+        where
+            u64: StaticCast<I>,
+        {
             fn $method(&mut self, bvf: BVF<I, N>) {
                 match self {
                     BV::Fixed(b) => b.$method(bvf),
@@ -727,6 +760,8 @@ impl_op_assign!(BitXorAssign, bitxor_assign);
 impl_op_assign!(AddAssign, add_assign);
 impl_op_assign!(SubAssign, sub_assign);
 impl_op_assign!(MulAssign, mul_assign);
+impl_op_assign!(DivAssign, div_assign);
+impl_op_assign!(RemAssign, rem_assign);
 
 macro_rules! impl_op {
     ($trait:ident, $method:ident, $assign_trait:ident, $assign_method:ident) => {
@@ -761,3 +796,5 @@ impl_op!(BitXor, bitxor, BitXorAssign, bitxor_assign);
 impl_op!(Add, add, AddAssign, add_assign);
 impl_op!(Sub, sub, SubAssign, sub_assign);
 impl_op!(Mul, mul, MulAssign, mul_assign);
+impl_op!(Div, div, DivAssign, div_assign);
+impl_op!(Rem, rem, RemAssign, rem_assign);

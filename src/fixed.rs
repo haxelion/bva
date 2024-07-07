@@ -3,8 +3,8 @@ use std::fmt;
 use std::iter::repeat;
 use std::mem::size_of;
 use std::ops::{
-    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Mul, MulAssign,
-    Not, Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
+    Mul, MulAssign, Not, Range, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
 use crate::auto::BV;
@@ -501,6 +501,33 @@ where
 
     fn is_zero(&self) -> bool {
         self.data.iter().all(|&v| v == I::ZERO)
+    }
+
+    fn div_rem<B: BitVector>(&self, divisor: &B) -> (Self, Self)
+    where
+        Self: for<'a> TryFrom<&'a B, Error: fmt::Debug>,
+    {
+        assert!(!divisor.is_zero(), "Division by zero");
+        let mut rem = *self;
+        let mut quotient = BVF::<I, N>::zeros(self.length);
+        if divisor.significant_bits() > self.significant_bits() {
+            return (quotient, rem);
+        }
+
+        let shift = self.significant_bits() - divisor.significant_bits();
+        let mut divisor: BVF<I, N> = divisor.try_into().expect("divisor should fit in Self");
+        divisor.resize(self.length, Bit::Zero);
+        divisor <<= shift;
+
+        for i in (0..shift + 1).rev() {
+            if rem >= divisor {
+                rem -= &divisor;
+                quotient.set(i, Bit::One);
+            }
+            divisor >>= 1u32;
+        }
+
+        (quotient, rem)
     }
 }
 
@@ -1454,5 +1481,375 @@ where
 {
     fn mul_assign(&mut self, rhs: BV) {
         *self = Mul::mul(&*self, &rhs);
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+// BVF - Division
+// ------------------------------------------------------------------------------------------------
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Div<&BVF<I2, N2>> for &BVF<I1, N1>
+where
+    I2: StaticCast<I1>,
+{
+    type Output = BVF<I1, N1>;
+    fn div(self, rhs: &BVF<I2, N2>) -> Self::Output {
+        self.div_rem(rhs).0
+    }
+}
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Div<BVF<I2, N2>> for &BVF<I1, N1>
+where
+    I2: StaticCast<I1>,
+{
+    type Output = BVF<I1, N1>;
+    fn div(self, rhs: BVF<I2, N2>) -> Self::Output {
+        self.div_rem(&rhs).0
+    }
+}
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Div<&BVF<I2, N2>> for BVF<I1, N1>
+where
+    I2: StaticCast<I1>,
+{
+    type Output = BVF<I1, N1>;
+    fn div(self, rhs: &BVF<I2, N2>) -> Self::Output {
+        self.div_rem(rhs).0
+    }
+}
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Div<BVF<I2, N2>> for BVF<I1, N1>
+where
+    I2: StaticCast<I1>,
+{
+    type Output = BVF<I1, N1>;
+    fn div(self, rhs: BVF<I2, N2>) -> Self::Output {
+        self.div_rem(&rhs).0
+    }
+}
+
+impl<I: Integer, const N: usize> Div<&BVD> for &BVF<I, N>
+where
+    u64: StaticCast<I>,
+{
+    type Output = BVF<I, N>;
+    fn div(self, rhs: &BVD) -> Self::Output {
+        self.div_rem::<BVD>(rhs).0
+    }
+}
+
+impl<I1: Integer, const N1: usize> Div<BVD> for &BVF<I1, N1>
+where
+    u64: StaticCast<I1>,
+{
+    type Output = BVF<I1, N1>;
+    fn div(self, rhs: BVD) -> Self::Output {
+        self.div_rem::<BVD>(&rhs).0
+    }
+}
+
+impl<I1: Integer, const N1: usize> Div<&BVD> for BVF<I1, N1>
+where
+    u64: StaticCast<I1>,
+{
+    type Output = BVF<I1, N1>;
+    fn div(self, rhs: &BVD) -> Self::Output {
+        self.div_rem::<BVD>(rhs).0
+    }
+}
+
+impl<I1: Integer, const N1: usize> Div<BVD> for BVF<I1, N1>
+where
+    u64: StaticCast<I1>,
+{
+    type Output = BVF<I1, N1>;
+    fn div(self, rhs: BVD) -> Self::Output {
+        self.div_rem::<BVD>(&rhs).0
+    }
+}
+
+impl<I: Integer, const N: usize> Div<&BV> for &BVF<I, N>
+where
+    u64: StaticCast<I>,
+{
+    type Output = BVF<I, N>;
+    fn div(self, rhs: &BV) -> Self::Output {
+        match rhs {
+            BV::Fixed(bvf) => self.div_rem::<crate::auto::BVP>(bvf).0,
+            BV::Dynamic(bvd) => self.div_rem::<BVD>(bvd).0,
+        }
+    }
+}
+
+impl<I: Integer, const N: usize> Div<&BV> for BVF<I, N>
+where
+    u64: StaticCast<I>,
+{
+    type Output = BVF<I, N>;
+    fn div(self, rhs: &BV) -> Self::Output {
+        (&self).div(rhs)
+    }
+}
+
+impl<I: Integer, const N: usize> Div<BV> for &BVF<I, N>
+where
+    u64: StaticCast<I>,
+{
+    type Output = BVF<I, N>;
+    fn div(self, rhs: BV) -> Self::Output {
+        self.div(&rhs)
+    }
+}
+
+impl<I: Integer, const N: usize> Div<BV> for BVF<I, N>
+where
+    u64: StaticCast<I>,
+{
+    type Output = BVF<I, N>;
+    fn div(self, rhs: BV) -> Self::Output {
+        (&self).div(&rhs)
+    }
+}
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> DivAssign<&BVF<I2, N2>>
+    for BVF<I1, N1>
+where
+    I1: StaticCast<I2>,
+    I2: StaticCast<I1>,
+{
+    fn div_assign(&mut self, rhs: &BVF<I2, N2>) {
+        *self = Div::div(&*self, rhs);
+    }
+}
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> DivAssign<BVF<I2, N2>>
+    for BVF<I1, N1>
+where
+    I1: StaticCast<I2>,
+    I2: StaticCast<I1>,
+{
+    fn div_assign(&mut self, rhs: BVF<I2, N2>) {
+        *self = Div::div(&*self, &rhs);
+    }
+}
+
+impl<I: Integer, const N: usize> DivAssign<&BVD> for BVF<I, N>
+where
+    u64: StaticCast<I>,
+{
+    fn div_assign(&mut self, rhs: &BVD) {
+        *self = Div::div(&*self, rhs);
+    }
+}
+
+impl<I: Integer, const N: usize> DivAssign<BVD> for BVF<I, N>
+where
+    u64: StaticCast<I>,
+{
+    fn div_assign(&mut self, rhs: BVD) {
+        *self = Div::div(&*self, &rhs);
+    }
+}
+
+impl<I: Integer, const N: usize> DivAssign<&BV> for BVF<I, N>
+where
+    u64: StaticCast<I>,
+{
+    fn div_assign(&mut self, rhs: &BV) {
+        *self = Div::div(&*self, rhs);
+    }
+}
+
+impl<I: Integer, const N: usize> DivAssign<BV> for BVF<I, N>
+where
+    u64: StaticCast<I>,
+{
+    fn div_assign(&mut self, rhs: BV) {
+        *self = Div::div(&*self, &rhs);
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+// BVF - Remainder
+// ------------------------------------------------------------------------------------------------
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Rem<&BVF<I2, N2>> for &BVF<I1, N1>
+where
+    I2: StaticCast<I1>,
+{
+    type Output = BVF<I1, N1>;
+    fn rem(self, rhs: &BVF<I2, N2>) -> Self::Output {
+        self.div_rem(rhs).1
+    }
+}
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Rem<BVF<I2, N2>> for &BVF<I1, N1>
+where
+    I2: StaticCast<I1>,
+{
+    type Output = BVF<I1, N1>;
+    fn rem(self, rhs: BVF<I2, N2>) -> Self::Output {
+        self.div_rem(&rhs).1
+    }
+}
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Rem<&BVF<I2, N2>> for BVF<I1, N1>
+where
+    I2: StaticCast<I1>,
+{
+    type Output = BVF<I1, N1>;
+    fn rem(self, rhs: &BVF<I2, N2>) -> Self::Output {
+        self.div_rem(rhs).1
+    }
+}
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> Rem<BVF<I2, N2>> for BVF<I1, N1>
+where
+    I2: StaticCast<I1>,
+{
+    type Output = BVF<I1, N1>;
+    fn rem(self, rhs: BVF<I2, N2>) -> Self::Output {
+        self.div_rem(&rhs).1
+    }
+}
+
+impl<I: Integer, const N: usize> Rem<&BVD> for &BVF<I, N>
+where
+    u64: StaticCast<I>,
+{
+    type Output = BVF<I, N>;
+    fn rem(self, rhs: &BVD) -> Self::Output {
+        self.div_rem::<BVD>(rhs).1
+    }
+}
+
+impl<I1: Integer, const N1: usize> Rem<BVD> for &BVF<I1, N1>
+where
+    u64: StaticCast<I1>,
+{
+    type Output = BVF<I1, N1>;
+    fn rem(self, rhs: BVD) -> Self::Output {
+        self.div_rem::<BVD>(&rhs).1
+    }
+}
+
+impl<I1: Integer, const N1: usize> Rem<&BVD> for BVF<I1, N1>
+where
+    u64: StaticCast<I1>,
+{
+    type Output = BVF<I1, N1>;
+    fn rem(self, rhs: &BVD) -> Self::Output {
+        self.div_rem::<BVD>(rhs).1
+    }
+}
+
+impl<I1: Integer, const N1: usize> Rem<BVD> for BVF<I1, N1>
+where
+    u64: StaticCast<I1>,
+{
+    type Output = BVF<I1, N1>;
+    fn rem(self, rhs: BVD) -> Self::Output {
+        self.div_rem::<BVD>(&rhs).1
+    }
+}
+
+impl<I: Integer, const N: usize> Rem<&BV> for &BVF<I, N>
+where
+    u64: StaticCast<I>,
+{
+    type Output = BVF<I, N>;
+    fn rem(self, rhs: &BV) -> Self::Output {
+        match rhs {
+            BV::Fixed(bvf) => self.div_rem::<crate::auto::BVP>(bvf).1,
+            BV::Dynamic(bvd) => self.div_rem::<BVD>(bvd).1,
+        }
+    }
+}
+
+impl<I: Integer, const N: usize> Rem<&BV> for BVF<I, N>
+where
+    u64: StaticCast<I>,
+{
+    type Output = BVF<I, N>;
+    fn rem(self, rhs: &BV) -> Self::Output {
+        (&self).rem(rhs)
+    }
+}
+
+impl<I: Integer, const N: usize> Rem<BV> for &BVF<I, N>
+where
+    u64: StaticCast<I>,
+{
+    type Output = BVF<I, N>;
+    fn rem(self, rhs: BV) -> Self::Output {
+        self.rem(&rhs)
+    }
+}
+
+impl<I: Integer, const N: usize> Rem<BV> for BVF<I, N>
+where
+    u64: StaticCast<I>,
+{
+    type Output = BVF<I, N>;
+    fn rem(self, rhs: BV) -> Self::Output {
+        (&self).rem(&rhs)
+    }
+}
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> RemAssign<&BVF<I2, N2>>
+    for BVF<I1, N1>
+where
+    I1: StaticCast<I2>,
+    I2: StaticCast<I1>,
+{
+    fn rem_assign(&mut self, rhs: &BVF<I2, N2>) {
+        *self = Rem::rem(&*self, rhs);
+    }
+}
+
+impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> RemAssign<BVF<I2, N2>>
+    for BVF<I1, N1>
+where
+    I1: StaticCast<I2>,
+    I2: StaticCast<I1>,
+{
+    fn rem_assign(&mut self, rhs: BVF<I2, N2>) {
+        *self = Rem::rem(&*self, &rhs);
+    }
+}
+
+impl<I: Integer, const N: usize> RemAssign<&BVD> for BVF<I, N>
+where
+    u64: StaticCast<I>,
+{
+    fn rem_assign(&mut self, rhs: &BVD) {
+        *self = Rem::rem(&*self, rhs);
+    }
+}
+
+impl<I: Integer, const N: usize> RemAssign<BVD> for BVF<I, N>
+where
+    u64: StaticCast<I>,
+{
+    fn rem_assign(&mut self, rhs: BVD) {
+        *self = Rem::rem(&*self, &rhs);
+    }
+}
+
+impl<I: Integer, const N: usize> RemAssign<&BV> for BVF<I, N>
+where
+    u64: StaticCast<I>,
+{
+    fn rem_assign(&mut self, rhs: &BV) {
+        *self = Rem::rem(&*self, rhs);
+    }
+}
+
+impl<I: Integer, const N: usize> RemAssign<BV> for BVF<I, N>
+where
+    u64: StaticCast<I>,
+{
+    fn rem_assign(&mut self, rhs: BV) {
+        *self = Rem::rem(&*self, &rhs);
     }
 }
