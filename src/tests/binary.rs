@@ -19,6 +19,7 @@ mod not {
     fn bvf_test_inner<I: Integer, const N: usize>() {
         for size in 0..BVF::<I, N>::capacity() {
             let (bv, bi) = random_test_bv::<BVF<I, N>>(size);
+            assert_eq!(!&bv, !&bi);
             assert_eq!(!bv, !bi);
         }
     }
@@ -32,6 +33,7 @@ mod not {
     fn bvd() {
         for size in 0..512 {
             let (bv, bi) = random_test_bv::<BVD>(size);
+            assert_eq!(!&bv, !&bi);
             assert_eq!(!bv, !bi);
         }
     }
@@ -40,6 +42,7 @@ mod not {
     fn bv() {
         for size in 0..512 {
             let (bv, bi) = random_test_bv::<BV>(size);
+            assert_eq!(!&bv, !&bi);
             assert_eq!(!bv, !bi);
         }
     }
@@ -63,38 +66,12 @@ mod shift {
     use crate::auto::BV;
     use crate::dynamic::BVD;
     use crate::fixed::BVF;
-    use crate::tests::{bvf_inner_unroll, random_test_bv};
+    use crate::tests::{bvf_inner_unroll, random_test_bv, shift_test_block};
     use crate::utils::Integer;
-
-    macro_rules! op_test_block {
-        ($lhs:ty, {$($rhs:ty),+}, $op:path, $op_assign:path, $size:ident) => {
-            $(
-                op_test_block!($lhs, $rhs, $op, $op_assign, $size);
-            )+
-        };
-        ($lhs:ty, $rhs:ty, $op:path, $op_assign:path, $size:ident) => {
-            let modulo = BigInt::from(1u8) << $size;
-            let shift = (random::<usize>() % (2 * $size)) as $rhs;
-            let (bv, bi) = random_test_bv::<$lhs>($size);
-            let reference = $op(&bi, shift) % modulo;
-            // Normal op
-            assert_eq!($op(&bv, &shift), reference);
-            assert_eq!($op(bv.clone(), &shift), reference);
-            assert_eq!($op(&bv, shift), reference);
-            assert_eq!($op(bv.clone(), shift), reference);
-            // Assign op
-            let mut bv2 = bv.clone();
-            $op_assign(&mut bv2, &shift);
-            assert_eq!(bv2, reference);
-            bv2 = bv.clone();
-            $op_assign(&mut bv2, shift);
-            assert_eq!(bv2, reference);
-        };
-    }
 
     fn shl_bvf_inner<I: Integer, const N: usize>() {
         for size in 1..BVF::<I, N>::capacity() {
-            op_test_block!(BVF<I, N>, {u8, u16, u32, u64, u128, usize}, Shl::shl, ShlAssign::shl_assign, size);
+            shift_test_block!(BVF<I, N>, {u8, u16, u32, u64, u128, usize}, Shl::shl, ShlAssign::shl_assign, size);
         }
     }
 
@@ -106,20 +83,20 @@ mod shift {
     #[test]
     fn shl_bvd() {
         for size in 1..512 {
-            op_test_block!(BVD, {u8, u16, u32, u64, u128, usize}, Shl::shl, ShlAssign::shl_assign, size);
+            shift_test_block!(BVD, {u8, u16, u32, u64, u128, usize}, Shl::shl, ShlAssign::shl_assign, size);
         }
     }
 
     #[test]
     fn shl_bv() {
         for size in 1..512 {
-            op_test_block!(BV, {u8, u16, u32, u64, u128, usize}, Shl::shl, ShlAssign::shl_assign, size);
+            shift_test_block!(BV, {u8, u16, u32, u64, u128, usize}, Shl::shl, ShlAssign::shl_assign, size);
         }
     }
 
     fn shr_bvf_inner<I: Integer, const N: usize>() {
         for size in 1..BVF::<I, N>::capacity() {
-            op_test_block!(BVF<I, N>, {u8, u16, u32, u64, u128, usize}, Shr::shr, ShrAssign::shr_assign, size);
+            shift_test_block!(BVF<I, N>, {u8, u16, u32, u64, u128, usize}, Shr::shr, ShrAssign::shr_assign, size);
         }
     }
 
@@ -131,14 +108,14 @@ mod shift {
     #[test]
     fn shr_bvd() {
         for size in 1..512 {
-            op_test_block!(BVD, {u8, u16, u32, u64, u128, usize}, Shr::shr, ShrAssign::shr_assign, size);
+            shift_test_block!(BVD, {u8, u16, u32, u64, u128, usize}, Shr::shr, ShrAssign::shr_assign, size);
         }
     }
 
     #[test]
     fn shr_bv() {
         for size in 1..512 {
-            op_test_block!(BV, {u8, u16, u32, u64, u128, usize}, Shr::shr, ShrAssign::shr_assign, size);
+            shift_test_block!(BV, {u8, u16, u32, u64, u128, usize}, Shr::shr, ShrAssign::shr_assign, size);
         }
     }
 }
