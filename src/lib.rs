@@ -1,23 +1,24 @@
-//! Crate for manipulating bit vectors and doing arithmetic on arbitrarily sized bit vectors.
+//! This crate is for manipulating and doing arithmetics on bit vectors of fixed but arbitrary size.
+//! They are meant to behave like CPU hardware registers with wrap-around on overflow.
 //!
 //! This crate emphasizes optimizing storage by providing alternative storage options.
-//! The module [`fixed`] contains implementations using unsigned integers as storage and thus
-//! has a fixed capacity. The module [`dynamic`] contains an implementation using dynamically
-//! allocated array of integers as storage and therefore has a dynamic capacity. The module
-//! [`auto`] contains an implementation capable of switching at runtime between a fixed or
-//! dynamic capacity implementation to try to minimize dynamic memory allocations.
-//! All of those implementations implement the [`BitVector`] trait and can be freely mixed together
-//! and converted into each other.
+//! The module `fixed` contains implementations using arrays of unsigned integers as storage and
+//! thus have a fixed capacity. The module `dynamic` contains an implementation using a dynamically
+//! allocated array of integers as storage and therefore has a dynamic capacity. The module `auto`
+//! contains an implementation capable of switching at runtime between a fixed or dynamic capacity
+//! implementation to try to minimize dynamic memory allocations. All of those implementations
+//! implement the `BitVector` trait and can be freely mixed together and used interchangeably via
+//! generic traits.
 //!
 //! The different bit vector types represent a vector of bits where the bit at index 0 is the least
 //! significant bit and the bit at index `.len() - 1` is the most significant bit. There is no
 //! notion of endianness for the bit vector themselves, endianness is only involved when reading or
 //! writing a bit vector to or from memory or storage.
 //!
-//! Arithmetic operation can be applied to bit vectors of different length. The result will always
-//! have the length of the longest operand and the smallest operand will be zero extended for the
-//! operation. This should match the most intuitive behavior in most cases except when manipulating
-//! bit vector supposed to have a sign bit.
+//! Arithmetic operation can be applied to bit vectors of different types and different lengths.
+//! The result will always have the type and the length of the left hand side operand and the right
+//! hand side operand will be zero extended if needed. Operations will wrap-around in the case of
+//! overflows. This should match the behavior of unsigned integer arithmetics on CPU registers.
 
 #![allow(
     clippy::suspicious_arithmetic_impl,

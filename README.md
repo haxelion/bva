@@ -7,20 +7,18 @@
 ![Minimum Rust 1.61](https://img.shields.io/badge/Rust-1.61+-red.svg)
 [![LICENSE](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-`bva` is a rust crate for manipulating bit vectors and doing arithmetics on arbitrarily sized bit
-vectors.
+`bva` is a rust crate for manipulating and doing arithmetics on bit vectors of
+fixed but arbitrary size. They are meant to behave like CPU hardware registers with wrap-around on overflow.
 
 This crate emphasizes optimizing storage by providing alternative storage options.
-The module `fixed` contains implementations using unsigned integers as storage and thus
-has a fixed capacity. The module `dynamic` contains an implementation using dynamically
-allocated array of integers as storage and therefore has a dynamic capacity. The module
-`auto` contains an implementation capable of switching at runtime between a fixed or
-dynamic capacity implementation to try to minimize dynamic memory allocations.
-All of those implementations implement the `BitVector` trait and can be freely mixed together
-and converted into each other.
+The module `fixed` contains implementations using arrays of unsigned integers as storage and thus have a fixed capacity. The module `dynamic` contains an implementation using a dynamically allocated array of integers as storage and therefore has a dynamic capacity. The module `auto` contains an implementation capable of switching at runtime between a fixed or dynamic capacity implementation to try to minimize dynamic memory allocations. All of those implementations implement the `BitVector` trait and can be freely mixed together and used interchangeably via generic traits.
 
 ## Changelog
 
+* 2024/07/07 - 0.3.0
+    * Multiplication, division and modulo operations
+    * Various helper functions
+    * Much more rigorous testing reaching high code coverage.
 * 2023/07/04 - 0.2.0
     * Major rewrite using const generics
     * Iterator support
@@ -30,12 +28,12 @@ and converted into each other.
     * Basic arithmetic operations between the different implementations.
     * Reading and writing bit vector in various format.
 
-## TODO
+## Roadmap
 
-* More "advanced" arithmetics: multiplication, division, remainder.
-* Fix Display for bit vector longer than 128 bits.
+* Aiming for 100% code coverage.
+* Signed operation support.
 * Borrowing of bits and bit slice inside a bit vector.
-* Really advanced arithmetics: gcd, modular exponentiation, ...
+* Numerical algorithms such as gcd, modular exponentiation, ...
 * no-std support
 
 ## Why
