@@ -104,6 +104,17 @@ pub trait BitVector:
     /// Will panic if there is not enough capacity and it is a fixed variant.
     fn ones(length: usize) -> Self;
 
+    /// Return the cpacity of the bit vector in bits.
+    fn capacity(&self) -> usize;
+
+    /// Return the length of the bit vector in bits.
+    fn len(&self) -> usize;
+
+    /// Return wether the bit vector is empty or not.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Construct a bit vector from a binary string made of `'0'` and `'1'`.
     /// Return `None` if the string is invalid or exceed the maximum capacity.
     fn from_binary<S: AsRef<str>>(string: S) -> Result<Self, ConvertionError>;
@@ -202,16 +213,11 @@ pub trait BitVector:
     /// By convention, the empty bit vector is considered to be zero.
     fn is_zero(&self) -> bool;
 
-    /// Return the cpacity of the bit vector in bits.
-    fn capacity(&self) -> usize;
-
-    /// Return the length of the bit vector in bits.
-    fn len(&self) -> usize;
-
-    /// Return wether the bit vector is empty or not.
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
+    /// Divide by another bit vector and return the quotient and the remainder.
+    /// Will panic if the divisor is zero.
+    fn div_rem<B: BitVector>(&self, divisor: &B) -> (Self, Self)
+    where
+        Self: for<'a> TryFrom<&'a B, Error: std::fmt::Debug>;
 
     fn iter(&self) -> BitIterator<'_, Self>;
 }

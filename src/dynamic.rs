@@ -10,8 +10,8 @@ use std::io::{Read, Write};
 use std::iter::repeat;
 use std::mem::size_of;
 use std::ops::{
-    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Mul, MulAssign,
-    Not, Range, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
+    Mul, MulAssign, Not, Range, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
 use crate::auto::BV;
@@ -513,6 +513,33 @@ impl BitVector for BVD {
             .iter()
             .all(|&x| x == 0)
     }
+
+    fn div_rem<B: BitVector>(&self, divisor: &B) -> (Self, Self)
+    where
+        Self: for<'a> TryFrom<&'a B, Error: std::fmt::Debug>,
+    {
+        assert!(!divisor.is_zero(), "Division by zero");
+        let mut quotient = BVD::zeros(self.length);
+        let mut rem = self.clone();
+        if divisor.significant_bits() > self.significant_bits() {
+            return (quotient, rem);
+        }
+
+        let shift = self.significant_bits() - divisor.significant_bits();
+        let mut divisor: BVD = divisor.try_into().expect("should never fail");
+        divisor.resize(self.length, Bit::Zero);
+        divisor <<= shift;
+
+        for i in (0..shift + 1).rev() {
+            if rem >= divisor {
+                rem -= &divisor;
+                quotient.set(i, Bit::One);
+            }
+            divisor >>= 1u32;
+        }
+
+        (quotient, rem)
+    }
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -751,6 +778,15 @@ impl Ord for BVD {
 // ------------------------------------------------------------------------------------------------
 // BVD - Conversion traits
 // ------------------------------------------------------------------------------------------------
+
+impl From<&BVD> for BVD {
+    fn from(bvd: &BVD) -> Self {
+        BVD {
+            length: bvd.len(),
+            data: bvd.data.clone(),
+        }
+    }
+}
 
 macro_rules! impl_from_ints {($($st:ty),+) => {
     $(
@@ -1343,5 +1379,261 @@ impl MulAssign<&BV> for BVD {
 impl MulAssign<BV> for BVD {
     fn mul_assign(&mut self, rhs: BV) {
         *self = Mul::mul(&*self, &rhs);
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+// BVF - Division
+// ------------------------------------------------------------------------------------------------
+
+impl Div<&BVD> for &BVD {
+    type Output = BVD;
+
+    fn div(self, rhs: &BVD) -> Self::Output {
+        self.div_rem(rhs).0
+    }
+}
+
+impl Div<BVD> for &BVD {
+    type Output = BVD;
+    fn div(self, rhs: BVD) -> BVD {
+        self.div_rem(&rhs).0
+    }
+}
+
+impl Div<&BVD> for BVD {
+    type Output = BVD;
+    fn div(self, rhs: &BVD) -> BVD {
+        self.div_rem(rhs).0
+    }
+}
+
+impl Div<BVD> for BVD {
+    type Output = BVD;
+    fn div(self, rhs: BVD) -> BVD {
+        self.div_rem(&rhs).0
+    }
+}
+
+impl<I: Integer, const N: usize> Div<&BVF<I, N>> for &BVD {
+    type Output = BVD;
+
+    fn div(self, rhs: &BVF<I, N>) -> BVD {
+        self.div_rem(rhs).0
+    }
+}
+
+impl<I: Integer, const N: usize> Div<BVF<I, N>> for &BVD {
+    type Output = BVD;
+    fn div(self, rhs: BVF<I, N>) -> BVD {
+        self.div_rem(&rhs).0
+    }
+}
+
+impl<I: Integer, const N: usize> Div<&BVF<I, N>> for BVD {
+    type Output = BVD;
+    fn div(self, rhs: &BVF<I, N>) -> BVD {
+        self.div_rem(rhs).0
+    }
+}
+
+impl<I: Integer, const N: usize> Div<BVF<I, N>> for BVD {
+    type Output = BVD;
+    fn div(self, rhs: BVF<I, N>) -> BVD {
+        self.div_rem(&rhs).0
+    }
+}
+
+impl Div<&BV> for &BVD {
+    type Output = BVD;
+    fn div(self, rhs: &BV) -> BVD {
+        match rhs {
+            BV::Fixed(bvf) => self.div_rem(bvf).0,
+            BV::Dynamic(bvd) => self.div_rem(bvd).0,
+        }
+    }
+}
+
+impl Div<BV> for &BVD {
+    type Output = BVD;
+    fn div(self, rhs: BV) -> BVD {
+        self.div(&rhs)
+    }
+}
+
+impl Div<&BV> for BVD {
+    type Output = BVD;
+    fn div(self, rhs: &BV) -> BVD {
+        (&self).div(rhs)
+    }
+}
+
+impl Div<BV> for BVD {
+    type Output = BVD;
+    fn div(self, rhs: BV) -> BVD {
+        (&self).div(&rhs)
+    }
+}
+
+impl DivAssign<&BVD> for BVD {
+    fn div_assign(&mut self, rhs: &BVD) {
+        *self = Div::div(&*self, rhs);
+    }
+}
+
+impl DivAssign<BVD> for BVD {
+    fn div_assign(&mut self, rhs: BVD) {
+        *self = Div::div(&*self, &rhs);
+    }
+}
+
+impl<I: Integer, const N: usize> DivAssign<&BVF<I, N>> for BVD {
+    fn div_assign(&mut self, rhs: &BVF<I, N>) {
+        *self = Div::div(&*self, rhs);
+    }
+}
+
+impl<I: Integer, const N: usize> DivAssign<BVF<I, N>> for BVD {
+    fn div_assign(&mut self, rhs: BVF<I, N>) {
+        *self = Div::div(&*self, &rhs);
+    }
+}
+
+impl DivAssign<&BV> for BVD {
+    fn div_assign(&mut self, rhs: &BV) {
+        *self = Div::div(&*self, rhs);
+    }
+}
+
+impl DivAssign<BV> for BVD {
+    fn div_assign(&mut self, rhs: BV) {
+        *self = Div::div(&*self, &rhs);
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+// BVF - Division
+// ------------------------------------------------------------------------------------------------
+
+impl Rem<&BVD> for &BVD {
+    type Output = BVD;
+    fn rem(self, rhs: &BVD) -> Self::Output {
+        self.div_rem(rhs).1
+    }
+}
+
+impl Rem<BVD> for &BVD {
+    type Output = BVD;
+    fn rem(self, rhs: BVD) -> BVD {
+        self.div_rem(&rhs).1
+    }
+}
+
+impl Rem<&BVD> for BVD {
+    type Output = BVD;
+    fn rem(self, rhs: &BVD) -> BVD {
+        self.div_rem(rhs).1
+    }
+}
+
+impl Rem<BVD> for BVD {
+    type Output = BVD;
+    fn rem(self, rhs: BVD) -> BVD {
+        self.div_rem(&rhs).1
+    }
+}
+
+impl<I: Integer, const N: usize> Rem<&BVF<I, N>> for &BVD {
+    type Output = BVD;
+    fn rem(self, rhs: &BVF<I, N>) -> BVD {
+        self.div_rem(rhs).1
+    }
+}
+
+impl<I: Integer, const N: usize> Rem<BVF<I, N>> for &BVD {
+    type Output = BVD;
+    fn rem(self, rhs: BVF<I, N>) -> BVD {
+        self.div_rem(&rhs).1
+    }
+}
+
+impl<I: Integer, const N: usize> Rem<&BVF<I, N>> for BVD {
+    type Output = BVD;
+    fn rem(self, rhs: &BVF<I, N>) -> BVD {
+        self.div_rem(rhs).1
+    }
+}
+
+impl<I: Integer, const N: usize> Rem<BVF<I, N>> for BVD {
+    type Output = BVD;
+    fn rem(self, rhs: BVF<I, N>) -> BVD {
+        self.div_rem(&rhs).1
+    }
+}
+
+impl Rem<&BV> for &BVD {
+    type Output = BVD;
+    fn rem(self, rhs: &BV) -> BVD {
+        match rhs {
+            BV::Fixed(bvf) => self.div_rem(bvf).1,
+            BV::Dynamic(bvd) => self.div_rem(bvd).1,
+        }
+    }
+}
+
+impl Rem<BV> for &BVD {
+    type Output = BVD;
+    fn rem(self, rhs: BV) -> BVD {
+        self.rem(&rhs)
+    }
+}
+
+impl Rem<&BV> for BVD {
+    type Output = BVD;
+    fn rem(self, rhs: &BV) -> BVD {
+        (&self).rem(rhs)
+    }
+}
+
+impl Rem<BV> for BVD {
+    type Output = BVD;
+    fn rem(self, rhs: BV) -> BVD {
+        (&self).rem(&rhs)
+    }
+}
+
+impl RemAssign<&BVD> for BVD {
+    fn rem_assign(&mut self, rhs: &BVD) {
+        *self = Rem::rem(&*self, rhs);
+    }
+}
+
+impl RemAssign<BVD> for BVD {
+    fn rem_assign(&mut self, rhs: BVD) {
+        *self = Rem::rem(&*self, &rhs);
+    }
+}
+
+impl<I: Integer, const N: usize> RemAssign<&BVF<I, N>> for BVD {
+    fn rem_assign(&mut self, rhs: &BVF<I, N>) {
+        *self = Rem::rem(&*self, rhs);
+    }
+}
+
+impl<I: Integer, const N: usize> RemAssign<BVF<I, N>> for BVD {
+    fn rem_assign(&mut self, rhs: BVF<I, N>) {
+        *self = Rem::rem(&*self, &rhs);
+    }
+}
+
+impl RemAssign<&BV> for BVD {
+    fn rem_assign(&mut self, rhs: &BV) {
+        *self = Rem::rem(&*self, rhs);
+    }
+}
+
+impl RemAssign<BV> for BVD {
+    fn rem_assign(&mut self, rhs: BV) {
+        *self = Rem::rem(&*self, &rhs);
     }
 }
