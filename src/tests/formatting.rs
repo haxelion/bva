@@ -7,6 +7,8 @@ use crate::{Bit, BitVector, ConvertionError};
 fn display_inner<B: BitVector>(capacity: usize) {
     for size in 1..capacity {
         let (bv, bi) = random_test_bv::<B>(size);
+        assert_eq!(format!("{}", &bv), format!("{}", &bi));
+        assert_eq!(format!("{:010}", &bv), format!("{:010}", &bi));
         assert_eq!(format!("{:b}", &bv), format!("{:b}", &bi));
         assert_eq!(format!("{:#b}", &bv), format!("{:#b}", &bi));
         assert_eq!(format!("{:#0200b}", &bv), format!("{:#0200b}", &bi));
