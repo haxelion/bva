@@ -1,10 +1,10 @@
 [package]
 name = "bva"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Charles Hubain <github@haxelion.eu>"]
 edition = "2021"
 rust-version = "1.61"
-description = "bva is a crate for manipulating bit vectors and doing arithmetics on arbitrarily sized bit vectors."
+description = "bva is a rust crate for manipulating and doing arithmetics on bit vectors of fixed but arbitrary size."
 documentation = "https://docs.rs/bva"
 readme = "README.md"
 homepage = "https://github.com/haxelion/bva/"
