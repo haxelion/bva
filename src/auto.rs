@@ -396,7 +396,6 @@ impl Binary for BV {
     }
 }
 
-/// TODO: this implementation is broken for bit vector longer than 128 bits.
 impl Display for BV {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -520,6 +519,15 @@ impl Ord for BV {
 // ------------------------------------------------------------------------------------------------
 // BV - Conversion traits
 // ------------------------------------------------------------------------------------------------
+
+impl From<&BV> for BV {
+    fn from(b: &BV) -> Self {
+        match b {
+            BV::Fixed(bvf) => BV::Fixed(*bvf),
+            BV::Dynamic(bvd) => BV::Dynamic(bvd.clone()),
+        }
+    }
+}
 
 impl From<BVD> for BV {
     fn from(b: BVD) -> Self {

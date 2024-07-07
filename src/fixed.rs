@@ -587,9 +587,22 @@ where
 }
 
 impl<I: Integer, const N: usize> fmt::Display for BVF<I, N> {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // TODO: waiting for div and mod operations
-        todo!()
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let base = Self::try_from(10u8).expect("Should fit in any BVF type");
+        let mut s = Vec::<char>::new();
+        let mut quotient = *self;
+        let mut remainder;
+
+        while !quotient.is_zero() {
+            (quotient, remainder) = quotient.div_rem(&base);
+            // Remainder of division by 10 will be a single digit
+            s.push(char::from_digit(u32::try_from(&remainder).unwrap(), 10).unwrap());
+        }
+        if s.is_empty() {
+            s.push('0');
+        }
+
+        f.pad_integral(true, "", s.iter().rev().collect::<String>().as_str())
     }
 }
 
@@ -788,7 +801,7 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
                 }
                 else {
                     // Check if value overflow the bit vector
-                    if <$type>::BITS as usize > Self::capacity() && int.shr(Self::capacity()) != 0 {
+                    if (<$type>::BITS - int.leading_zeros()) as usize > Self::capacity() {
                         return Err(ConvertionError::NotEnoughCapacity);
                     }
                     let mut data = [I::ZERO; N];
@@ -809,7 +822,7 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
             type Error = ConvertionError;
             fn try_from(bv: &BVF<I, N>) -> Result<Self, Self::Error> {
                 // Check if the bit vector overflow I
-                if bv.length > <$type>::BITS as usize {
+                if bv.significant_bits() > <$type>::BITS as usize {
                     Err(ConvertionError::NotEnoughCapacity)
                 }
                 else {

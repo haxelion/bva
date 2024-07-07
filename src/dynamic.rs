@@ -15,7 +15,7 @@ use std::ops::{
 };
 
 use crate::auto::BV;
-use crate::fixed::{BV128, BVF};
+use crate::fixed::BVF;
 use crate::iter::BitIterator;
 use crate::utils::{IArray, IArrayMut, Integer, StaticCast};
 use crate::{Bit, BitVector, ConvertionError, Endianness};
@@ -593,15 +593,23 @@ impl fmt::Binary for BVD {
     }
 }
 
-/// Warning: this implementation is broken for bit vector longer than 128 bits.
 impl fmt::Display for BVD {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Ok(b) = BV128::try_from(self) {
-            fmt::Display::fmt(&b, f)
-        } else {
-            // TODO: waiting for div and mod operations
-            todo!()
+        let base = Self::from(10u8);
+        let mut s = Vec::<char>::new();
+        let mut quotient = self.clone();
+        let mut remainder;
+
+        while !quotient.is_zero() {
+            (quotient, remainder) = quotient.div_rem(&base);
+            // Remainder of division by 10 will be a single digit
+            s.push(char::from_digit(u32::try_from(&remainder).unwrap(), 10).unwrap());
         }
+        if s.is_empty() {
+            s.push('0');
+        }
+
+        f.pad_integral(true, "", s.iter().rev().collect::<String>().as_str())
     }
 }
 
@@ -802,9 +810,8 @@ macro_rules! impl_from_ints {($($st:ty),+) => {
 
         impl TryFrom<&BVD> for $st {
             type Error = ConvertionError;
-            #[allow(arithmetic_overflow)]
             fn try_from(bvd: &BVD) -> Result<Self, Self::Error> {
-                if bvd.length > <$st>::BITS as usize {
+                if bvd.significant_bits() > <$st>::BITS as usize {
                     return Err(ConvertionError::NotEnoughCapacity);
                 }
                 else {

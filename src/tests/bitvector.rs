@@ -84,6 +84,32 @@ fn ones_bv() {
     ones_inner::<BV>(256);
 }
 
+fn is_empty_inner<B: BitVector>() {
+    let bv = B::zeros(0);
+    assert!(bv.is_empty());
+    let bv = B::zeros(1);
+    assert!(!bv.is_empty());
+}
+
+#[test]
+fn is_empty_bvf() {
+    is_empty_inner::<BVF<u8, 1>>();
+    is_empty_inner::<BVF<u16, 1>>();
+    is_empty_inner::<BVF<u32, 1>>();
+    is_empty_inner::<BVF<u64, 1>>();
+    is_empty_inner::<BVF<u128, 1>>();
+}
+
+#[test]
+fn is_empty_bvd() {
+    is_empty_inner::<BVD>();
+}
+
+#[test]
+fn is_empty_bv() {
+    is_empty_inner::<BV>();
+}
+
 fn from_to_bytes_inner<B: BitVector>(max_capacity: usize) {
     for length in (8..=max_capacity).step_by(8) {
         let bv = random_bv::<B>(length);
@@ -581,28 +607,36 @@ fn is_zero_bv() {
     is_zero_inner::<BV>(256);
 }
 
-fn is_empty_inner<B: BitVector>() {
-    let bv = B::zeros(0);
-    assert!(bv.is_empty());
-    let bv = B::zeros(1);
-    assert!(!bv.is_empty());
+fn div_rem_inner<B: BitVector>(max_capacity: usize)
+where
+    B: for<'a> TryFrom<&'a B, Error: std::fmt::Debug>,
+    for<'a> &'a B: std::ops::Mul<&'a B, Output = B>,
+    B: for<'a> std::ops::Add<&'a B, Output = B>,
+{
+    for capacity in 1..max_capacity {
+        let dividend = random_bv::<B>(capacity);
+        let mut divisor = random_bv::<B>(capacity);
+        while divisor.is_zero() {
+            divisor = random_bv::<B>(capacity);
+        }
+
+        let (quotient, remainder) = dividend.div_rem(&divisor);
+        assert_eq!(dividend, &quotient * &divisor + &remainder);
+        assert!(remainder < divisor);
+    }
 }
 
 #[test]
-fn is_empty_bvf() {
-    is_empty_inner::<BVF<u8, 1>>();
-    is_empty_inner::<BVF<u16, 1>>();
-    is_empty_inner::<BVF<u32, 1>>();
-    is_empty_inner::<BVF<u64, 1>>();
-    is_empty_inner::<BVF<u128, 1>>();
+fn div_rem_bvf() {
+    bvf_inner_unroll_cap!(div_rem_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
 }
 
 #[test]
-fn is_empty_bvd() {
-    is_empty_inner::<BVD>();
+fn div_rem_bvd() {
+    div_rem_inner::<BVD>(256);
 }
 
 #[test]
-fn is_empty_bv() {
-    is_empty_inner::<BV>();
+fn div_rem_bv() {
+    div_rem_inner::<BV>(256);
 }
