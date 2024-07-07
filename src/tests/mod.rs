@@ -143,9 +143,9 @@ macro_rules! op_test_block2 {
     ($lhs:ty, $rhs:ty, $op:path, $op_assign:path, $size:ident) => {
         let modulo = BigInt::from(1u8) << $size;
         let (bv1, bi1) = random_test_bv::<$lhs>($size);
-        let (mut bv2, mut bi2) = random_test_bv::<$rhs>(usize::min(1, $size));
+        let (mut bv2, mut bi2) = random_test_bv::<$rhs>(usize::max(1, $size / 2));
         while bv2.is_zero() {
-            (bv2, bi2) = random_test_bv::<$rhs>(usize::min(1, $size));
+            (bv2, bi2) = random_test_bv::<$rhs>(usize::max(1, $size / 2));
         }
         let reference = $op(&bi1, &bi2) % &modulo;
         // Normal op
@@ -160,6 +160,33 @@ macro_rules! op_test_block2 {
         bv3 = bv1.clone();
         $op_assign(&mut bv3, bv2);
         assert_eq!(bv3, reference);
+    };
+}
+
+// Variant suited for shifts.
+macro_rules! shift_test_block {
+    ($lhs:ty, {$($rhs:ty),+}, $op:path, $op_assign:path, $size:ident) => {
+        $(
+            shift_test_block!($lhs, $rhs, $op, $op_assign, $size);
+        )+
+    };
+    ($lhs:ty, $rhs:ty, $op:path, $op_assign:path, $size:ident) => {
+        let modulo = BigInt::from(1u8) << $size;
+        let shift = (random::<usize>() % (2 * $size)) as $rhs;
+        let (bv, bi) = random_test_bv::<$lhs>($size);
+        let reference = $op(&bi, shift) % modulo;
+        // Normal op
+        assert_eq!($op(&bv, &shift), reference);
+        assert_eq!($op(bv.clone(), &shift), reference);
+        assert_eq!($op(&bv, shift), reference);
+        assert_eq!($op(bv.clone(), shift), reference);
+        // Assign op
+        let mut bv2 = bv.clone();
+        $op_assign(&mut bv2, &shift);
+        assert_eq!(bv2, reference);
+        bv2 = bv.clone();
+        $op_assign(&mut bv2, shift);
+        assert_eq!(bv2, reference);
     };
 }
 
@@ -253,3 +280,4 @@ pub(crate) use bvf_inner_unroll_cap;
 pub(crate) use op_test_block;
 pub(crate) use op_test_block2;
 pub(crate) use op_test_section;
+pub(crate) use shift_test_block;

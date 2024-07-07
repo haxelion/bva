@@ -2,14 +2,14 @@ use std::io::Cursor;
 use std::iter::repeat;
 
 use rand::seq::SliceRandom;
-use rand::{thread_rng, Rng};
+use rand::{thread_rng, Rng, RngCore};
 
 use crate::auto::BV;
 use crate::bit::Bit;
 use crate::dynamic::BVD;
 use crate::fixed::BVF;
 use crate::tests::{bvf_inner_unroll_cap, random_bv};
-use crate::{BitVector, Endianness};
+use crate::{BitVector, ConvertionError, Endianness};
 
 fn with_capacity_inner<B: BitVector>(max_capacity: usize) {
     for c in 0..max_capacity {
@@ -127,6 +127,29 @@ fn from_to_bytes_inner<B: BitVector>(max_capacity: usize) {
 #[test]
 fn from_to_bytes_bvf() {
     bvf_inner_unroll_cap!(from_to_bytes_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
+
+    let mut buffer: Vec<_> = repeat(0u8).take(64).collect();
+    thread_rng().fill_bytes(&mut buffer);
+    assert_eq!(
+        BVF::<u8, 2>::from_bytes(&buffer, Endianness::BE),
+        Err(ConvertionError::NotEnoughCapacity)
+    );
+    assert_eq!(
+        BVF::<u16, 2>::from_bytes(&buffer, Endianness::BE),
+        Err(ConvertionError::NotEnoughCapacity)
+    );
+    assert_eq!(
+        BVF::<u32, 2>::from_bytes(&buffer, Endianness::BE),
+        Err(ConvertionError::NotEnoughCapacity)
+    );
+    assert_eq!(
+        BVF::<u64, 2>::from_bytes(&buffer, Endianness::BE),
+        Err(ConvertionError::NotEnoughCapacity)
+    );
+    assert_eq!(
+        BVF::<u128, 2>::from_bytes(&buffer, Endianness::BE),
+        Err(ConvertionError::NotEnoughCapacity)
+    );
 }
 
 #[test]
@@ -163,6 +186,14 @@ fn read_write_inner<B: BitVector>(max_capacity: usize) {
 #[test]
 fn read_write_inner_bvf() {
     bvf_inner_unroll_cap!(read_write_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
+
+    let mut buffer: Vec<_> = repeat(0u8).take(64).collect();
+    thread_rng().fill_bytes(&mut buffer);
+    assert!(BVF::<u8, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::BE).is_err());
+    assert!(BVF::<u16, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::BE).is_err());
+    assert!(BVF::<u32, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::BE).is_err());
+    assert!(BVF::<u64, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::BE).is_err());
+    assert!(BVF::<u128, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::BE).is_err());
 }
 
 #[test]
