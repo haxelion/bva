@@ -157,6 +157,14 @@ impl BitVector for BVD {
         }
     }
 
+    fn capacity(&self) -> usize {
+        self.data.len() * Self::BIT_UNIT
+    }
+
+    fn len(&self) -> usize {
+        self.length
+    }
+
     fn from_binary<S: AsRef<str>>(string: S) -> Result<Self, ConvertionError> {
         let length = string.as_ref().chars().count();
         let offset = (Self::BIT_UNIT - length % Self::BIT_UNIT) % Self::BIT_UNIT;
@@ -323,6 +331,7 @@ impl BitVector for BVD {
             return None;
         }
         let bit = self.get(self.length - 1);
+        self.set(self.length - 1, Bit::Zero);
         self.length -= 1;
         Some(bit)
     }
@@ -352,6 +361,25 @@ impl BitVector for BVD {
                 *l &= Self::mask(new_length % Self::BIT_UNIT);
             }
             self.length = new_length;
+        }
+    }
+
+    fn append<B: BitVector>(&mut self, suffix: &B) {
+        self.reserve(self.length + suffix.len());
+        // TODO: can be optimized with a shift and data copy via IArray.
+        // The IArray trait would need rework to support this.
+        for b in suffix.iter() {
+            self.push(b);
+        }
+    }
+
+    fn prepend<B: BitVector>(&mut self, prefix: &B) {
+        self.resize(prefix.len() + self.length, Bit::Zero);
+        *self <<= prefix.len();
+        // TODO: can be optimized with data copy via IArray.
+        // The IArray trait would need rework to support this.
+        for (i, b) in prefix.iter().enumerate() {
+            self.set(i, b);
         }
     }
 
@@ -424,18 +452,6 @@ impl BitVector for BVD {
             new_idx += l;
         }
         self.data = new_data.into_boxed_slice();
-    }
-
-    fn capacity(&self) -> usize {
-        self.data.len() * Self::BIT_UNIT
-    }
-
-    fn len(&self) -> usize {
-        self.length
-    }
-
-    fn iter(&self) -> BitIterator<'_, Self> {
-        self.into_iter()
     }
 
     fn leading_zeros(&self) -> usize {
@@ -539,6 +555,10 @@ impl BitVector for BVD {
         }
 
         (quotient, rem)
+    }
+
+    fn iter(&self) -> BitIterator<'_, Self> {
+        self.into_iter()
     }
 }
 

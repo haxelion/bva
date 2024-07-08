@@ -64,3 +64,30 @@ fn iter_auto() {
         iter_inner::<BV>(capacity);
     }
 }
+
+fn from_iter_inner<B: BitVector + FromIterator<Bit>>(capacity: usize) {
+    let mut rng = thread_rng();
+    let bits: Vec<Bit> = (0..capacity)
+        .map(|_| Bit::from(rng.gen::<bool>()))
+        .collect();
+    let bv: B = bits.iter().copied().collect();
+    for (b1, &b2) in bv.iter().zip(bits.iter()) {
+        assert_eq!(b1, b2);
+    }
+}
+
+#[test]
+fn from_iter_bvf() {
+    bvf_inner_unroll_cap!(from_iter_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
+}
+
+#[test]
+fn from_iter_bvd() {
+    from_iter_inner::<BVD>(256);
+}
+
+#[test]
+fn from_iter_bv() {
+    from_iter_inner::<BV>(64);
+    from_iter_inner::<BV>(256);
+}
