@@ -355,6 +355,70 @@ fn resize_bv() {
     resize_inner::<BV>(256);
 }
 
+fn append_inner<B: BitVector>(max_capacity: usize) {
+    for capacity in 0..max_capacity {
+        for split in 0..capacity {
+            let mut bv1 = random_bv::<B>(split);
+            let bv2 = random_bv::<B>(capacity - split);
+            let mut bits1: Vec<Bit> = bv1.iter().collect();
+            let bits2: Vec<Bit> = bv2.iter().collect();
+
+            bv1.append(&bv2);
+            bits1.extend(bits2.iter());
+            for (b1, &b2) in bv1.iter().zip(bits1.iter()) {
+                assert_eq!(b1, b2);
+            }
+        }
+    }
+}
+
+#[test]
+fn append_bvf() {
+    bvf_inner_unroll_cap!(append_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
+}
+
+#[test]
+fn append_bvd() {
+    append_inner::<BVD>(256);
+}
+
+#[test]
+fn append_bv() {
+    append_inner::<BV>(256);
+}
+
+fn prepend_inner<B: BitVector>(max_capacity: usize) {
+    for capacity in 0..max_capacity {
+        for split in 0..capacity {
+            let mut bv1 = random_bv::<B>(split);
+            let bv2 = random_bv::<B>(capacity - split);
+            let bits1: Vec<Bit> = bv1.iter().collect();
+            let mut bits2: Vec<Bit> = bv2.iter().collect();
+
+            bv1.prepend(&bv2);
+            bits2.extend(bits1.iter());
+            for (b1, &b2) in bv1.iter().zip(bits2.iter()) {
+                assert_eq!(b1, b2);
+            }
+        }
+    }
+}
+
+#[test]
+fn prepend_bvf() {
+    bvf_inner_unroll_cap!(prepend_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
+}
+
+#[test]
+fn prepend_bvd() {
+    prepend_inner::<BVD>(256);
+}
+
+#[test]
+fn prepend_bv() {
+    prepend_inner::<BV>(256);
+}
+
 fn shl_inner<B: BitVector>(max_capacity: usize) {
     let mut rng = thread_rng();
     for capacity in 0..max_capacity {

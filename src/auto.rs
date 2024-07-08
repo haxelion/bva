@@ -142,6 +142,20 @@ impl BitVector for BV {
         }
     }
 
+    fn capacity(&self) -> usize {
+        match self {
+            BV::Fixed(_) => BVP::capacity(),
+            BV::Dynamic(b) => b.capacity(),
+        }
+    }
+
+    fn len(&self) -> usize {
+        match self {
+            BV::Fixed(b) => b.len(),
+            BV::Dynamic(b) => b.len(),
+        }
+    }
+
     fn from_binary<S: AsRef<str>>(string: S) -> Result<Self, ConvertionError> {
         if string.as_ref().len() <= BVP::capacity() {
             Ok(BV::Fixed(BVP::from_binary(string)?))
@@ -252,6 +266,40 @@ impl BitVector for BV {
         }
     }
 
+    fn append<B: BitVector>(&mut self, suffix: &B) {
+        match self {
+            BV::Fixed(bvf) => {
+                if bvf.len() + suffix.len() <= BVP::capacity() {
+                    bvf.append(suffix);
+                } else {
+                    let mut bvd = BVD::from(&*bvf);
+                    bvd.append(suffix);
+                    *self = BV::Dynamic(bvd);
+                }
+            }
+            BV::Dynamic(bvd) => {
+                bvd.append(suffix);
+            }
+        }
+    }
+
+    fn prepend<B: BitVector>(&mut self, prefix: &B) {
+        match self {
+            BV::Fixed(bvf) => {
+                if bvf.len() + prefix.len() <= BVP::capacity() {
+                    bvf.prepend(prefix);
+                } else {
+                    let mut bvd = BVD::from(&*bvf);
+                    bvd.prepend(prefix);
+                    *self = BV::Dynamic(bvd);
+                }
+            }
+            BV::Dynamic(bvd) => {
+                bvd.prepend(prefix);
+            }
+        }
+    }
+
     fn shl_in(&mut self, bit: Bit) -> Bit {
         match self {
             BV::Fixed(b) => b.shl_in(bit),
@@ -278,24 +326,6 @@ impl BitVector for BV {
             BV::Fixed(b) => b.rotr(rot),
             BV::Dynamic(b) => b.rotr(rot),
         }
-    }
-
-    fn capacity(&self) -> usize {
-        match self {
-            BV::Fixed(_) => BVP::capacity(),
-            BV::Dynamic(b) => b.capacity(),
-        }
-    }
-
-    fn len(&self) -> usize {
-        match self {
-            BV::Fixed(b) => b.len(),
-            BV::Dynamic(b) => b.len(),
-        }
-    }
-
-    fn iter(&self) -> BitIterator<'_, Self> {
-        self.into_iter()
     }
 
     fn leading_zeros(&self) -> usize {
@@ -358,6 +388,10 @@ impl BitVector for BV {
         }
 
         (quotient, rem)
+    }
+
+    fn iter(&self) -> BitIterator<'_, Self> {
+        self.into_iter()
     }
 }
 

@@ -177,6 +177,14 @@ pub trait BitVector:
     /// Will panic if there is not enough capacity and it is a fixed variant.
     fn resize(&mut self, new_length: usize, bit: Bit);
 
+    /// Append the `suffix` bit vector at the end (most significant part) of this bit vector.
+    /// Will panic if there is not enough capacity and this is a fixed variant.
+    fn append<B: BitVector>(&mut self, suffix: &B);
+
+    /// Prepend the `prefix` bit vector at the beginning (least significant part) of this bit vector.
+    /// Will panic if there is not enough capacity and this is a fixed variant.
+    fn prepend<B: BitVector>(&mut self, prefix: &B);
+
     /// Shift the bits by one to the left.
     /// The rightmost bit is set to `bit` and the leftmost bit is returned.
     fn shl_in(&mut self, bit: Bit) -> Bit;

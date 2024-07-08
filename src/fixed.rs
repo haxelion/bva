@@ -130,6 +130,14 @@ where
         ones
     }
 
+    fn capacity(&self) -> usize {
+        BVF::<I, N>::capacity()
+    }
+
+    fn len(&self) -> usize {
+        self.length
+    }
+
     fn from_binary<S: AsRef<str>>(string: S) -> Result<Self, ConvertionError> {
         let length = string.as_ref().chars().count();
         if length > Self::capacity() {
@@ -313,6 +321,7 @@ where
         let mut b = None;
         if self.length > 0 {
             b = Some(self.get(self.length - 1));
+            self.set(self.length - 1, Bit::Zero);
             self.length -= 1;
         }
         b
@@ -343,6 +352,26 @@ where
                 *l &= Self::mask(new_length % Self::BIT_UNIT);
             }
             self.length = new_length;
+        }
+    }
+
+    fn append<B: BitVector>(&mut self, suffix: &B) {
+        debug_assert!(self.length + suffix.len() <= self.capacity());
+        // TODO: can be optimized with a shift and data copy via IArray.
+        // The IArray trait would need rework to support this.
+        for b in suffix.iter() {
+            self.push(b);
+        }
+    }
+
+    fn prepend<B: BitVector>(&mut self, prefix: &B) {
+        debug_assert!(prefix.len() + self.length <= self.capacity());
+        self.resize(prefix.len() + self.length, Bit::Zero);
+        *self <<= prefix.len();
+        // TODO: can be optimized with data copy via IArray.
+        // The IArray trait would need rework to support this.
+        for (i, b) in prefix.iter().enumerate() {
+            self.set(i, b);
         }
     }
 
@@ -415,18 +444,6 @@ where
             new_idx += l;
         }
         self.data = new_data;
-    }
-
-    fn capacity(&self) -> usize {
-        BVF::<I, N>::capacity()
-    }
-
-    fn len(&self) -> usize {
-        self.length
-    }
-
-    fn iter(&self) -> BitIterator<'_, Self> {
-        self.into_iter()
     }
 
     fn leading_zeros(&self) -> usize {
@@ -528,6 +545,10 @@ where
         }
 
         (quotient, rem)
+    }
+
+    fn iter(&self) -> BitIterator<'_, Self> {
+        self.into_iter()
     }
 }
 
