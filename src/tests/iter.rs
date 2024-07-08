@@ -91,3 +91,31 @@ fn from_iter_bv() {
     from_iter_inner::<BV>(64);
     from_iter_inner::<BV>(256);
 }
+
+fn extend_inner<B: BitVector + Extend<Bit>>(capacity: usize) {
+    let mut rng = thread_rng();
+    let bits: Vec<Bit> = (0..capacity)
+        .map(|_| Bit::from(rng.gen::<bool>()))
+        .collect();
+    let mut bv = B::with_capacity(capacity / 2);
+    bv.extend(bits.iter().copied());
+    for (b1, &b2) in bv.iter().zip(bits.iter()) {
+        assert_eq!(b1, b2);
+    }
+}
+
+#[test]
+fn extend_bvf() {
+    bvf_inner_unroll_cap!(extend_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
+}
+
+#[test]
+fn extend_bvd() {
+    extend_inner::<BVD>(256);
+}
+
+#[test]
+fn extend_bv() {
+    extend_inner::<BV>(64);
+    extend_inner::<BV>(256);
+}

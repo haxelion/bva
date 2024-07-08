@@ -577,6 +577,12 @@ where
     }
 }
 
+impl<I: Integer, const N: usize> Extend<Bit> for BVF<I, N> {
+    fn extend<T: IntoIterator<Item = Bit>>(&mut self, iter: T) {
+        iter.into_iter().for_each(|b| self.push(b));
+    }
+}
+
 // ------------------------------------------------------------------------------------------------
 // BVF - Formatting traits
 // ------------------------------------------------------------------------------------------------

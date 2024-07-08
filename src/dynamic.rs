@@ -584,6 +584,14 @@ impl FromIterator<Bit> for BVD {
     }
 }
 
+impl Extend<Bit> for BVD {
+    fn extend<T: IntoIterator<Item = Bit>>(&mut self, iter: T) {
+        let iter = iter.into_iter();
+        self.reserve(iter.size_hint().0);
+        iter.for_each(|b| self.push(b));
+    }
+}
+
 // ------------------------------------------------------------------------------------------------
 // BVD - Formatting traits
 // ------------------------------------------------------------------------------------------------
