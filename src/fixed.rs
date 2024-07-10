@@ -71,30 +71,37 @@ impl<I: Integer, const N: usize> BVF<I, N> {
 // BVF - Integer Array traits
 // ------------------------------------------------------------------------------------------------
 
-impl<I: Integer, J: Integer, const N: usize> IArray<I> for BVF<J, N>
-where
-    J: StaticCast<I>,
-{
-    fn int_len(&self) -> usize {
-        (self.length + size_of::<I>() * 8 - 1) / (size_of::<I>() * 8)
+impl<I: Integer, const N: usize> IArray for BVF<I, N> {
+    type I = I;
+
+    fn int_len<J: Integer>(&self) -> usize
+    where
+        I: StaticCast<J>,
+    {
+        (self.length + size_of::<J>() * 8 - 1) / (size_of::<J>() * 8)
     }
 
-    fn get_int(&self, idx: usize) -> Option<I> {
-        if idx < IArray::<I>::int_len(self) {
-            IArray::<I>::get_int(self.data.as_ref(), idx)
+    fn get_int<J: Integer>(&self, idx: usize) -> Option<J>
+    where
+        I: StaticCast<J>,
+    {
+        if idx < IArray::int_len::<J>(self) {
+            IArray::get_int::<J>(self.data.as_ref(), idx)
         } else {
             None
         }
     }
 }
 
-impl<I: Integer, J: Integer, const N: usize> IArrayMut<I> for BVF<J, N>
-where
-    J: StaticCast<I>,
-{
-    fn set_int(&mut self, idx: usize, v: I) -> Option<I> {
-        if idx < IArray::<I>::int_len(self) {
-            IArrayMut::<I>::set_int(self.data.as_mut(), idx, v)
+impl<I: Integer, const N: usize> IArrayMut for BVF<I, N> {
+    type I = I;
+
+    fn set_int<J: Integer>(&mut self, idx: usize, v: J) -> Option<J>
+    where
+        I: StaticCast<J>,
+    {
+        if idx < IArray::int_len::<J>(self) {
+            IArrayMut::set_int::<J>(self.data.as_mut(), idx, v)
         } else {
             None
         }
@@ -732,9 +739,9 @@ where
     I2: StaticCast<I1>,
 {
     fn eq(&self, other: &BVF<I1, N1>) -> bool {
-        for i in 0..usize::max(IArray::<I1>::int_len(self), IArray::<I1>::int_len(other)) {
-            if IArray::<I1>::get_int(self, i).unwrap_or(I1::ZERO)
-                != IArray::<I1>::get_int(other, i).unwrap_or(I1::ZERO)
+        for i in 0..usize::max(IArray::int_len::<I1>(self), IArray::int_len::<I1>(other)) {
+            if IArray::get_int(self, i).unwrap_or(I1::ZERO)
+                != IArray::get_int(other, i).unwrap_or(I1::ZERO)
             {
                 return false;
             }
@@ -767,10 +774,10 @@ where
     I2: StaticCast<I1>,
 {
     fn partial_cmp(&self, other: &BVF<I1, N1>) -> Option<std::cmp::Ordering> {
-        for i in (0..usize::max(IArray::<I1>::int_len(self), IArray::<I1>::int_len(other))).rev() {
-            match IArray::<I1>::get_int(self, i)
+        for i in (0..usize::max(IArray::int_len::<I1>(self), IArray::int_len::<I1>(other))).rev() {
+            match IArray::get_int(self, i)
                 .unwrap_or(I1::ZERO)
-                .cmp(&IArray::<I1>::get_int(other, i).unwrap_or(I1::ZERO))
+                .cmp(&IArray::get_int(other, i).unwrap_or(I1::ZERO))
             {
                 Ordering::Equal => continue,
                 ord => return Some(ord),
@@ -853,7 +860,7 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
                     Err(ConvertionError::NotEnoughCapacity)
                 }
                 else {
-                    Ok(IArray::<$type>::get_int(bv, 0).unwrap())
+                    Ok(IArray::get_int(bv, 0).unwrap())
                 }
             }
         }
@@ -883,8 +890,8 @@ where
             Err(ConvertionError::NotEnoughCapacity)
         } else {
             let mut data = [I2::ZERO; N2];
-            for i in 0..usize::min(N2, IArray::<I2>::int_len(bvf)) {
-                data[i] = IArray::<I2>::get_int(bvf, i).unwrap();
+            for i in 0..usize::min(N2, IArray::int_len::<I2>(bvf)) {
+                data[i] = IArray::get_int(bvf, i).unwrap();
             }
             Ok(BVF::<I2, N2> {
                 data,
@@ -935,8 +942,8 @@ where
             Err(ConvertionError::NotEnoughCapacity)
         } else {
             let mut data = [I::ZERO; N];
-            for i in 0..IArray::<I>::int_len(bv) {
-                data[i] = IArray::<I>::get_int(bv, i).unwrap();
+            for i in 0..IArray::int_len::<I>(bv) {
+                data[i] = IArray::get_int(bv, i).unwrap();
             }
             Ok(BVF::<I, N> {
                 data,
@@ -1128,7 +1135,7 @@ macro_rules! impl_binop_assign {
                     }
                 } else {
                     for i in 0..N1 {
-                        self.data[i].$method(IArray::<I1>::get_int(rhs, i).unwrap_or(I1::ZERO));
+                        self.data[i].$method(IArray::get_int(rhs, i).unwrap_or(I1::ZERO));
                     }
                 }
             }
@@ -1150,7 +1157,7 @@ macro_rules! impl_binop_assign {
         {
             fn $method(&mut self, rhs: &BVD) {
                 for i in 0..N {
-                    self.data[i].$method(IArray::<I>::get_int(rhs, i).unwrap_or(I::ZERO));
+                    self.data[i].$method(IArray::get_int(rhs, i).unwrap_or(I::ZERO));
                 }
             }
         }
@@ -1213,10 +1220,8 @@ macro_rules! impl_addsub_assign {
                 } else {
                     let mut carry = I1::ZERO;
                     for i in 0..N1 {
-                        carry = self.data[i].$carry_method(
-                            IArray::<I1>::get_int(rhs, i).unwrap_or(I1::ZERO),
-                            carry,
-                        );
+                        carry = self.data[i]
+                            .$carry_method(IArray::get_int(rhs, i).unwrap_or(I1::ZERO), carry);
                     }
                     self.mod2n(self.length);
                 }
@@ -1241,7 +1246,7 @@ macro_rules! impl_addsub_assign {
                 let mut carry = I::ZERO;
                 for i in 0..N {
                     carry = self.data[i]
-                        .$carry_method(IArray::<I>::get_int(rhs, i).unwrap_or(I::ZERO), carry);
+                        .$carry_method(IArray::get_int(rhs, i).unwrap_or(I::ZERO), carry);
                 }
                 self.mod2n(self.length);
             }
@@ -1330,11 +1335,11 @@ where
     type Output = BVF<I1, N1>;
     fn mul(self, rhs: &BVF<I2, N2>) -> BVF<I1, N1> {
         let mut res = BVF::<I1, N1>::zeros(self.length);
-        let len = IArray::<I1>::int_len(&res);
+        let len = IArray::int_len::<I1>(&res);
         for i in 0..len {
             let mut carry = I1::ZERO;
             for j in 0..(len - i) {
-                let product = self.data[i].wmul(IArray::<I1>::get_int(rhs, j).unwrap_or(I1::ZERO));
+                let product = self.data[i].wmul(IArray::get_int(rhs, j).unwrap_or(I1::ZERO));
                 carry = res.data[i + j].cadd(product.0, carry) + product.1;
             }
         }
@@ -1381,11 +1386,11 @@ where
     type Output = BVF<I, N>;
     fn mul(self, rhs: &BVD) -> BVF<I, N> {
         let mut res = BVF::<I, N>::zeros(self.length);
-        let len = IArray::<I>::int_len(&res);
+        let len = IArray::int_len::<I>(&res);
         for i in 0..len {
             let mut carry = I::ZERO;
             for j in 0..(len - i) {
-                let product = self.data[i].wmul(IArray::<I>::get_int(rhs, j).unwrap_or(I::ZERO));
+                let product = self.data[i].wmul(IArray::get_int(rhs, j).unwrap_or(I::ZERO));
                 carry = res.data[i + j].cadd(product.0, carry) + product.1;
             }
         }

@@ -82,33 +82,40 @@ impl BV {
 // BV - Integer Array traits
 // ------------------------------------------------------------------------------------------------
 
-impl<I: Integer> IArray<I> for BV
-where
-    u64: StaticCast<I>,
-{
-    fn int_len(&self) -> usize {
+impl IArray for BV {
+    type I = u64;
+
+    fn int_len<J: Integer>(&self) -> usize
+    where
+        u64: StaticCast<J>,
+    {
         match self {
-            BV::Fixed(bvf) => IArray::<I>::int_len(bvf),
-            BV::Dynamic(bvd) => IArray::<I>::int_len(bvd),
+            BV::Fixed(bvf) => IArray::int_len(bvf),
+            BV::Dynamic(bvd) => IArray::int_len(bvd),
         }
     }
 
-    fn get_int(&self, idx: usize) -> Option<I> {
+    fn get_int<J: Integer>(&self, idx: usize) -> Option<J>
+    where
+        u64: StaticCast<J>,
+    {
         match self {
-            BV::Fixed(bvf) => IArray::<I>::get_int(bvf, idx),
-            BV::Dynamic(bvd) => IArray::<I>::get_int(bvd, idx),
+            BV::Fixed(bvf) => IArray::get_int(bvf, idx),
+            BV::Dynamic(bvd) => IArray::get_int(bvd, idx),
         }
     }
 }
 
-impl<I: Integer> IArrayMut<I> for BV
-where
-    u64: StaticCast<I>,
-{
-    fn set_int(&mut self, idx: usize, v: I) -> Option<I> {
+impl IArrayMut for BV {
+    type I = u64;
+
+    fn set_int<J: Integer>(&mut self, idx: usize, v: J) -> Option<J>
+    where
+        u64: StaticCast<J>,
+    {
         match self {
-            BV::Fixed(bvf) => IArrayMut::<I>::set_int(bvf, idx, v),
-            BV::Dynamic(bvd) => IArrayMut::<I>::set_int(bvd, idx, v),
+            BV::Fixed(bvf) => IArrayMut::set_int(bvf, idx, v),
+            BV::Dynamic(bvd) => IArrayMut::set_int(bvd, idx, v),
         }
     }
 }
