@@ -88,30 +88,37 @@ impl BVD {
 // BVD - Integer Array traits
 // ------------------------------------------------------------------------------------------------
 
-impl<I: Integer> IArray<I> for BVD
-where
-    u64: StaticCast<I>,
-{
-    fn int_len(&self) -> usize {
-        (self.len() + size_of::<I>() * 8 - 1) / (size_of::<I>() * 8)
+impl IArray for BVD {
+    type I = u64;
+
+    fn int_len<J: Integer>(&self) -> usize
+    where
+        u64: StaticCast<J>,
+    {
+        (self.len() + size_of::<J>() * 8 - 1) / (size_of::<J>() * 8)
     }
 
-    fn get_int(&self, idx: usize) -> Option<I> {
-        if idx < IArray::<I>::int_len(self) {
-            IArray::<I>::get_int(self.data.as_ref(), idx)
+    fn get_int<J: Integer>(&self, idx: usize) -> Option<J>
+    where
+        u64: StaticCast<J>,
+    {
+        if idx < IArray::int_len::<J>(self) {
+            IArray::get_int::<J>(self.data.as_ref(), idx)
         } else {
             None
         }
     }
 }
 
-impl<I: Integer> IArrayMut<I> for BVD
-where
-    u64: StaticCast<I>,
-{
-    fn set_int(&mut self, idx: usize, v: I) -> Option<I> {
-        if idx < IArray::<I>::int_len(self) {
-            IArrayMut::<I>::set_int(self.data.as_mut(), idx, v)
+impl IArrayMut for BVD {
+    type I = u64;
+
+    fn set_int<J: Integer>(&mut self, idx: usize, v: J) -> Option<J>
+    where
+        u64: StaticCast<J>,
+    {
+        if idx < IArray::int_len::<J>(self) {
+            IArrayMut::set_int::<J>(self.data.as_mut(), idx, v)
         } else {
             None
         }
@@ -748,8 +755,8 @@ impl PartialEq for BVD {
 
 impl<I: Integer, const N: usize> PartialEq<BVF<I, N>> for BVD {
     fn eq(&self, other: &BVF<I, N>) -> bool {
-        for i in 0..usize::max(self.len(), IArray::<u64>::int_len(other)) {
-            if *self.data.get(i).unwrap_or(&0) != IArray::<u64>::get_int(other, i).unwrap_or(0) {
+        for i in 0..usize::max(self.len(), IArray::int_len::<u64>(other)) {
+            if *self.data.get(i).unwrap_or(&0) != IArray::get_int(other, i).unwrap_or(0) {
                 return false;
             }
         }
@@ -773,12 +780,12 @@ impl PartialOrd for BVD {
 
 impl<I: Integer, const N: usize> PartialOrd<BVF<I, N>> for BVD {
     fn partial_cmp(&self, other: &BVF<I, N>) -> Option<Ordering> {
-        for i in (0..usize::max(self.len(), IArray::<u64>::int_len(other))).rev() {
+        for i in (0..usize::max(self.len(), IArray::int_len::<u64>(other))).rev() {
             match self
                 .data
                 .get(i)
                 .unwrap_or(&0)
-                .cmp(&IArray::<u64>::get_int(other, i).unwrap_or(0))
+                .cmp(&IArray::get_int(other, i).unwrap_or(0))
             {
                 Ordering::Equal => continue,
                 ord => return Some(ord),
@@ -831,7 +838,7 @@ macro_rules! impl_from_ints {($($st:ty),+) => {
                 let array = [st];
                 BVD {
                     length: <$st>::BITS as usize,
-                    data: (0..IArray::<u64>::int_len(array.as_ref())).map(|i| IArray::<u64>::get_int(array.as_ref(), i).unwrap()).collect(),
+                    data: (0..IArray::int_len::<u64>(array.as_ref())).map(|i| IArray::get_int(array.as_ref(), i).unwrap()).collect(),
                 }
             }
         }
@@ -867,8 +874,8 @@ impl<I: Integer, const N: usize> From<&BVF<I, N>> for BVD {
     fn from(rhs: &BVF<I, N>) -> BVD {
         BVD {
             length: rhs.len(),
-            data: (0..IArray::<u64>::int_len(rhs))
-                .map(|i| IArray::<u64>::get_int(rhs, i).unwrap())
+            data: (0..IArray::int_len::<u64>(rhs))
+                .map(|i| IArray::get_int(rhs, i).unwrap())
                 .collect(),
         }
     }
@@ -1111,10 +1118,10 @@ macro_rules! impl_binop_assign {
 
         impl<I: Integer, const N: usize> $trait<&BVF<I, N>> for BVD {
             fn $method(&mut self, rhs: &BVF<I, N>) {
-                for i in 0..usize::min(IArray::<u64>::int_len(rhs), self.data.len()) {
-                    self.data[i].$method(IArray::<u64>::get_int(rhs, i).unwrap());
+                for i in 0..usize::min(IArray::int_len::<u64>(rhs), self.data.len()) {
+                    self.data[i].$method(IArray::get_int::<u64>(rhs, i).unwrap());
                 }
-                for i in usize::min(IArray::<u64>::int_len(rhs), self.data.len())..self.data.len() {
+                for i in usize::min(IArray::int_len::<u64>(rhs), self.data.len())..self.data.len() {
                     self.data[i].$method(0);
                 }
             }
@@ -1180,13 +1187,13 @@ macro_rules! impl_addsub_assign {
         impl<I: Integer, const N: usize> $trait<&BVF<I, N>> for BVD {
             fn $method(&mut self, rhs: &BVF<I, N>) {
                 let mut carry = 0;
-                for i in 0..IArray::<u64>::int_len(rhs) {
+                for i in 0..IArray::int_len::<u64>(rhs) {
                     let (d1, c1) = self.data[i].$overflowing_method(carry);
-                    let (d2, c2) = d1.$overflowing_method(IArray::<u64>::get_int(rhs, i).unwrap());
+                    let (d2, c2) = d1.$overflowing_method(IArray::get_int(rhs, i).unwrap());
                     self.data[i] = d2;
                     carry = (c1 | c2) as u64;
                 }
-                for i in IArray::<u64>::int_len(rhs)..Self::capacity_from_bit_len(self.length) {
+                for i in IArray::int_len::<u64>(rhs)..Self::capacity_from_bit_len(self.length) {
                     let (d, c) = self.data[i].$overflowing_method(carry);
                     self.data[i] = d;
                     carry = c as u64;
@@ -1311,12 +1318,12 @@ impl<I: Integer, const N: usize> Mul<&BVF<I, N>> for &BVD {
     type Output = BVD;
     fn mul(self, rhs: &BVF<I, N>) -> BVD {
         let mut res = BVD::zeros(self.length);
-        let len = IArray::<u64>::int_len(&res);
+        let len = IArray::int_len::<u64>(&res);
 
         for i in 0..len {
             let mut carry = 0;
             for j in 0..(len - i) {
-                let product = self.data[i].wmul(IArray::<u64>::get_int(rhs, j).unwrap_or(0));
+                let product = self.data[i].wmul(IArray::get_int(rhs, j).unwrap_or(0));
                 carry = res.data[i + j].cadd(product.0, carry) + product.1;
             }
         }
