@@ -363,23 +363,48 @@ where
     }
 
     fn append<B: BitVector>(&mut self, suffix: &B) {
-        debug_assert!(self.length + suffix.len() <= self.capacity());
-        // TODO: can be optimized with a shift and data copy via IArray.
-        // The IArray trait would need rework to support this.
-        for b in suffix.iter() {
-            self.push(b);
+        let offset = self.length % u8::BITS as usize;
+        let slide = self.length / u8::BITS as usize;
+        self.resize(self.length + suffix.len(), Bit::Zero);
+        if offset == 0 {
+            let mut i = 0;
+            while let Some(b) = suffix.get_int::<u8>(i) {
+                self.set_int::<u8>(i + slide, b);
+                i += 1;
+            }
+        } else if let Some(b) = suffix.get_int::<u8>(0) {
+            self.set_int::<u8>(
+                slide,
+                self.get_int::<u8>(slide).unwrap_or(0) | (b << offset),
+            );
+
+            let rev_offset = u8::BITS as usize - offset;
+            let mut i = 1;
+            let mut prev = b;
+
+            while let Some(b) = suffix.get_int::<u8>(i) {
+                self.set_int::<u8>(i + slide, (prev >> rev_offset) | (b << offset));
+                prev = b;
+                i += 1;
+            }
+
+            self.set_int::<u8>(i + slide, prev >> rev_offset);
         }
     }
 
     fn prepend<B: BitVector>(&mut self, prefix: &B) {
-        debug_assert!(prefix.len() + self.length <= self.capacity());
-        self.resize(prefix.len() + self.length, Bit::Zero);
+        self.resize(self.length + prefix.len(), Bit::Zero);
         *self <<= prefix.len();
-        // TODO: can be optimized with data copy via IArray.
-        // The IArray trait would need rework to support this.
-        for (i, b) in prefix.iter().enumerate() {
-            self.set(i, b);
+        let last = prefix.int_len::<u8>() - 1;
+
+        for i in 0..last {
+            self.set_int::<u8>(i, prefix.get_int::<u8>(i).unwrap());
         }
+
+        self.set_int::<u8>(
+            last,
+            self.get_int::<u8>(last).unwrap() | prefix.get_int::<u8>(last).unwrap(),
+        );
     }
 
     fn shl_in(&mut self, bit: Bit) -> Bit {

@@ -41,6 +41,7 @@ mod utils;
 
 use bit::Bit;
 use iter::BitIterator;
+use utils::{IArray, IArrayMut};
 
 /// An enumeration representing the endianness of an I/O or memory operation.
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -80,17 +81,19 @@ impl std::error::Error for ConvertionError {}
 
 /// A trait representing common bit vector operations.
 pub trait BitVector:
-    Sized
+    Binary
     + Clone
     + Debug
-    + PartialEq
-    + Eq
-    + PartialOrd
-    + Ord
     + Display
-    + Binary
-    + Octal
+    + Eq
+    + IArray
+    + IArrayMut
     + LowerHex
+    + Octal
+    + Ord
+    + PartialEq
+    + PartialOrd
+    + Sized
     + UpperHex
 {
     /// Construct an empty pre-allocated with enough capacity to store `length` bits.
