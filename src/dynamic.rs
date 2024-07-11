@@ -372,21 +372,45 @@ impl BitVector for BVD {
     }
 
     fn append<B: BitVector>(&mut self, suffix: &B) {
-        self.reserve(self.length + suffix.len());
-        // TODO: can be optimized with a shift and data copy via IArray.
-        // The IArray trait would need rework to support this.
-        for b in suffix.iter() {
-            self.push(b);
+        let offset = self.length % Self::BIT_UNIT;
+        let slide = self.length / Self::BIT_UNIT;
+        self.resize(self.length + suffix.len(), Bit::Zero);
+        if offset == 0 {
+            let mut i = 0;
+            while let Some(b) = suffix.get_int::<u64>(i) {
+                self.data[i + slide] = b;
+                i += 1;
+            }
+        } else if let Some(b) = suffix.get_int::<u64>(0) {
+            self.data[slide] |= b << offset;
+
+            let rev_offset = Self::BIT_UNIT - offset;
+            let mut i = 1;
+            let mut prev = b;
+
+            while let Some(b) = suffix.get_int::<u64>(i) {
+                self.data[i + slide] = (prev >> rev_offset) | (b << offset);
+                prev = b;
+                i += 1;
+            }
+
+            if let Some(b) = self.data.get_mut(i + slide) {
+                *b = prev >> rev_offset;
+            }
         }
     }
 
     fn prepend<B: BitVector>(&mut self, prefix: &B) {
-        self.resize(prefix.len() + self.length, Bit::Zero);
+        self.resize(self.length + prefix.len(), Bit::Zero);
         *self <<= prefix.len();
-        // TODO: can be optimized with data copy via IArray.
-        // The IArray trait would need rework to support this.
-        for (i, b) in prefix.iter().enumerate() {
-            self.set(i, b);
+        let last = prefix.int_len::<u64>() - 1;
+
+        for i in 0..last {
+            self.data[i] = prefix.get_int::<u64>(i).unwrap();
+        }
+
+        if let Some(b) = self.data.get_mut(last) {
+            *b |= prefix.get_int::<u64>(last).unwrap();
         }
     }
 
