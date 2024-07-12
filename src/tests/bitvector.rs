@@ -246,6 +246,68 @@ fn get_set_bv() {
     get_set_inner::<BV>(256);
 }
 
+fn first_inner<B: BitVector>(max_capacity: usize) {
+    let mut rng = thread_rng();
+    for capacity in 0..max_capacity {
+        let mut bv = B::zeros(0);
+        let mut bits = Vec::new();
+
+        for _ in 0..capacity {
+            let b = Bit::from(rng.gen::<bool>());
+            bv.push(b);
+            bits.push(b);
+        }
+
+        assert_eq!(bv.first(), bits.first().copied());
+    }
+}
+
+#[test]
+fn first_bvf() {
+    bvf_inner_unroll_cap!(first_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
+}
+
+#[test]
+fn first_bvd() {
+    first_inner::<BVD>(256);
+}
+
+#[test]
+fn first_bv() {
+    first_inner::<BV>(256);
+}
+
+fn last_inner<B: BitVector>(max_capacity: usize) {
+    let mut rng = thread_rng();
+    for capacity in 0..max_capacity {
+        let mut bv = B::zeros(0);
+        let mut bits = Vec::new();
+
+        for _ in 0..capacity {
+            let b = Bit::from(rng.gen::<bool>());
+            bv.push(b);
+            bits.push(b);
+        }
+
+        assert_eq!(bv.last(), bits.last().copied());
+    }
+}
+
+#[test]
+fn last_bvf() {
+    bvf_inner_unroll_cap!(last_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
+}
+
+#[test]
+fn last_bvd() {
+    last_inner::<BVD>(256);
+}
+
+#[test]
+fn last_bv() {
+    last_inner::<BV>(256);
+}
+
 fn copy_range_inner<B: BitVector>(max_capacity: usize) {
     let mut rng = thread_rng();
     for capacity in 0..max_capacity {

@@ -162,6 +162,26 @@ pub trait BitVector:
     /// Will panic if `index` is out of bound.
     fn set(&mut self, index: usize, bit: Bit);
 
+    /// Get the first (least significant) bit of this bit vector.
+    /// Return None if the bit vector is empty.
+    fn first(&self) -> Option<Bit> {
+        if self.len() > 0 {
+            Some(self.get(0))
+        } else {
+            None
+        }
+    }
+
+    /// Get the last (most significant) bit of this bit vector.
+    /// Return None if the bit vector is empty.
+    fn last(&self) -> Option<Bit> {
+        if self.len() > 0 {
+            Some(self.get(self.len() - 1))
+        } else {
+            None
+        }
+    }
+
     /// Slice the bit vector using the specified range and copy those bits in a new bit vector.
     /// Will panic if `range` start or end are out of bound.
     fn copy_range(&self, range: Range<usize>) -> Self;
