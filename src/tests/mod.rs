@@ -136,6 +136,27 @@ macro_rules! op_test_block {
         $op_assign(&mut bv3, bv2);
         assert_eq!(bv3, reference);
     };
+
+    ($lhs:ty, {$($rhs:ty),+}, $op:path, $op_assign:path, $size:ident) => {
+        $(
+            let modulo = BigInt::from(1u8) << $size;
+            let (bv1, bi1) = random_test_bv::<$lhs>($size);
+            let uint = random::<$rhs>();
+            let reference = $op(&bi1, BigInt::from(uint)) % &modulo;
+            // Normal op
+            assert_eq!($op(&bv1, &uint), reference);
+            assert_eq!($op(bv1.clone(), &uint), reference);
+            assert_eq!($op(&bv1, uint), reference);
+            assert_eq!($op(bv1.clone(), uint), reference);
+            // Assign op
+            let mut bv2 = bv1.clone();
+            $op_assign(&mut bv2, &uint);
+            assert_eq!(bv2, reference);
+            bv2 = bv1.clone();
+            $op_assign(&mut bv2, uint);
+            assert_eq!(bv2, reference);
+        )+
+    };
 }
 
 // Variant more suited for division and modulo but also test lhs and rhs of different sizes.
@@ -160,6 +181,30 @@ macro_rules! op_test_block2 {
         bv3 = bv1.clone();
         $op_assign(&mut bv3, bv2);
         assert_eq!(bv3, reference);
+    };
+
+    ($lhs:ty, {$($rhs:ty),+}, $op:path, $op_assign:path, $size:ident) => {
+        $(
+            let modulo = BigInt::from(1u8) << $size;
+            let (bv1, bi1) = random_test_bv::<$lhs>($size);
+            let mut uint = random::<$rhs>();
+            while uint == 0 {
+                uint = random::<$rhs>();
+            }
+            let reference = $op(&bi1, BigInt::from(uint)) % &modulo;
+            // Normal op
+            assert_eq!($op(&bv1, &uint), reference);
+            assert_eq!($op(bv1.clone(), &uint), reference);
+            assert_eq!($op(&bv1, uint), reference);
+            assert_eq!($op(bv1.clone(), uint), reference);
+            // Assign op
+            let mut bv2 = bv1.clone();
+            $op_assign(&mut bv2, &uint);
+            assert_eq!(bv2, reference);
+            bv2 = bv1.clone();
+            $op_assign(&mut bv2, uint);
+            assert_eq!(bv2, reference);
+        )+
     };
 }
 
@@ -244,6 +289,22 @@ macro_rules! op_test_section {
             bvf_inner_unroll!(bvf_bv_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
         }
 
+        fn bvf_uint_inner<I: Integer, const N: usize>()
+        where
+            u64: StaticCast<I>,
+        {
+            for size in 1..BVF::<I, N>::capacity() {
+                $(
+                    $block!(BVF<I, N>, {u8, u16, u32, u64, usize, u128}, $op, $op_assign, size);
+                )+
+            }
+        }
+
+        #[test]
+        fn bvf_uint() {
+            bvf_inner_unroll!(bvf_uint_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
+        }
+
         #[test]
         fn bvd_bvd() {
             for size in 1..512 {
@@ -264,10 +325,28 @@ macro_rules! op_test_section {
         }
 
         #[test]
+        fn bvd_uint() {
+            for size in 1..512 {
+                $(
+                    $block!(BVD, {u8, u16, u32, u64, usize, u128}, $op, $op_assign, size);
+                )+
+            }
+        }
+
+        #[test]
         fn bv_bv() {
             for size in 1..512 {
                 $(
                     $block!(BV, BV, $op, $op_assign, size);
+                )+
+            }
+        }
+
+        #[test]
+        fn bv_uint() {
+            for size in 1..512 {
+                $(
+                    $block!(BV, {u8, u16, u32, u64, usize, u128}, $op, $op_assign, size);
                 )+
             }
         }

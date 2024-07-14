@@ -744,11 +744,91 @@ impl_shift!(Shl, shl, {u8, u16, u32, u64, u128, usize});
 impl_shift!(Shr, shr, {u8, u16, u32, u64, u128, usize});
 
 // ------------------------------------------------------------------------------------------------
+// Uint helper macro
+// ------------------------------------------------------------------------------------------------
+
+macro_rules! impl_op_uint {
+    ($trait:ident, $method:ident, {$($uint:ty),+}) => {
+        $(
+            impl $trait<&$uint> for &BV
+            {
+                type Output = BV;
+                fn $method(self, rhs: &$uint) -> Self::Output {
+                    match self {
+                        BV::Fixed(bvf) => BV::Fixed(bvf.$method(rhs)),
+                        BV::Dynamic(bvd) => BV::Dynamic(bvd.$method(rhs)),
+                    }
+                }
+            }
+
+            impl $trait<$uint> for &BV
+            {
+                type Output = BV;
+                fn $method(self, rhs: $uint) -> Self::Output {
+                    match self {
+                        BV::Fixed(bvf) => BV::Fixed(bvf.$method(rhs)),
+                        BV::Dynamic(bvd) => BV::Dynamic(bvd.$method(rhs)),
+                    }
+                }
+            }
+
+            impl $trait<&$uint> for BV
+            {
+                type Output = BV;
+                fn $method(self, rhs: &$uint) -> Self::Output {
+                    match self {
+                        BV::Fixed(bvf) => BV::Fixed(bvf.$method(rhs)),
+                        BV::Dynamic(bvd) => BV::Dynamic(bvd.$method(rhs)),
+                    }
+                }
+            }
+
+            impl $trait<$uint> for BV
+            {
+                type Output = BV;
+                fn $method(self, rhs: $uint) -> Self::Output {
+                    match self {
+                        BV::Fixed(bvf) => BV::Fixed(bvf.$method(rhs)),
+                        BV::Dynamic(bvd) => BV::Dynamic(bvd.$method(rhs)),
+                    }
+                }
+            }
+        )+
+    };
+}
+
+macro_rules! impl_op_assign_uint {
+    ($trait:ident, $method:ident, {$($uint:ty),+}) => {
+        $(
+            impl $trait<$uint> for BV
+            {
+                fn $method(&mut self, rhs: $uint) {
+                    match self {
+                        BV::Fixed(bvf) => bvf.$method(rhs),
+                        BV::Dynamic(bvd) => bvd.$method(rhs),
+                    }
+                }
+            }
+
+            impl $trait<&$uint> for BV
+            {
+                fn $method(&mut self, rhs: &$uint) {
+                    match self {
+                        BV::Fixed(bvf) => bvf.$method(rhs),
+                        BV::Dynamic(bvd) => bvd.$method(rhs),
+                    }
+                }
+            }
+        )+
+    };
+}
+
+// ------------------------------------------------------------------------------------------------
 // BV - Arithmetic operators (assignment kind)
 // ------------------------------------------------------------------------------------------------
 
 macro_rules! impl_op_assign {
-    ($trait:ident, $method:ident) => {
+    ($trait:ident, $method:ident, {$($uint:ty),+}) => {
         impl $trait<&BV> for BV {
             fn $method(&mut self, bv: &BV) {
                 match bv {
@@ -808,50 +888,167 @@ macro_rules! impl_op_assign {
                 }
             }
         }
+
+        impl_op_assign_uint!($trait, $method, {$($uint),+});
     };
 }
 
-impl_op_assign!(BitAndAssign, bitand_assign);
-impl_op_assign!(BitOrAssign, bitor_assign);
-impl_op_assign!(BitXorAssign, bitxor_assign);
-impl_op_assign!(AddAssign, add_assign);
-impl_op_assign!(SubAssign, sub_assign);
-impl_op_assign!(MulAssign, mul_assign);
-impl_op_assign!(DivAssign, div_assign);
-impl_op_assign!(RemAssign, rem_assign);
+impl_op_assign!(BitAndAssign, bitand_assign, {u8, u16, u32, u64, usize, u128});
+impl_op_assign!(BitOrAssign, bitor_assign, {u8, u16, u32, u64, usize, u128});
+impl_op_assign!(BitXorAssign, bitxor_assign, {u8, u16, u32, u64, usize, u128});
+impl_op_assign!(AddAssign, add_assign, {u8, u16, u32, u64, usize, u128});
+impl_op_assign!(SubAssign, sub_assign, {u8, u16, u32, u64, usize, u128});
+impl_op_assign!(MulAssign, mul_assign, {u8, u16, u32, u64, usize, u128});
+impl_op_assign!(DivAssign, div_assign, {u8, u16, u32, u64, usize, u128});
+impl_op_assign!(RemAssign, rem_assign, {u8, u16, u32, u64, usize, u128});
 
 macro_rules! impl_op {
-    ($trait:ident, $method:ident, $assign_trait:ident, $assign_method:ident) => {
-        impl<T> $trait<T> for BV
-        where
-            BV: $assign_trait<T>,
-        {
+    ($trait:ident, $method:ident, {$($uint:ty),+}) => {
+        impl $trait<&BV> for &BV {
             type Output = BV;
-            fn $method(mut self, rhs: T) -> BV {
-                self.$assign_method(rhs);
-                return self;
+            fn $method(self, rhs: &BV) -> BV {
+                match self {
+                    BV::Fixed(bvf) => BV::Fixed(bvf.$method(rhs)),
+                    BV::Dynamic(bvd) => BV::Dynamic(bvd.$method(rhs)),
+                }
             }
         }
 
-        impl<T> $trait<T> for &BV
-        where
-            BV: $assign_trait<T>,
-        {
+        impl $trait<BV> for &BV {
             type Output = BV;
-            fn $method(self, rhs: T) -> BV {
-                let mut result = self.clone();
-                result.$assign_method(rhs);
-                return result;
+            fn $method(self, rhs: BV) -> BV {
+                match self {
+                    BV::Fixed(bvf) => BV::Fixed(bvf.$method(rhs)),
+                    BV::Dynamic(bvd) => BV::Dynamic(bvd.$method(rhs)),
+                }
             }
         }
+
+        impl $trait<&BV> for BV {
+            type Output = BV;
+            fn $method(self, rhs: &BV) -> BV {
+                match self {
+                    BV::Fixed(bvf) => BV::Fixed(bvf.$method(rhs)),
+                    BV::Dynamic(bvd) => BV::Dynamic(bvd.$method(rhs)),
+                }
+            }
+        }
+
+        impl $trait<BV> for BV {
+            type Output = BV;
+            fn $method(self, rhs: BV) -> BV {
+                match self {
+                    BV::Fixed(bvf) => BV::Fixed(bvf.$method(rhs)),
+                    BV::Dynamic(bvd) => BV::Dynamic(bvd.$method(rhs)),
+                }
+            }
+        }
+
+        impl<I: Integer, const N: usize> $trait<&BVF<I, N>> for &BV
+        where
+            u64: StaticCast<I>
+        {
+            type Output = BV;
+            fn $method(self, rhs: &BVF<I, N>) -> BV {
+                match self {
+                    BV::Fixed(bvf) => BV::Fixed(bvf.$method(rhs)),
+                    BV::Dynamic(bvd) => BV::Dynamic(bvd.$method(rhs)),
+                }
+            }
+        }
+
+        impl<I: Integer, const N: usize> $trait<BVF<I, N>> for &BV
+        where
+            u64: StaticCast<I>
+        {
+            type Output = BV;
+            fn $method(self, rhs: BVF<I, N>) -> BV {
+                match self {
+                    BV::Fixed(bvf) => BV::Fixed(bvf.$method(rhs)),
+                    BV::Dynamic(bvd) => BV::Dynamic(bvd.$method(rhs)),
+                }
+            }
+        }
+
+        impl<I: Integer, const N: usize> $trait<&BVF<I, N>> for BV
+        where
+            u64: StaticCast<I>
+        {
+            type Output = BV;
+            fn $method(self, rhs: &BVF<I, N>) -> BV {
+                match self {
+                    BV::Fixed(bvf) => BV::Fixed(bvf.$method(rhs)),
+                    BV::Dynamic(bvd) => BV::Dynamic(bvd.$method(rhs)),
+                }
+            }
+        }
+
+        impl<I: Integer, const N: usize> $trait<BVF<I, N>> for BV
+        where
+            u64: StaticCast<I>
+        {
+            type Output = BV;
+            fn $method(self, rhs: BVF<I, N>) -> BV {
+                match self {
+                    BV::Fixed(bvf) => BV::Fixed(bvf.$method(rhs)),
+                    BV::Dynamic(bvd) => BV::Dynamic(bvd.$method(rhs)),
+                }
+            }
+        }
+
+        impl $trait<&BVD> for &BV
+        {
+            type Output = BV;
+            fn $method(self, rhs: &BVD) -> BV {
+                match self {
+                    BV::Fixed(bvf) => BV::Fixed(bvf.$method(rhs)),
+                    BV::Dynamic(bvd) => BV::Dynamic(bvd.$method(rhs)),
+                }
+            }
+        }
+
+        impl $trait<BVD> for &BV
+        {
+            type Output = BV;
+            fn $method(self, rhs: BVD) -> BV {
+                match self {
+                    BV::Fixed(bvf) => BV::Fixed(bvf.$method(rhs)),
+                    BV::Dynamic(bvd) => BV::Dynamic(bvd.$method(rhs)),
+                }
+            }
+        }
+
+        impl $trait<&BVD> for BV
+        {
+            type Output = BV;
+            fn $method(self, rhs: &BVD) -> BV {
+                match self {
+                    BV::Fixed(bvf) => BV::Fixed(bvf.$method(rhs)),
+                    BV::Dynamic(bvd) => BV::Dynamic(bvd.$method(rhs)),
+                }
+            }
+        }
+
+        impl $trait<BVD> for BV
+        {
+            type Output = BV;
+            fn $method(self, rhs: BVD) -> BV {
+                match self {
+                    BV::Fixed(bvf) => BV::Fixed(bvf.$method(rhs)),
+                    BV::Dynamic(bvd) => BV::Dynamic(bvd.$method(rhs)),
+                }
+            }
+        }
+
+        impl_op_uint!($trait, $method, {$($uint),+});
     };
 }
 
-impl_op!(BitAnd, bitand, BitAndAssign, bitand_assign);
-impl_op!(BitOr, bitor, BitOrAssign, bitor_assign);
-impl_op!(BitXor, bitxor, BitXorAssign, bitxor_assign);
-impl_op!(Add, add, AddAssign, add_assign);
-impl_op!(Sub, sub, SubAssign, sub_assign);
-impl_op!(Mul, mul, MulAssign, mul_assign);
-impl_op!(Div, div, DivAssign, div_assign);
-impl_op!(Rem, rem, RemAssign, rem_assign);
+impl_op!(BitAnd, bitand, {u8, u16, u32, u64, usize, u128});
+impl_op!(BitOr, bitor, {u8, u16, u32, u64, usize, u128});
+impl_op!(BitXor, bitxor, {u8, u16, u32, u64, usize, u128});
+impl_op!(Add, add, {u8, u16, u32, u64, usize, u128});
+impl_op!(Sub, sub, {u8, u16, u32, u64, usize, u128});
+impl_op!(Mul, mul, {u8, u16, u32, u64, usize, u128});
+impl_op!(Div, div, {u8, u16, u32, u64, usize, u128});
+impl_op!(Rem, rem, {u8, u16, u32, u64, usize, u128});
