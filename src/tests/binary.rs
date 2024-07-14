@@ -5,7 +5,7 @@ mod and {
     use crate::utils::StaticCast;
 
     op_test_section!(BitAnd::bitand, BitAndAssign::bitand_assign, {
-        op_test_block
+        op_test_block, op_test_block2, op_test_block3
     });
 }
 
@@ -54,7 +54,7 @@ mod or {
     use crate::tests::*;
     use crate::utils::StaticCast;
 
-    op_test_section!(BitOr::bitor, BitOrAssign::bitor_assign, { op_test_block });
+    op_test_section!(BitOr::bitor, BitOrAssign::bitor_assign, { op_test_block, op_test_block2, op_test_block3 });
 }
 
 mod shift {
@@ -127,6 +127,6 @@ mod xor {
     use crate::utils::StaticCast;
 
     op_test_section!(BitXor::bitxor, BitXorAssign::bitxor_assign, {
-        op_test_block
+        op_test_block, op_test_block2, op_test_block3
     });
 }
