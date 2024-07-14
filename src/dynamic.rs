@@ -867,6 +867,12 @@ macro_rules! impl_from_ints {($($st:ty),+) => {
             }
         }
 
+        impl From<&$st> for BVD {
+            fn from(st: &$st) -> Self {
+                Self::from(*st)
+            }
+        }
+
         impl TryFrom<&BVD> for $st {
             type Error = ConvertionError;
             fn try_from(bvd: &BVD) -> Result<Self, Self::Error> {

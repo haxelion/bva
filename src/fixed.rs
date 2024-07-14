@@ -653,7 +653,7 @@ impl<I: Integer, const N: usize> fmt::Display for BVF<I, N> {
         let mut remainder;
 
         while !quotient.is_zero() {
-            (quotient, remainder) = quotient.div_rem(&base);
+            (quotient, remainder) = quotient.div_rem::<BVF<I, N>>(&base);
             // Remainder of division by 10 will be a single digit
             s.push(char::from_digit(u32::try_from(&remainder).unwrap(), 10).unwrap());
         }
@@ -872,6 +872,16 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
                         length: Self::capacity()
                     });
                 }
+            }
+        }
+
+        impl<I: Integer, const N: usize> TryFrom<&$type> for BVF<I, N>
+            where I: StaticCast<$type>
+        {
+            type Error = ConvertionError;
+
+            fn try_from(int: &$type) -> Result<Self, Self::Error> {
+                Self::try_from(*int)
             }
         }
 
@@ -1658,7 +1668,7 @@ where
 {
     type Output = BVF<I1, N1>;
     fn div(self, rhs: &BVF<I2, N2>) -> Self::Output {
-        self.div_rem(rhs).0
+        self.div_rem::<BVF<I2, N2>>(rhs).0
     }
 }
 
@@ -1668,7 +1678,7 @@ where
 {
     type Output = BVF<I1, N1>;
     fn div(self, rhs: BVF<I2, N2>) -> Self::Output {
-        self.div_rem(&rhs).0
+        self.div_rem::<BVF<I2, N2>>(&rhs).0
     }
 }
 
@@ -1678,7 +1688,7 @@ where
 {
     type Output = BVF<I1, N1>;
     fn div(self, rhs: &BVF<I2, N2>) -> Self::Output {
-        self.div_rem(rhs).0
+        self.div_rem::<BVF<I2, N2>>(rhs).0
     }
 }
 
@@ -1688,7 +1698,7 @@ where
 {
     type Output = BVF<I1, N1>;
     fn div(self, rhs: BVF<I2, N2>) -> Self::Output {
-        self.div_rem(&rhs).0
+        self.div_rem::<BVF<I2, N2>>(&rhs).0
     }
 }
 
@@ -1847,7 +1857,7 @@ where
 {
     type Output = BVF<I1, N1>;
     fn rem(self, rhs: &BVF<I2, N2>) -> Self::Output {
-        self.div_rem(rhs).1
+        self.div_rem::<BVF<I2, N2>>(rhs).1
     }
 }
 
@@ -1857,7 +1867,7 @@ where
 {
     type Output = BVF<I1, N1>;
     fn rem(self, rhs: BVF<I2, N2>) -> Self::Output {
-        self.div_rem(&rhs).1
+        self.div_rem::<BVF<I2, N2>>(&rhs).1
     }
 }
 
@@ -1867,7 +1877,7 @@ where
 {
     type Output = BVF<I1, N1>;
     fn rem(self, rhs: &BVF<I2, N2>) -> Self::Output {
-        self.div_rem(rhs).1
+        self.div_rem::<BVF<I2, N2>>(rhs).1
     }
 }
 
@@ -1877,7 +1887,7 @@ where
 {
     type Output = BVF<I1, N1>;
     fn rem(self, rhs: BVF<I2, N2>) -> Self::Output {
-        self.div_rem(&rhs).1
+        self.div_rem::<BVF<I2, N2>>(&rhs).1
     }
 }
 

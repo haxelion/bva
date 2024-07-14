@@ -628,6 +628,12 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
             }
         }
 
+        impl From<&$type> for BV {
+            fn from(int: &$type) -> Self {
+                Self::from(*int)
+            }
+        }
+
         impl TryFrom<&BV> for $type
         {
             type Error = ConvertionError;
