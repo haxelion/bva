@@ -1140,11 +1140,97 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
 impl_shifts!({u8, u16, u32, u64, u128, usize});
 
 // ------------------------------------------------------------------------------------------------
+// Uint helper macro
+// ------------------------------------------------------------------------------------------------
+
+macro_rules! impl_op_uint {
+    ($trait:ident, $method:ident, {$($uint:ty),+}) => {
+        $(
+            impl<I: Integer, const N: usize> $trait<&$uint> for &BVF<I, N>
+            where
+                u64: StaticCast<I>,
+            {
+                type Output = BVF<I, N>;
+                fn $method(self, rhs: &$uint) -> Self::Output {
+                    // All basic type should fit in 128 bits
+                    let temp = BVF::<u64, 2>::try_from(*rhs).unwrap();
+                    self.$method(temp)
+                }
+            }
+
+            impl<I: Integer, const N: usize> $trait<$uint> for &BVF<I, N>
+            where
+                u64: StaticCast<I>,
+            {
+                type Output = BVF<I, N>;
+                fn $method(self, rhs: $uint) -> Self::Output {
+                    // All basic type should fit in 128 bits
+                    let temp = BVF::<u64, 2>::try_from(rhs).unwrap();
+                    self.$method(temp)
+                }
+            }
+
+            impl<I: Integer, const N: usize> $trait<&$uint> for BVF<I, N>
+            where
+                u64: StaticCast<I>,
+            {
+                type Output = BVF<I, N>;
+                fn $method(self, rhs: &$uint) -> Self::Output {
+                    // All basic type should fit in 128 bits
+                    let temp = BVF::<u64, 2>::try_from(*rhs).unwrap();
+                    self.$method(temp)
+                }
+            }
+
+            impl<I: Integer, const N: usize> $trait<$uint> for BVF<I, N>
+            where
+                u64: StaticCast<I>,
+            {
+                type Output = BVF<I, N>;
+                fn $method(self, rhs: $uint) -> Self::Output {
+                    // All basic type should fit in 128 bits
+                    let temp = BVF::<u64, 2>::try_from(rhs).unwrap();
+                    self.$method(temp)
+                }
+            }
+        )+
+    };
+}
+
+macro_rules! impl_op_assign_uint {
+    ($trait:ident, $method:ident, {$($uint:ty),+}) => {
+        $(
+            impl<I: Integer, const N: usize> $trait<$uint> for BVF<I, N>
+            where
+                u64: StaticCast<I>
+            {
+                fn $method(&mut self, rhs: $uint) {
+                    // All basic type should fit in 128 bits
+                    let temp = BVF::<u64, 2>::try_from(rhs).unwrap();
+                    self.$method(&temp);
+                }
+            }
+
+            impl<I: Integer, const N: usize> $trait<&$uint> for BVF<I, N>
+            where
+                u64: StaticCast<I>
+            {
+                fn $method(&mut self, rhs: &$uint) {
+                    // All basic type should fit in 128 bits
+                    let temp = BVF::<u64, 2>::try_from(*rhs).unwrap();
+                    self.$method(&temp);
+                }
+            }
+        )+
+    };
+}
+
+// ------------------------------------------------------------------------------------------------
 // BVF - Arithmetic operators (assignment kind)
 // ------------------------------------------------------------------------------------------------
 
 macro_rules! impl_binop_assign {
-    ($trait:ident, $method:ident) => {
+    ($trait:ident, $method:ident, {$($uint:ty),+}) => {
         impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<&BVF<I2, N2>>
             for BVF<I1, N1>
         where
@@ -1216,15 +1302,17 @@ macro_rules! impl_binop_assign {
                 self.$method(&rhs);
             }
         }
+
+        impl_op_assign_uint!($trait, $method, {$($uint),+});
     };
 }
 
-impl_binop_assign!(BitAndAssign, bitand_assign);
-impl_binop_assign!(BitOrAssign, bitor_assign);
-impl_binop_assign!(BitXorAssign, bitxor_assign);
+impl_binop_assign!(BitAndAssign, bitand_assign, {u8, u16, u32, u64, usize, u128});
+impl_binop_assign!(BitOrAssign, bitor_assign, {u8, u16, u32, u64, usize, u128});
+impl_binop_assign!(BitXorAssign, bitxor_assign, {u8, u16, u32, u64, usize, u128});
 
 macro_rules! impl_addsub_assign {
-    ($trait:ident, $method:ident, $carry_method:ident) => {
+    ($trait:ident, $method:ident, $carry_method:ident, {$($uint:ty),+}) => {
         impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> $trait<&BVF<I2, N2>>
             for BVF<I1, N1>
         where
@@ -1306,11 +1394,13 @@ macro_rules! impl_addsub_assign {
                 self.$method(&rhs);
             }
         }
+
+        impl_op_assign_uint!($trait, $method, {$($uint),+});
     };
 }
 
-impl_addsub_assign!(AddAssign, add_assign, cadd);
-impl_addsub_assign!(SubAssign, sub_assign, csub);
+impl_addsub_assign!(AddAssign, add_assign, cadd, {u8, u16, u32, u64, usize, u128});
+impl_addsub_assign!(SubAssign, sub_assign, csub, {u8, u16, u32, u64, usize, u128});
 
 // ------------------------------------------------------------------------------------------------
 // BVF - Arithmetic operators (general kind)
@@ -1498,6 +1588,8 @@ where
     }
 }
 
+impl_op_uint!(Mul, mul, {u8, u16, u32, u64, usize, u128});
+
 impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> MulAssign<&BVF<I2, N2>>
     for BVF<I1, N1>
 where
@@ -1553,6 +1645,8 @@ where
         *self = Mul::mul(&*self, &rhs);
     }
 }
+
+impl_op_assign_uint!(MulAssign, mul_assign, {u8, u16, u32, u64, usize, u128});
 
 // ------------------------------------------------------------------------------------------------
 // BVF - Division
@@ -1681,6 +1775,8 @@ where
     }
 }
 
+impl_op_uint!(Div, div, {u8, u16, u32, u64, usize, u128});
+
 impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> DivAssign<&BVF<I2, N2>>
     for BVF<I1, N1>
 where
@@ -1738,6 +1834,8 @@ where
         *self = Div::div(&*self, &rhs);
     }
 }
+
+impl_op_assign_uint!(DivAssign, div_assign, {u8, u16, u32, u64, usize, u128});
 
 // ------------------------------------------------------------------------------------------------
 // BVF - Remainder
@@ -1866,6 +1964,8 @@ where
     }
 }
 
+impl_op_uint!(Rem, rem, {u8, u16, u32, u64, usize, u128});
+
 impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> RemAssign<&BVF<I2, N2>>
     for BVF<I1, N1>
 where
@@ -1923,3 +2023,5 @@ where
         *self = Rem::rem(&*self, &rhs);
     }
 }
+
+impl_op_assign_uint!(RemAssign, rem_assign, {u8, u16, u32, u64, usize, u128});

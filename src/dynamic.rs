@@ -1116,14 +1116,82 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
 impl_shifts!({u8, u16, u32, u64, u128, usize});
 
 // ------------------------------------------------------------------------------------------------
+// Uint helper macro
+// ------------------------------------------------------------------------------------------------
+
+macro_rules! impl_op_uint {
+    ($trait:ident, $method:ident, {$($uint:ty),+}) => {
+        $(
+            impl $trait<&$uint> for &BVD
+            {
+                type Output = BVD;
+                fn $method(self, rhs: &$uint) -> Self::Output {
+                    let temp = BVD::from(*rhs);
+                    self.$method(temp)
+                }
+            }
+
+            impl $trait<$uint> for &BVD
+            {
+                type Output = BVD;
+                fn $method(self, rhs: $uint) -> Self::Output {
+                    let temp = BVD::from(rhs);
+                    self.$method(temp)
+                }
+            }
+
+            impl $trait<&$uint> for BVD
+            {
+                type Output = BVD;
+                fn $method(self, rhs: &$uint) -> Self::Output {
+                    let temp = BVD::from(*rhs);
+                    self.$method(temp)
+                }
+            }
+
+            impl $trait<$uint> for BVD
+            {
+                type Output = BVD;
+                fn $method(self, rhs: $uint) -> Self::Output {
+                    let temp = BVD::from(rhs);
+                    self.$method(temp)
+                }
+            }
+        )+
+    };
+}
+
+macro_rules! impl_op_assign_uint {
+    ($trait:ident, $method:ident, {$($uint:ty),+}) => {
+        $(
+            impl $trait<$uint> for BVD
+            {
+                fn $method(&mut self, rhs: $uint) {
+                    let temp = BVD::from(rhs);
+                    self.$method(&temp);
+                }
+            }
+
+            impl $trait<&$uint> for BVD
+            {
+                fn $method(&mut self, rhs: &$uint) {
+                    let temp = BVD::from(*rhs);
+                    self.$method(&temp);
+                }
+            }
+        )+
+    };
+}
+
+// ------------------------------------------------------------------------------------------------
 // BVD - Arithmetic operators (assignment kind)
 // ------------------------------------------------------------------------------------------------
 
 macro_rules! impl_binop_assign {
-    ($trait:ident, $method:ident) => {
+    ($trait:ident, $method:ident, {$($uint:ty),+}) => {
         impl $trait<&BVD> for BVD {
             fn $method(&mut self, rhs: &BVD) {
-                for i in 0..Self::capacity_from_bit_len(rhs.length) {
+                for i in 0..usize::min(Self::capacity_from_bit_len(self.length), Self::capacity_from_bit_len(rhs.length)) {
                     self.data[i].$method(rhs.data[i]);
                 }
                 for i in Self::capacity_from_bit_len(rhs.length)
@@ -1171,19 +1239,21 @@ macro_rules! impl_binop_assign {
                 self.$method(&rhs);
             }
         }
+
+        impl_op_assign_uint!($trait, $method, {$($uint),+});
     };
 }
 
-impl_binop_assign!(BitAndAssign, bitand_assign);
-impl_binop_assign!(BitOrAssign, bitor_assign);
-impl_binop_assign!(BitXorAssign, bitxor_assign);
+impl_binop_assign!(BitAndAssign, bitand_assign, {u8, u16, u32, u64, usize, u128});
+impl_binop_assign!(BitOrAssign, bitor_assign, {u8, u16, u32, u64, usize, u128});
+impl_binop_assign!(BitXorAssign, bitxor_assign, {u8, u16, u32, u64, usize, u128});
 
 macro_rules! impl_addsub_assign {
-    ($trait:ident, $method:ident, $overflowing_method:ident) => {
+    ($trait:ident, $method:ident, $overflowing_method:ident, {$($uint:ty),+}) => {
         impl $trait<&BVD> for BVD {
             fn $method(&mut self, rhs: &BVD) {
                 let mut carry = 0;
-                for i in 0..Self::capacity_from_bit_len(rhs.length) {
+                for i in 0..usize::min(Self::capacity_from_bit_len(self.length), Self::capacity_from_bit_len(rhs.length)) {
                     let (d1, c1) = self.data[i].$overflowing_method(carry);
                     let (d2, c2) = d1.$overflowing_method(rhs.data[i]);
                     self.data[i] = d2;
@@ -1211,7 +1281,7 @@ macro_rules! impl_addsub_assign {
         impl<I: Integer, const N: usize> $trait<&BVF<I, N>> for BVD {
             fn $method(&mut self, rhs: &BVF<I, N>) {
                 let mut carry = 0;
-                for i in 0..IArray::int_len::<u64>(rhs) {
+                for i in 0..usize::min(IArray::int_len::<u64>(rhs), self.data.len()) {
                     let (d1, c1) = self.data[i].$overflowing_method(carry);
                     let (d2, c2) = d1.$overflowing_method(IArray::get_int(rhs, i).unwrap());
                     self.data[i] = d2;
@@ -1248,11 +1318,13 @@ macro_rules! impl_addsub_assign {
                 self.$method(&rhs);
             }
         }
+
+        impl_op_assign_uint!($trait, $method, {$($uint),+});
     };
 }
 
-impl_addsub_assign!(AddAssign, add_assign, overflowing_add);
-impl_addsub_assign!(SubAssign, sub_assign, overflowing_sub);
+impl_addsub_assign!(AddAssign, add_assign, overflowing_add, {u8, u16, u32, u64, usize, u128});
+impl_addsub_assign!(SubAssign, sub_assign, overflowing_sub, {u8, u16, u32, u64, usize, u128});
 
 // ------------------------------------------------------------------------------------------------
 // BVD - Arithmetic operators (general kind)
@@ -1412,6 +1484,8 @@ impl Mul<BV> for BVD {
     }
 }
 
+impl_op_uint!(Mul, mul, {u8, u16, u32, u64, usize, u128});
+
 impl MulAssign<&BVD> for BVD {
     fn mul_assign(&mut self, rhs: &BVD) {
         *self = Mul::mul(&*self, rhs);
@@ -1447,6 +1521,8 @@ impl MulAssign<BV> for BVD {
         *self = Mul::mul(&*self, &rhs);
     }
 }
+
+impl_op_assign_uint!(MulAssign, mul_assign, {u8, u16, u32, u64, usize, u128});
 
 // ------------------------------------------------------------------------------------------------
 // BVF - Division
@@ -1541,6 +1617,8 @@ impl Div<BV> for BVD {
     }
 }
 
+impl_op_uint!(Div, div, {u8, u16, u32, u64, usize, u128});
+
 impl DivAssign<&BVD> for BVD {
     fn div_assign(&mut self, rhs: &BVD) {
         *self = Div::div(&*self, rhs);
@@ -1576,6 +1654,8 @@ impl DivAssign<BV> for BVD {
         *self = Div::div(&*self, &rhs);
     }
 }
+
+impl_op_assign_uint!(DivAssign, div_assign, {u8, u16, u32, u64, usize, u128});
 
 // ------------------------------------------------------------------------------------------------
 // BVF - Division
@@ -1668,6 +1748,8 @@ impl Rem<BV> for BVD {
     }
 }
 
+impl_op_uint!(Rem, rem, {u8, u16, u32, u64, usize, u128});
+
 impl RemAssign<&BVD> for BVD {
     fn rem_assign(&mut self, rhs: &BVD) {
         *self = Rem::rem(&*self, rhs);
@@ -1703,3 +1785,5 @@ impl RemAssign<BV> for BVD {
         *self = Rem::rem(&*self, &rhs);
     }
 }
+
+impl_op_assign_uint!(RemAssign, rem_assign, {u8, u16, u32, u64, usize, u128});
