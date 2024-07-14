@@ -208,6 +208,30 @@ macro_rules! op_test_block2 {
     };
 }
 
+// Variant which test lhs smaller than rhs.
+macro_rules! op_test_block3 {
+    ($lhs:ty, $rhs:ty, $op:path, $op_assign:path, $size:ident) => {
+        let modulo = BigInt::from(1u8) << usize::max(1, $size / 2);
+        let (bv1, bi1) = random_test_bv::<$lhs>(usize::max(1, $size / 2));
+        let (bv2, bi2) = random_test_bv::<$rhs>($size);
+        let reference = $op(&bi1, &bi2) % &modulo;
+        // Normal op
+        assert_eq!($op(&bv1, &bv2), reference);
+        assert_eq!($op(bv1.clone(), &bv2), reference);
+        assert_eq!($op(&bv1, bv2.clone()), reference);
+        assert_eq!($op(bv1.clone(), bv2.clone()), reference);
+        // Assign op
+        let mut bv3 = bv1.clone();
+        $op_assign(&mut bv3, &bv2);
+        assert_eq!(bv3, reference);
+        bv3 = bv1.clone();
+        $op_assign(&mut bv3, bv2);
+        assert_eq!(bv3, reference);
+    };
+
+    ($lhs:ty, {$($rhs:ty),+}, $op:path, $op_assign:path, $size:ident) => {};
+}
+
 // Variant suited for shifts.
 macro_rules! shift_test_block {
     ($lhs:ty, {$($rhs:ty),+}, $op:path, $op_assign:path, $size:ident) => {
@@ -358,5 +382,6 @@ pub(crate) use bvf_inner_unroll;
 pub(crate) use bvf_inner_unroll_cap;
 pub(crate) use op_test_block;
 pub(crate) use op_test_block2;
+pub(crate) use op_test_block3;
 pub(crate) use op_test_section;
 pub(crate) use shift_test_block;

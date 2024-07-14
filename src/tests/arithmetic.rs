@@ -4,7 +4,7 @@ mod add {
     use crate::tests::*;
     use crate::utils::StaticCast;
 
-    op_test_section!(Add::add, AddAssign::add_assign, { op_test_block, op_test_block2 });
+    op_test_section!(Add::add, AddAssign::add_assign, { op_test_block, op_test_block2, op_test_block3 });
 }
 
 mod div {
@@ -22,7 +22,7 @@ mod sub {
     use crate::tests::*;
     use crate::utils::StaticCast;
 
-    op_test_section!(Sub::sub, SubAssign::sub_assign, { op_test_block, op_test_block2 });
+    op_test_section!(Sub::sub, SubAssign::sub_assign, { op_test_block, op_test_block2, op_test_block3 });
 }
 
 mod mul {
@@ -31,7 +31,7 @@ mod mul {
     use crate::tests::*;
     use crate::utils::StaticCast;
 
-    op_test_section!(Mul::mul, MulAssign::mul_assign, { op_test_block, op_test_block2 });
+    op_test_section!(Mul::mul, MulAssign::mul_assign, { op_test_block, op_test_block2, op_test_block3 });
 }
 
 mod rem {
