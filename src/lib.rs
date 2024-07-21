@@ -108,6 +108,15 @@ pub trait BitVector:
     /// Will panic if there is not enough capacity and it is a fixed variant.
     fn ones(length: usize) -> Self;
 
+    /// Construct a bit vector by repeating a bit `lenth` times.
+    fn repeat(bit: Bit, length: usize) -> Self {
+        if bit == Bit::Zero {
+            Self::zeros(length)
+        } else {
+            Self::ones(length)
+        }
+    }
+
     /// Return the cpacity of the bit vector in bits.
     fn capacity(&self) -> usize;
 
@@ -199,6 +208,20 @@ pub trait BitVector:
     /// with `bit`.
     /// Will panic if there is not enough capacity and it is a fixed variant.
     fn resize(&mut self, new_length: usize, bit: Bit);
+
+    /// Resize this bit vector using the most significant bit as a sign bit so that its length
+    /// is equal to `new_length`. If `new_length` is smaller than the current length, this method
+    /// does nothing.
+    /// Will panic if there is not enough capacity and it is a fixed variant.
+    fn sign_extend(&mut self, new_length: usize) {
+        if new_length > self.len() {
+            let sign = match self.len() {
+                0 => Bit::Zero,
+                l => self.get(l - 1),
+            };
+            self.resize(new_length, sign);
+        }
+    }
 
     /// Append the `suffix` bit vector at the end (most significant part) of this bit vector.
     /// Will panic if there is not enough capacity and this is a fixed variant.
