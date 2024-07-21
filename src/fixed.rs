@@ -311,7 +311,7 @@ where
             );
         }
 
-        if let Some(last) = data.get_mut(Self::capacity_from_bit_len(length)) {
+        if let Some(last) = data.get_mut(length / Self::BIT_UNIT) {
             *last &= Self::mask(length.wrapping_sub(1) % Self::BIT_UNIT + 1);
         }
 

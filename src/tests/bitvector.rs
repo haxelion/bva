@@ -84,6 +84,33 @@ fn ones_bv() {
     ones_inner::<BV>(256);
 }
 
+fn repeat_inner<B: BitVector>(max_capacity: usize) {
+    for size in 0..max_capacity {
+        for bit in [Bit::Zero, Bit::One].iter().copied() {
+            let bv = B::repeat(bit, size);
+            assert_eq!(bv.len(), size);
+            for i in 0..size {
+                assert_eq!(bv.get(i), bit);
+            }
+        }
+    }
+}
+
+#[test]
+fn repeat_bvf() {
+    bvf_inner_unroll_cap!(repeat_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
+}
+
+#[test]
+fn repeat_bvd() {
+    repeat_inner::<BVD>(256);
+}
+
+#[test]
+fn repeat_bv() {
+    repeat_inner::<BV>(256);
+}
+
 fn is_empty_inner<B: BitVector>() {
     let bv = B::zeros(0);
     assert!(bv.is_empty());
@@ -415,6 +442,38 @@ fn resize_bvd() {
 #[test]
 fn resize_bv() {
     resize_inner::<BV>(256);
+}
+
+fn sign_extend_inner<B: BitVector>(max_capacity: usize) {
+    for capacity in 0..max_capacity {
+        let bv = random_bv::<B>(capacity);
+        let sign = bv.last().unwrap_or(Bit::Zero);
+
+        for new_capacity in capacity..max_capacity {
+            let mut extended = bv.clone();
+            extended.sign_extend(new_capacity);
+            assert_eq!(&extended.copy_range(0..capacity), &bv);
+            assert_eq!(
+                &extended.copy_range(capacity..new_capacity),
+                &B::repeat(sign, new_capacity - capacity)
+            );
+        }
+    }
+}
+
+#[test]
+fn sign_extend_bvf() {
+    bvf_inner_unroll_cap!(sign_extend_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
+}
+
+#[test]
+fn sign_extend_bvd() {
+    sign_extend_inner::<BVD>(256);
+}
+
+#[test]
+fn sign_extend_bv() {
+    sign_extend_inner::<BV>(256);
 }
 
 fn append_inner<B: BitVector>(max_capacity: usize) {
