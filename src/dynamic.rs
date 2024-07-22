@@ -44,12 +44,6 @@ impl BVD {
         Self::capacity_from_byte_len((bit_length + 7) / 8)
     }
 
-    fn mask(length: usize) -> u64 {
-        u64::MAX
-            .checked_shr((Self::BIT_UNIT - length) as u32)
-            .unwrap_or(0)
-    }
-
     /// Reserve will reserve room for at least `additional` bits in the bit vector. The actual
     /// length of the bit vector will stay unchanged, see [`BitVector::resize`] to change the actual
     /// length of the bit vector.
@@ -102,8 +96,9 @@ impl IArray for BVD {
     where
         u64: StaticCast<J>,
     {
-        if idx < IArray::int_len::<J>(self) {
+        if idx * J::BITS < self.length {
             IArray::get_int::<J>(self.data.as_ref(), idx)
+                .map(|v| v & J::mask(self.length - idx * J::BITS))
         } else {
             None
         }
@@ -117,8 +112,12 @@ impl IArrayMut for BVD {
     where
         u64: StaticCast<J>,
     {
-        if idx < IArray::int_len::<J>(self) {
-            IArrayMut::set_int::<J>(self.data.as_mut(), idx, v)
+        if idx * J::BITS < self.length {
+            IArrayMut::set_int::<J>(
+                self.data.as_mut(),
+                idx,
+                v & J::mask(self.length - idx * J::BITS),
+            )
         } else {
             None
         }
@@ -155,7 +154,7 @@ impl BitVector for BVD {
             .take(Self::capacity_from_bit_len(length))
             .collect();
         if let Some(l) = v.last_mut() {
-            *l &= Self::mask(length.wrapping_sub(1) % Self::BIT_UNIT + 1);
+            *l &= u64::mask(length.wrapping_sub(1) % Self::BIT_UNIT + 1);
         }
 
         BVD {
@@ -277,7 +276,7 @@ impl BitVector for BVD {
         let mut bv = Self::from_bytes(&buf[..], endianness)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
         if let Some(l) = bv.data.last_mut() {
-            *l &= Self::mask(length.wrapping_sub(1) % Self::BIT_UNIT + 1);
+            *l &= u64::mask(length.wrapping_sub(1) % Self::BIT_UNIT + 1);
         }
         bv.length = length;
         Ok(bv)
@@ -318,7 +317,7 @@ impl BitVector for BVD {
                     .unwrap_or(0);
         }
         if let Some(l) = data.last_mut() {
-            *l &= Self::mask(length.wrapping_sub(1) % Self::BIT_UNIT + 1);
+            *l &= u64::mask(length.wrapping_sub(1) % Self::BIT_UNIT + 1);
         }
 
         BVD {
@@ -349,7 +348,7 @@ impl BitVector for BVD {
                 self.data[i] = 0;
             }
             if let Some(l) = self.data.get_mut(new_length / Self::BIT_UNIT) {
-                *l &= Self::mask(new_length % Self::BIT_UNIT);
+                *l &= u64::mask(new_length % Self::BIT_UNIT);
             }
             self.length = new_length;
         } else if new_length > self.length {
@@ -359,13 +358,13 @@ impl BitVector for BVD {
             };
             self.reserve(new_length - self.length);
             if let Some(l) = self.data.get_mut(self.length / Self::BIT_UNIT) {
-                *l |= sign_pattern & !Self::mask(self.length % Self::BIT_UNIT);
+                *l |= sign_pattern & !u64::mask(self.length % Self::BIT_UNIT);
             }
             for i in (self.length / Self::BIT_UNIT + 1)..Self::capacity_from_bit_len(new_length) {
                 self.data[i] = sign_pattern;
             }
             if let Some(l) = self.data.get_mut(new_length / Self::BIT_UNIT) {
-                *l &= Self::mask(new_length % Self::BIT_UNIT);
+                *l &= u64::mask(new_length % Self::BIT_UNIT);
             }
             self.length = new_length;
         }
@@ -425,7 +424,7 @@ impl BitVector for BVD {
             let i = self.length / Self::BIT_UNIT;
             let b = self.data[i] >> (self.length % Self::BIT_UNIT - 1) & 1;
             self.data[i] =
-                (self.data[i] << 1 | carry as u64) & Self::mask(self.length % Self::BIT_UNIT);
+                (self.data[i] << 1 | carry as u64) & u64::mask(self.length % Self::BIT_UNIT);
             carry = b.into();
         }
         carry
@@ -459,7 +458,7 @@ impl BitVector for BVD {
                 .min(self.length - old_idx);
             new_data[new_idx / Self::BIT_UNIT] |= ((self.data[old_idx / Self::BIT_UNIT]
                 >> (old_idx % Self::BIT_UNIT))
-                & Self::mask(l))
+                & u64::mask(l))
                 << (new_idx % Self::BIT_UNIT);
             old_idx += l;
         }
@@ -478,7 +477,7 @@ impl BitVector for BVD {
                 .min(self.length - old_idx);
             new_data[new_idx / Self::BIT_UNIT] |= ((self.data[old_idx / Self::BIT_UNIT]
                 >> (old_idx % Self::BIT_UNIT))
-                & Self::mask(l))
+                & u64::mask(l))
                 << (new_idx % Self::BIT_UNIT);
             new_idx += l;
         }
@@ -490,7 +489,7 @@ impl BitVector for BVD {
         let mut i = Self::capacity_from_bit_len(self.length);
         if i > 0 {
             let lastbit = (self.length - 1) % Self::BIT_UNIT + 1;
-            let mut v = self.data[i - 1] & Self::mask(lastbit);
+            let mut v = self.data[i - 1] & u64::mask(lastbit);
             count += Integer::leading_zeros(&v) - (Self::BIT_UNIT - lastbit);
             i -= 1;
             while v == 0 && i > 0 {
@@ -507,7 +506,7 @@ impl BitVector for BVD {
         let mut i = Self::capacity_from_bit_len(self.length);
         if i > 0 {
             let lastbit = (self.length - 1) % Self::BIT_UNIT + 1;
-            let mut v = self.data[i - 1] | !Self::mask(lastbit);
+            let mut v = self.data[i - 1] | !u64::mask(lastbit);
             count += Integer::leading_ones(&v) - (Self::BIT_UNIT - lastbit);
             i -= 1;
             while v == u64::MAX && i > 0 {
@@ -946,7 +945,7 @@ impl Not for BVD {
             self.data[i] = !self.data[i];
         }
         if let Some(l) = self.data.get_mut(self.length / Self::BIT_UNIT) {
-            *l &= Self::mask(self.length % Self::BIT_UNIT);
+            *l &= u64::mask(self.length % Self::BIT_UNIT);
         }
         self
     }
@@ -960,7 +959,7 @@ impl Not for &BVD {
             .map(|d| !d)
             .collect();
         if let Some(l) = new_data.get_mut(self.length / BVD::BIT_UNIT) {
-            *l &= BVD::mask(self.length % BVD::BIT_UNIT);
+            *l &= u64::mask(self.length % BVD::BIT_UNIT);
         }
         BVD {
             data: new_data.into_boxed_slice(),
@@ -983,14 +982,14 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
                             .min((new_idx - shift).wrapping_sub(1) % Self::BIT_UNIT + 1);
                     new_idx -= l;
                     let old_idx = new_idx - shift;
-                    let d = (self.data[old_idx / Self::BIT_UNIT] >> (old_idx % Self::BIT_UNIT)) & Self::mask(l);
-                    self.data[new_idx / Self::BIT_UNIT] &= !(Self::mask(l) << (new_idx % Self::BIT_UNIT));
+                    let d = (self.data[old_idx / Self::BIT_UNIT] >> (old_idx % Self::BIT_UNIT)) & u64::mask(l);
+                    self.data[new_idx / Self::BIT_UNIT] &= !(u64::mask(l) << (new_idx % Self::BIT_UNIT));
                     self.data[new_idx / Self::BIT_UNIT] |=  d << (new_idx % Self::BIT_UNIT);
                 }
                 while new_idx > 0 {
                     let l = (new_idx.wrapping_sub(1) % Self::BIT_UNIT) + 1;
                     new_idx -= l;
-                    self.data[new_idx / Self::BIT_UNIT] &= !(Self::mask(l) << (new_idx % Self::BIT_UNIT));
+                    self.data[new_idx / Self::BIT_UNIT] &= !(u64::mask(l) << (new_idx % Self::BIT_UNIT));
                 }
             }
         }
@@ -1028,7 +1027,7 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
                             .min((new_idx - shift).wrapping_sub(1) % BVD::BIT_UNIT + 1);
                     new_idx -= l;
                     let old_idx = new_idx - shift;
-                    new_data[new_idx / BVD::BIT_UNIT] |= ((self.data[old_idx / BVD::BIT_UNIT] >> (old_idx % BVD::BIT_UNIT)) & BVD::mask(l)) << (new_idx % BVD::BIT_UNIT);
+                    new_data[new_idx / BVD::BIT_UNIT] |= ((self.data[old_idx / BVD::BIT_UNIT] >> (old_idx % BVD::BIT_UNIT)) & u64::mask(l)) << (new_idx % BVD::BIT_UNIT);
                 }
                 BVD {
                     data: new_data.into_boxed_slice(),
@@ -1055,14 +1054,14 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
                     let old_idx = new_idx + shift;
                     let l = (Self::BIT_UNIT - new_idx % Self::BIT_UNIT)
                             .min(Self::BIT_UNIT - old_idx % Self::BIT_UNIT);
-                    let d = (self.data[old_idx / Self::BIT_UNIT] >> (old_idx % Self::BIT_UNIT)) & Self::mask(l);
-                    self.data[new_idx / Self::BIT_UNIT] &= !(Self::mask(l) << (new_idx % Self::BIT_UNIT));
+                    let d = (self.data[old_idx / Self::BIT_UNIT] >> (old_idx % Self::BIT_UNIT)) & u64::mask(l);
+                    self.data[new_idx / Self::BIT_UNIT] &= !(u64::mask(l) << (new_idx % Self::BIT_UNIT));
                     self.data[new_idx / Self::BIT_UNIT] |= d << (new_idx % Self::BIT_UNIT);
                     new_idx += l;
                 }
                 while new_idx < self.length {
                     let l = Self::BIT_UNIT - new_idx % Self::BIT_UNIT;
-                    self.data[new_idx / Self::BIT_UNIT] &= !(Self::mask(l) << (new_idx % Self::BIT_UNIT));
+                    self.data[new_idx / Self::BIT_UNIT] &= !(u64::mask(l) << (new_idx % Self::BIT_UNIT));
                     new_idx += l;
                 }
             }
@@ -1100,7 +1099,7 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
                     let old_idx = new_idx + shift;
                     let l = (BVD::BIT_UNIT - new_idx % BVD::BIT_UNIT)
                             .min(BVD::BIT_UNIT - old_idx % BVD::BIT_UNIT);
-                    new_data[new_idx / BVD::BIT_UNIT] |= ((self.data[old_idx / BVD::BIT_UNIT] >> (old_idx % BVD::BIT_UNIT)) & BVD::mask(l)) << (new_idx % BVD::BIT_UNIT);
+                    new_data[new_idx / BVD::BIT_UNIT] |= ((self.data[old_idx / BVD::BIT_UNIT] >> (old_idx % BVD::BIT_UNIT)) & u64::mask(l)) << (new_idx % BVD::BIT_UNIT);
                     new_idx += l;
                 }
                 BVD {
@@ -1273,7 +1272,7 @@ macro_rules! impl_addsub_assign {
                     carry = c as u64;
                 }
                 if let Some(l) = self.data.get_mut(self.length / BVD::BIT_UNIT) {
-                    *l &= Self::mask(self.length % BVD::BIT_UNIT);
+                    *l &= u64::mask(self.length % BVD::BIT_UNIT);
                 }
             }
         }
@@ -1299,7 +1298,7 @@ macro_rules! impl_addsub_assign {
                     carry = c as u64;
                 }
                 if let Some(l) = self.data.get_mut(self.length / BVD::BIT_UNIT) {
-                    *l &= Self::mask(self.length % BVD::BIT_UNIT);
+                    *l &= u64::mask(self.length % BVD::BIT_UNIT);
                 }
             }
         }
@@ -1388,7 +1387,7 @@ impl Mul<&BVD> for &BVD {
         }
 
         if let Some(l) = res.data.get_mut(res.length / BVD::BIT_UNIT) {
-            *l &= BVD::mask(res.length % BVD::BIT_UNIT);
+            *l &= u64::mask(res.length % BVD::BIT_UNIT);
         }
 
         res
@@ -1431,7 +1430,7 @@ impl<I: Integer, const N: usize> Mul<&BVF<I, N>> for &BVD {
         }
 
         if let Some(l) = res.data.get_mut(res.length / BVD::BIT_UNIT) {
-            *l &= BVD::mask(res.length % BVD::BIT_UNIT);
+            *l &= u64::mask(res.length % BVD::BIT_UNIT);
         }
 
         res
