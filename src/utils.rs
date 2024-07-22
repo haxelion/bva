@@ -43,6 +43,7 @@ pub trait Constants {
     const ONE: Self;
     const MIN: Self;
     const MAX: Self;
+    const BITS: usize;
 }
 
 macro_rules! impl_constants {
@@ -53,6 +54,7 @@ macro_rules! impl_constants {
                 const ONE: Self = 1;
                 const MIN: Self = <$type>::MIN;
                 const MAX: Self = <$type>::MAX;
+                const BITS: usize = <$type>::BITS as usize;
             }
         )+
     }
@@ -98,6 +100,7 @@ pub trait Integer:
     + StaticCast<u128>
     + StaticCast<Self>
 {
+    fn mask(length: usize) -> Self;
     fn cadd(&mut self, rhs: Self, carry: Self) -> Self;
     fn csub(&mut self, rhs: Self, carry: Self) -> Self;
     fn wmul(&self, rhs: Self) -> (Self, Self);
@@ -108,6 +111,14 @@ pub trait Integer:
 }
 
 impl Integer for u8 {
+    fn mask(length: usize) -> Self {
+        if length < Self::BITS as usize {
+            (Self::ONE << length).wrapping_sub(1)
+        } else {
+            Self::MAX
+        }
+    }
+
     fn cadd(&mut self, rhs: Self, carry: Self) -> Self {
         let (v1, c1) = self.overflowing_add(rhs);
         let (v2, c2) = v1.overflowing_add(carry);
@@ -145,6 +156,14 @@ impl Integer for u8 {
 }
 
 impl Integer for u16 {
+    fn mask(length: usize) -> Self {
+        if length < Self::BITS as usize {
+            (Self::ONE << length).wrapping_sub(1)
+        } else {
+            Self::MAX
+        }
+    }
+
     fn cadd(&mut self, rhs: Self, carry: Self) -> Self {
         let (v1, c1) = self.overflowing_add(rhs);
         let (v2, c2) = v1.overflowing_add(carry);
@@ -182,6 +201,14 @@ impl Integer for u16 {
 }
 
 impl Integer for u32 {
+    fn mask(length: usize) -> Self {
+        if length < Self::BITS as usize {
+            (Self::ONE << length).wrapping_sub(1)
+        } else {
+            Self::MAX
+        }
+    }
+
     fn cadd(&mut self, rhs: Self, carry: Self) -> Self {
         let (v1, c1) = self.overflowing_add(rhs);
         let (v2, c2) = v1.overflowing_add(carry);
@@ -219,6 +246,14 @@ impl Integer for u32 {
 }
 
 impl Integer for u64 {
+    fn mask(length: usize) -> Self {
+        if length < Self::BITS as usize {
+            (Self::ONE << length).wrapping_sub(1)
+        } else {
+            Self::MAX
+        }
+    }
+
     fn cadd(&mut self, rhs: Self, carry: Self) -> Self {
         let (v1, c1) = self.overflowing_add(rhs);
         let (v2, c2) = v1.overflowing_add(carry);
@@ -256,6 +291,14 @@ impl Integer for u64 {
 }
 
 impl Integer for usize {
+    fn mask(length: usize) -> Self {
+        if length < Self::BITS as usize {
+            (Self::ONE << length).wrapping_sub(1)
+        } else {
+            Self::MAX
+        }
+    }
+
     fn cadd(&mut self, rhs: Self, carry: Self) -> Self {
         let (v1, c1) = self.overflowing_add(rhs);
         let (v2, c2) = v1.overflowing_add(carry);
@@ -293,6 +336,14 @@ impl Integer for usize {
 }
 
 impl Integer for u128 {
+    fn mask(length: usize) -> Self {
+        if length < Self::BITS as usize {
+            (Self::ONE << length).wrapping_sub(1)
+        } else {
+            Self::MAX
+        }
+    }
+
     fn cadd(&mut self, rhs: Self, carry: Self) -> Self {
         let (v1, c1) = self.overflowing_add(rhs);
         let (v2, c2) = v1.overflowing_add(carry);

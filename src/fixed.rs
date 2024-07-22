@@ -49,17 +49,9 @@ impl<I: Integer, const N: usize> BVF<I, N> {
         (bit_length + Self::BIT_UNIT - 1) / Self::BIT_UNIT
     }
 
-    fn mask(length: usize) -> I {
-        if length == 0 {
-            I::ZERO
-        } else {
-            I::MAX.shr(Self::BIT_UNIT - length)
-        }
-    }
-
     fn mod2n(&mut self, n: usize) {
         for i in 0..N {
-            self.data[i] &= Self::mask(usize::min(
+            self.data[i] &= I::mask(usize::min(
                 n - usize::min(n, i * Self::BIT_UNIT),
                 Self::BIT_UNIT,
             ));
@@ -85,8 +77,9 @@ impl<I: Integer, const N: usize> IArray for BVF<I, N> {
     where
         I: StaticCast<J>,
     {
-        if idx < IArray::int_len::<J>(self) {
+        if idx * J::BITS < self.length {
             IArray::get_int::<J>(self.data.as_ref(), idx)
+                .map(|v| v & J::mask(self.length - idx * J::BITS))
         } else {
             None
         }
@@ -100,8 +93,12 @@ impl<I: Integer, const N: usize> IArrayMut for BVF<I, N> {
     where
         I: StaticCast<J>,
     {
-        if idx < IArray::int_len::<J>(self) {
-            IArrayMut::set_int::<J>(self.data.as_mut(), idx, v)
+        if idx * J::BITS < self.length {
+            IArrayMut::set_int::<J>(
+                self.data.as_mut(),
+                idx,
+                v & J::mask(self.length - idx * J::BITS),
+            )
         } else {
             None
         }
@@ -264,7 +261,7 @@ where
         let mut bv = Self::from_bytes(&buf[..], endianness)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
         if let Some(l) = bv.data.last_mut() {
-            *l &= Self::mask(length.wrapping_sub(1) % Self::BIT_UNIT + 1);
+            *l &= I::mask(length.wrapping_sub(1) % Self::BIT_UNIT + 1);
         }
         bv.length = length;
         Ok(bv)
@@ -312,7 +309,7 @@ where
         }
 
         if let Some(last) = data.get_mut(length / Self::BIT_UNIT) {
-            *last &= Self::mask(length.wrapping_sub(1) % Self::BIT_UNIT + 1);
+            *last &= I::mask(length.wrapping_sub(1) % Self::BIT_UNIT + 1);
         }
 
         BVF::<I, N> { data, length }
@@ -340,7 +337,7 @@ where
                 self.data[i] = I::ZERO;
             }
             if let Some(l) = self.data.get_mut(new_length / Self::BIT_UNIT) {
-                *l &= Self::mask(new_length % Self::BIT_UNIT);
+                *l &= I::mask(new_length % Self::BIT_UNIT);
             }
             self.length = new_length;
         } else if new_length > self.length {
@@ -350,13 +347,13 @@ where
                 Bit::One => I::MAX,
             };
             if let Some(l) = self.data.get_mut(self.length / Self::BIT_UNIT) {
-                *l |= sign_pattern & !Self::mask(self.length % Self::BIT_UNIT);
+                *l |= sign_pattern & !I::mask(self.length % Self::BIT_UNIT);
             }
             for i in (self.length / Self::BIT_UNIT + 1)..Self::capacity_from_bit_len(new_length) {
                 self.data[i] = sign_pattern;
             }
             if let Some(l) = self.data.get_mut(new_length / Self::BIT_UNIT) {
-                *l &= Self::mask(new_length % Self::BIT_UNIT);
+                *l &= I::mask(new_length % Self::BIT_UNIT);
             }
             self.length = new_length;
         }
@@ -418,7 +415,7 @@ where
             let i = self.length / Self::BIT_UNIT;
             let b = self.data[i] >> (self.length % Self::BIT_UNIT - 1) & I::ONE;
             self.data[i] =
-                (self.data[i] << 1 | carry.into()) & Self::mask(self.length % Self::BIT_UNIT);
+                (self.data[i] << 1 | carry.into()) & I::mask(self.length % Self::BIT_UNIT);
             carry = b.into();
         }
         carry
@@ -450,10 +447,9 @@ where
                 .min(Self::BIT_UNIT - old_idx % Self::BIT_UNIT)
                 .min(self.length - new_idx)
                 .min(self.length - old_idx);
-            new_data[new_idx / Self::BIT_UNIT] |= ((self.data[old_idx / Self::BIT_UNIT]
-                >> (old_idx % Self::BIT_UNIT))
-                & Self::mask(l))
-                << (new_idx % Self::BIT_UNIT);
+            new_data[new_idx / Self::BIT_UNIT] |=
+                ((self.data[old_idx / Self::BIT_UNIT] >> (old_idx % Self::BIT_UNIT)) & I::mask(l))
+                    << (new_idx % Self::BIT_UNIT);
             old_idx += l;
         }
         self.data = new_data;
@@ -469,10 +465,9 @@ where
                 .min(Self::BIT_UNIT - old_idx % Self::BIT_UNIT)
                 .min(self.length - new_idx)
                 .min(self.length - old_idx);
-            new_data[new_idx / Self::BIT_UNIT] |= ((self.data[old_idx / Self::BIT_UNIT]
-                >> (old_idx % Self::BIT_UNIT))
-                & Self::mask(l))
-                << (new_idx % Self::BIT_UNIT);
+            new_data[new_idx / Self::BIT_UNIT] |=
+                ((self.data[old_idx / Self::BIT_UNIT] >> (old_idx % Self::BIT_UNIT)) & I::mask(l))
+                    << (new_idx % Self::BIT_UNIT);
             new_idx += l;
         }
         self.data = new_data;
@@ -483,7 +478,7 @@ where
         let mut i = Self::capacity_from_bit_len(self.length);
         if i > 0 {
             let lastbit = (self.length - 1) % Self::BIT_UNIT + 1;
-            let mut v = self.data[i - 1] & Self::mask(lastbit);
+            let mut v = self.data[i - 1] & I::mask(lastbit);
             count = v.leading_zeros() - (Self::BIT_UNIT - lastbit);
             i -= 1;
             while v == I::ZERO && i > 0 {
@@ -500,7 +495,7 @@ where
         let mut i = Self::capacity_from_bit_len(self.length);
         if i > 0 {
             let lastbit = (self.length - 1) % Self::BIT_UNIT + 1;
-            let mut v = self.data[i - 1] | !Self::mask(lastbit);
+            let mut v = self.data[i - 1] | !I::mask(lastbit);
             count = v.leading_ones() - (Self::BIT_UNIT - lastbit);
             i -= 1;
             while v == I::MAX && i > 0 {
@@ -1036,14 +1031,14 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
                             .min((new_idx - shift).wrapping_sub(1) % Self::BIT_UNIT + 1);
                     new_idx -= l;
                     let old_idx = new_idx - shift;
-                    let d = (self.data[old_idx / Self::BIT_UNIT] >> (old_idx % Self::BIT_UNIT)) & Self::mask(l);
-                    self.data[new_idx / Self::BIT_UNIT] &= !(Self::mask(l) << (new_idx % Self::BIT_UNIT));
+                    let d = (self.data[old_idx / Self::BIT_UNIT] >> (old_idx % Self::BIT_UNIT)) & I::mask(l);
+                    self.data[new_idx / Self::BIT_UNIT] &= !(I::mask(l) << (new_idx % Self::BIT_UNIT));
                     self.data[new_idx / Self::BIT_UNIT] |=  d << (new_idx % Self::BIT_UNIT);
                 }
                 while new_idx > 0 {
                     let l = (new_idx.wrapping_sub(1) % Self::BIT_UNIT) + 1;
                     new_idx -= l;
-                    self.data[new_idx / Self::BIT_UNIT] &= !(Self::mask(l) << (new_idx % Self::BIT_UNIT));
+                    self.data[new_idx / Self::BIT_UNIT] &= !(I::mask(l) << (new_idx % Self::BIT_UNIT));
                 }
             }
         }
@@ -1096,14 +1091,14 @@ macro_rules! impl_shifts {({$($rhs:ty),+}) => {
                     let old_idx = new_idx + shift;
                     let l = (Self::BIT_UNIT - new_idx % Self::BIT_UNIT)
                             .min(Self::BIT_UNIT - old_idx % Self::BIT_UNIT);
-                    let d = (self.data[old_idx / Self::BIT_UNIT] >> (old_idx % Self::BIT_UNIT)) & Self::mask(l);
-                    self.data[new_idx / Self::BIT_UNIT] &= !(Self::mask(l) << (new_idx % Self::BIT_UNIT));
+                    let d = (self.data[old_idx / Self::BIT_UNIT] >> (old_idx % Self::BIT_UNIT)) & I::mask(l);
+                    self.data[new_idx / Self::BIT_UNIT] &= !(I::mask(l) << (new_idx % Self::BIT_UNIT));
                     self.data[new_idx / Self::BIT_UNIT] |= d << (new_idx % Self::BIT_UNIT);
                     new_idx += l;
                 }
                 while new_idx < self.length {
                     let l = Self::BIT_UNIT - new_idx % Self::BIT_UNIT;
-                    self.data[new_idx / Self::BIT_UNIT] &= !(Self::mask(l) << (new_idx % Self::BIT_UNIT));
+                    self.data[new_idx / Self::BIT_UNIT] &= !(I::mask(l) << (new_idx % Self::BIT_UNIT));
                     new_idx += l;
                 }
             }
