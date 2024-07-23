@@ -8,8 +8,121 @@ use crate::auto::BV;
 use crate::bit::Bit;
 use crate::dynamic::BVD;
 use crate::fixed::BVF;
-use crate::tests::{bvf_inner_unroll_cap, random_bv};
+use crate::tests::{bvf_inner_unroll, bvf_inner_unroll_cap, random_bv};
+use crate::utils::{IArray, IArrayMut, Integer, StaticCast};
 use crate::{BitVector, ConvertionError, Endianness};
+
+fn get_int_inner<B, I>(max_capacity: usize)
+where
+    rand::distributions::Standard: rand::distributions::Distribution<I>,
+    B: BitVector + TryFrom<I, Error: std::fmt::Debug>,
+    <B as IArray>::I: StaticCast<I>,
+    I: Integer,
+{
+    let mut rng = thread_rng();
+    let ints = (0..max_capacity / I::BITS)
+        .map(|_| rng.gen::<I>())
+        .collect::<Vec<_>>();
+    let bv = ints.iter().map(|i| B::try_from(*i).unwrap()).fold(
+        B::with_capacity(max_capacity),
+        |mut acc, bv| {
+            acc.append(&bv);
+            return acc;
+        },
+    );
+    for (idx, int) in ints.iter().enumerate() {
+        assert_eq!(Some(*int), bv.get_int::<I>(idx));
+    }
+}
+
+fn get_int_bvf_inner<I: Integer, const N: usize>() {
+    get_int_inner::<BVF<I, N>, u8>(BVF::<I, N>::capacity());
+    get_int_inner::<BVF<I, N>, u16>(BVF::<I, N>::capacity());
+    get_int_inner::<BVF<I, N>, u32>(BVF::<I, N>::capacity());
+    get_int_inner::<BVF<I, N>, u64>(BVF::<I, N>::capacity());
+    get_int_inner::<BVF<I, N>, u128>(BVF::<I, N>::capacity());
+}
+
+#[test]
+fn get_int_bvf() {
+    bvf_inner_unroll!(get_int_bvf_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
+}
+
+#[test]
+fn get_int_bvd() {
+    get_int_inner::<BVD, u8>(32);
+    get_int_inner::<BVD, u16>(64);
+    get_int_inner::<BVD, u32>(128);
+    get_int_inner::<BVD, u64>(256);
+    get_int_inner::<BVD, u128>(256);
+    get_int_inner::<BVD, usize>(256);
+}
+
+#[test]
+fn get_int_bv() {
+    get_int_inner::<BV, u8>(32);
+    get_int_inner::<BV, u16>(64);
+    get_int_inner::<BV, u32>(128);
+    get_int_inner::<BV, u64>(256);
+    get_int_inner::<BV, u128>(256);
+    get_int_inner::<BV, usize>(256);
+}
+
+fn set_int_inner<B, I>(max_capacity: usize)
+where
+    rand::distributions::Standard: rand::distributions::Distribution<I>,
+    B: BitVector,
+    <B as IArrayMut>::I: StaticCast<I>,
+    I: Integer + TryFrom<B, Error: std::fmt::Debug>,
+{
+    let mut rng = thread_rng();
+    let mut bv = B::zeros(max_capacity);
+    let ints = (0..max_capacity / I::BITS)
+        .map(|_| rng.gen::<I>())
+        .collect::<Vec<_>>();
+    for (idx, int) in ints.iter().enumerate() {
+        bv.set_int::<I>(idx, *int);
+    }
+    for (idx, int) in ints.iter().enumerate() {
+        assert_eq!(
+            *int,
+            I::try_from(bv.copy_range((idx * I::BITS)..((idx + 1) * I::BITS))).unwrap()
+        );
+    }
+}
+
+fn set_int_bvf_inner<I: Integer, const N: usize>() {
+    set_int_inner::<BVF<I, N>, u8>(BVF::<I, N>::capacity());
+    set_int_inner::<BVF<I, N>, u16>(BVF::<I, N>::capacity());
+    set_int_inner::<BVF<I, N>, u32>(BVF::<I, N>::capacity());
+    set_int_inner::<BVF<I, N>, u64>(BVF::<I, N>::capacity());
+    set_int_inner::<BVF<I, N>, u128>(BVF::<I, N>::capacity());
+}
+
+#[test]
+fn set_int_bvf() {
+    bvf_inner_unroll!(set_int_bvf_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
+}
+
+#[test]
+fn set_int_bvd() {
+    set_int_inner::<BVD, u8>(32);
+    set_int_inner::<BVD, u16>(64);
+    set_int_inner::<BVD, u32>(128);
+    set_int_inner::<BVD, u64>(256);
+    set_int_inner::<BVD, u128>(256);
+    set_int_inner::<BVD, usize>(256);
+}
+
+#[test]
+fn set_int_bv() {
+    set_int_inner::<BV, u8>(32);
+    set_int_inner::<BV, u16>(64);
+    set_int_inner::<BV, u32>(128);
+    set_int_inner::<BV, u64>(256);
+    set_int_inner::<BV, u128>(256);
+    set_int_inner::<BV, usize>(256);
+}
 
 fn with_capacity_inner<B: BitVector>(max_capacity: usize) {
     for c in 0..max_capacity {

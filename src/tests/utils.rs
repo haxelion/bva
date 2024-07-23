@@ -29,7 +29,7 @@ macro_rules! test_type_combination {
     };
 }
 
-fn istream_len_inner<I1: Integer, I2: Integer, const N1: usize>()
+fn iarray_len_inner<I1: Integer, I2: Integer, const N1: usize>()
 where
     I1: StaticCast<I1>,
     I1: StaticCast<I2>,
@@ -51,11 +51,11 @@ where
 }
 
 #[test]
-fn istream_len() {
-    test_type_combination!(istream_len_inner, {u8, u16, u32, u64, u128, usize}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+fn iarray_len() {
+    test_type_combination!(iarray_len_inner, {u8, u16, u32, u64, u128, usize}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
 }
 
-fn istream_get_set_inner<I1: Integer, I2: Integer, const N1: usize>()
+fn iarray_get_set_inner<I1: Integer, I2: Integer, const N1: usize>()
 where
     I1: Integer + StaticCast<I1> + StaticCast<I2>,
     I2: Integer + StaticCast<I1> + StaticCast<usize>,
@@ -76,8 +76,26 @@ where
 }
 
 #[test]
-fn istream_get_set() {
-    test_type_combination!(istream_get_set_inner, {u8, u16, u32, u64, u128, usize}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+fn iarray_get_set() {
+    test_type_combination!(iarray_get_set_inner, {u8, u16, u32, u64, u128, usize}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+}
+
+fn mask_inner<I: Integer>() {
+    for l in 0..I::BITS {
+        let mask = I::mask(l);
+        assert_eq!(mask.trailing_ones() as usize, l);
+        assert_eq!(mask.leading_zeros() as usize, I::BITS - l);
+    }
+}
+
+#[test]
+fn mask() {
+    mask_inner::<u8>();
+    mask_inner::<u16>();
+    mask_inner::<u32>();
+    mask_inner::<u64>();
+    mask_inner::<u128>();
+    mask_inner::<usize>();
 }
 
 fn integer_cadd_inner<I: Integer + ToBigUint>() {

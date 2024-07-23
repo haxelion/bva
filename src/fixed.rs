@@ -864,7 +864,7 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
                     }
                     return Ok(BVF {
                         data,
-                        length: Self::capacity()
+                        length: usize::min(<$type>::BITS as usize, Self::capacity())
                     });
                 }
             }
