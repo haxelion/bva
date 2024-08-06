@@ -530,6 +530,7 @@ fn resize_inner<B: BitVector>(max_capacity: usize) {
     let mut bv = B::zeros(0);
     let mut length = 1;
 
+    // Resize to larger capacity
     while bv.len() + length <= max_capacity {
         let bit = Bit::from(length % 2);
 
@@ -539,6 +540,15 @@ fn resize_inner<B: BitVector>(max_capacity: usize) {
         }
 
         length += 1;
+    }
+
+    // Resize to smaller capacity
+    for length in (0..bv.len()).rev() {
+        let mut bv2 = bv.clone();
+        bv2.resize(length, Bit::Zero);
+        for i in 0..bv2.len() {
+            assert_eq!(bv.get(i), bv2.get(i));
+        }
     }
 }
 
