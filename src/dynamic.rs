@@ -907,6 +907,19 @@ macro_rules! impl_from_ints {($($st:ty),+) => {
 
 impl_from_ints!(u8, u16, u32, u64, u128, usize);
 
+impl<I: Integer> From<&[I]> for BVD
+where
+    u64: StaticCast<I>,
+{
+    fn from(slice: &[I]) -> Self {
+        let mut bvd = BVD::zeros(slice.len() * I::BITS);
+        for (i, v) in slice.iter().enumerate() {
+            bvd.set_int(i, *v);
+        }
+        bvd
+    }
+}
+
 impl<I: Integer, const N: usize> From<&BVF<I, N>> for BVD {
     fn from(rhs: &BVF<I, N>) -> BVD {
         BVD {

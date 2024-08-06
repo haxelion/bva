@@ -3,8 +3,8 @@ use std::fmt::Debug;
 use crate::auto::BV;
 use crate::dynamic::BVD;
 use crate::fixed::BVF;
-use crate::tests::{bvf_bvf_inner_unroll, bvf_inner_unroll, random_test_bv};
-use crate::utils::{Integer, StaticCast};
+use crate::tests::{bvf_bvf_inner_unroll, bvf_inner_unroll, random_bv, random_test_bv};
+use crate::utils::{IArray, Integer, StaticCast};
 use crate::{BitVector, ConvertionError};
 
 use num_bigint::BigInt;
@@ -275,4 +275,67 @@ fn from_bv_bvf() {
 #[test]
 fn from_bv_bvd() {
     from_inner::<BV, BVD>(512);
+}
+
+fn from_array_inner<B, I>(max_capacity: usize)
+where
+    <B as IArray>::I: StaticCast<I>,
+    B: BitVector + for<'a> TryFrom<&'a [I], Error: Debug>,
+    I: Integer,
+{
+    for length in 0..(max_capacity / I::BITS * I::BITS) {
+        let bv1 = random_bv::<B>(length);
+        let array: Vec<I> = (0..bv1.int_len::<I>())
+            .map(|i| bv1.get_int(i).unwrap())
+            .collect();
+        let bv2 = B::try_from(&array[..]).unwrap();
+        assert_eq!(bv1, bv2);
+    }
+}
+
+fn from_bvf_array_inner<I: Integer, const N: usize>() {
+    from_array_inner::<BVF<I, N>, u8>(BVF::<I, N>::capacity());
+    from_array_inner::<BVF<I, N>, u16>(BVF::<I, N>::capacity());
+    from_array_inner::<BVF<I, N>, u32>(BVF::<I, N>::capacity());
+    from_array_inner::<BVF<I, N>, u64>(BVF::<I, N>::capacity());
+    from_array_inner::<BVF<I, N>, u128>(BVF::<I, N>::capacity());
+}
+
+#[test]
+fn from_bvf_array() {
+    bvf_inner_unroll!(from_bvf_array_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
+    assert_eq!(
+        BVF::<u8, 3>::try_from(&[1u16; 2][..]),
+        Err(ConvertionError::NotEnoughCapacity)
+    );
+    assert_eq!(
+        BVF::<u16, 3>::try_from(&[1u32; 2][..]),
+        Err(ConvertionError::NotEnoughCapacity)
+    );
+    assert_eq!(
+        BVF::<u32, 3>::try_from(&[1u64; 2][..]),
+        Err(ConvertionError::NotEnoughCapacity)
+    );
+    assert_eq!(
+        BVF::<u64, 3>::try_from(&[1u128; 2][..]),
+        Err(ConvertionError::NotEnoughCapacity)
+    );
+}
+
+#[test]
+fn from_bvd_array() {
+    from_array_inner::<BVD, u8>(256);
+    from_array_inner::<BVD, u16>(256);
+    from_array_inner::<BVD, u32>(256);
+    from_array_inner::<BVD, u64>(256);
+    from_array_inner::<BVD, u128>(256);
+}
+
+#[test]
+fn from_bv_array() {
+    from_array_inner::<BV, u8>(256);
+    from_array_inner::<BV, u16>(256);
+    from_array_inner::<BV, u32>(256);
+    from_array_inner::<BV, u64>(256);
+    from_array_inner::<BV, u128>(256);
 }
