@@ -657,6 +657,19 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
 
 impl_tryfrom!(u8, u16, u32, u64, u128, usize);
 
+impl<I: Integer> From<&[I]> for BV
+where
+    u64: StaticCast<I>,
+{
+    fn from(slice: &[I]) -> Self {
+        let mut bv = BV::zeros(slice.len() * I::BITS);
+        for (i, v) in slice.iter().enumerate() {
+            bv.set_int(i, *v);
+        }
+        bv
+    }
+}
+
 // ------------------------------------------------------------------------------------------------
 // BV - Unary operator & shifts
 // ------------------------------------------------------------------------------------------------

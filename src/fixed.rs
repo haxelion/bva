@@ -916,6 +916,22 @@ macro_rules! impl_tryfrom { ($($type:ty),+) => {
 
 impl_tryfrom!(u8, u16, u32, u64, u128, usize);
 
+impl<I: Integer + StaticCast<J>, J: Integer, const N: usize> TryFrom<&[J]> for BVF<I, N> {
+    type Error = ConvertionError;
+
+    fn try_from(slice: &[J]) -> Result<Self, Self::Error> {
+        if slice.len() * J::BITS <= Self::capacity() {
+            let mut bvf = BVF::<I, N>::zeros(slice.len() * J::BITS);
+            for (i, v) in slice.iter().enumerate() {
+                bvf.set_int(i, *v);
+            }
+            Ok(bvf)
+        } else {
+            Err(ConvertionError::NotEnoughCapacity)
+        }
+    }
+}
+
 impl<I1: Integer, I2: Integer, const N1: usize, const N2: usize> TryFrom<&BVF<I1, N1>>
     for BVF<I2, N2>
 where
