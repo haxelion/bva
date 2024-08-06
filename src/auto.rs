@@ -535,8 +535,8 @@ where
 {
     fn partial_cmp(&self, other: &BVF<I, N>) -> Option<Ordering> {
         match self {
-            BV::Fixed(bvf) => bvf.partial_cmp(other).map(|o| o.reverse()),
-            BV::Dynamic(bvd) => bvd.partial_cmp(other).map(|o| o.reverse()),
+            BV::Fixed(bvf) => bvf.partial_cmp(other),
+            BV::Dynamic(bvd) => bvd.partial_cmp(other),
         }
     }
 }
@@ -544,8 +544,8 @@ where
 impl PartialOrd<BVD> for BV {
     fn partial_cmp(&self, other: &BVD) -> Option<Ordering> {
         match self {
-            BV::Fixed(bvf) => bvf.partial_cmp(other).map(|o| o.reverse()),
-            BV::Dynamic(bvd) => bvd.partial_cmp(other).map(|o| o.reverse()),
+            BV::Fixed(bvf) => bvf.partial_cmp(other),
+            BV::Dynamic(bvd) => bvd.partial_cmp(other),
         }
     }
 }

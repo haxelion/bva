@@ -10,6 +10,7 @@ use crate::{Bit, BitVector};
 mod arithmetic;
 mod binary;
 mod bitvector;
+mod comparison;
 mod conversion;
 mod dynamic;
 mod formatting;
