@@ -8,11 +8,13 @@ use crate::utils::Integer;
 use crate::{Bit, BitVector};
 
 mod arithmetic;
+mod auto;
 mod binary;
 mod bitvector;
 mod comparison;
 mod conversion;
 mod dynamic;
+mod fixed;
 mod formatting;
 mod iter;
 mod utils;

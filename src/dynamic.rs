@@ -36,6 +36,14 @@ impl BVD {
     const NIBBLE_UNIT: usize = size_of::<u64>() * 2;
     const BIT_UNIT: usize = u64::BITS as usize;
 
+    pub const fn new(data: Box<[u64]>, length: usize) -> Self {
+        Self { data, length }
+    }
+
+    pub fn into_inner(self) -> (Box<[u64]>, usize) {
+        (self.data, self.length)
+    }
+
     fn capacity_from_byte_len(byte_length: usize) -> usize {
         (byte_length + size_of::<u64>() - 1) / size_of::<u64>()
     }
