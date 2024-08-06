@@ -41,6 +41,14 @@ impl<I: Integer, const N: usize> BVF<I, N> {
     const NIBBLE_UNIT: usize = size_of::<I>() * 2;
     const BIT_UNIT: usize = size_of::<I>() * 8;
 
+    pub const fn new(data: [I; N], length: usize) -> Self {
+        Self { data, length }
+    }
+
+    pub const fn into_inner(self) -> ([I; N], usize) {
+        (self.data, self.length)
+    }
+
     pub const fn capacity() -> usize {
         size_of::<I>() * 8 * N
     }
