@@ -23,7 +23,6 @@
 #![allow(
     clippy::suspicious_arithmetic_impl,
     clippy::suspicious_op_assign_impl,
-    clippy::upper_case_acronyms,
     clippy::comparison_chain,
     clippy::needless_range_loop
 )]

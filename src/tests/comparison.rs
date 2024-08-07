@@ -1,10 +1,10 @@
 use std::cmp::{Ordering, PartialEq, PartialOrd};
 use std::ops::{Not, Sub};
 
-use crate::auto::BV;
+use crate::auto::Bv;
 use crate::bit::Bit;
-use crate::dynamic::BVD;
-use crate::fixed::BVF;
+use crate::dynamic::Bvd;
+use crate::fixed::Bvf;
 use crate::tests::{bvf_bvf_inner_unroll, bvf_inner_unroll, random_bv};
 use crate::utils::{Integer, StaticCast};
 use crate::BitVector;
@@ -30,9 +30,9 @@ where
     I1: StaticCast<I2>,
     I2: StaticCast<I1>,
 {
-    eq_inner::<BVF<I1, N1>, BVF<I2, N2>>(usize::min(
-        BVF::<I1, N1>::capacity(),
-        BVF::<I2, N2>::capacity(),
+    eq_inner::<Bvf<I1, N1>, Bvf<I2, N2>>(usize::min(
+        Bvf::<I1, N1>::capacity(),
+        Bvf::<I2, N2>::capacity(),
     ));
 }
 
@@ -41,8 +41,8 @@ where
     I: StaticCast<u64>,
     u64: StaticCast<I>,
 {
-    eq_inner::<BVF<I, N>, BVD>(BVF::<I, N>::capacity());
-    eq_inner::<BVD, BVF<I, N>>(BVF::<I, N>::capacity());
+    eq_inner::<Bvf<I, N>, Bvd>(Bvf::<I, N>::capacity());
+    eq_inner::<Bvd, Bvf<I, N>>(Bvf::<I, N>::capacity());
 }
 
 fn eq_inner_bvf_bv<I: Integer, const N: usize>()
@@ -50,8 +50,8 @@ where
     I: StaticCast<u64>,
     u64: StaticCast<I>,
 {
-    eq_inner::<BVF<I, N>, BV>(BVF::<I, N>::capacity());
-    eq_inner::<BV, BVF<I, N>>(BVF::<I, N>::capacity());
+    eq_inner::<Bvf<I, N>, Bv>(Bvf::<I, N>::capacity());
+    eq_inner::<Bv, Bvf<I, N>>(Bvf::<I, N>::capacity());
 }
 
 #[test]
@@ -71,18 +71,18 @@ fn eq_bvf_bv() {
 
 #[test]
 fn eq_bvd_bvd() {
-    eq_inner::<BVD, BVD>(512);
+    eq_inner::<Bvd, Bvd>(512);
 }
 
 #[test]
 fn eq_bvd_bv() {
-    eq_inner::<BVD, BV>(512);
-    eq_inner::<BV, BVD>(512);
+    eq_inner::<Bvd, Bv>(512);
+    eq_inner::<Bv, Bvd>(512);
 }
 
 #[test]
 fn eq_bv_bv() {
-    eq_inner::<BV, BV>(512);
+    eq_inner::<Bv, Bv>(512);
 }
 
 fn cmp_inner<B1, B2>(max_capacity: usize)
@@ -124,9 +124,9 @@ where
     I1: StaticCast<I2>,
     I2: StaticCast<I1>,
 {
-    cmp_inner::<BVF<I1, N1>, BVF<I2, N2>>(usize::min(
-        BVF::<I1, N1>::capacity(),
-        BVF::<I2, N2>::capacity(),
+    cmp_inner::<Bvf<I1, N1>, Bvf<I2, N2>>(usize::min(
+        Bvf::<I1, N1>::capacity(),
+        Bvf::<I2, N2>::capacity(),
     ));
 }
 
@@ -135,8 +135,8 @@ where
     I: StaticCast<u64>,
     u64: StaticCast<I>,
 {
-    cmp_inner::<BVF<I, N>, BVD>(BVF::<I, N>::capacity());
-    cmp_inner::<BVD, BVF<I, N>>(BVF::<I, N>::capacity());
+    cmp_inner::<Bvf<I, N>, Bvd>(Bvf::<I, N>::capacity());
+    cmp_inner::<Bvd, Bvf<I, N>>(Bvf::<I, N>::capacity());
 }
 
 fn cmp_inner_bvf_bv<I: Integer, const N: usize>()
@@ -144,8 +144,8 @@ where
     I: StaticCast<u64>,
     u64: StaticCast<I>,
 {
-    cmp_inner::<BVF<I, N>, BV>(BVF::<I, N>::capacity());
-    cmp_inner::<BV, BVF<I, N>>(BVF::<I, N>::capacity());
+    cmp_inner::<Bvf<I, N>, Bv>(Bvf::<I, N>::capacity());
+    cmp_inner::<Bv, Bvf<I, N>>(Bvf::<I, N>::capacity());
 }
 
 #[test]
@@ -165,16 +165,16 @@ fn cmp_bvf_bv() {
 
 #[test]
 fn cmp_bvd_bvd() {
-    cmp_inner::<BVD, BVD>(512);
+    cmp_inner::<Bvd, Bvd>(512);
 }
 
 #[test]
 fn cmp_bvd_bv() {
-    cmp_inner::<BVD, BV>(512);
-    cmp_inner::<BV, BVD>(512);
+    cmp_inner::<Bvd, Bv>(512);
+    cmp_inner::<Bv, Bvd>(512);
 }
 
 #[test]
 fn cmp_bv_bv() {
-    cmp_inner::<BV, BV>(512);
+    cmp_inner::<Bv, Bv>(512);
 }

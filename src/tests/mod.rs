@@ -1,9 +1,9 @@
 use num_bigint::BigInt;
 use rand::random;
 
-use crate::auto::BV;
-use crate::dynamic::BVD;
-use crate::fixed::BVF;
+use crate::auto::Bv;
+use crate::dynamic::Bvd;
+use crate::fixed::Bvf;
 use crate::utils::Integer;
 use crate::{Bit, BitVector};
 
@@ -36,7 +36,7 @@ fn random_test_bv<B: BitVector>(length: usize) -> (B, BigInt) {
     (bv, bi)
 }
 
-impl<I1: Integer, const N: usize> PartialEq<BigInt> for BVF<I1, N> {
+impl<I1: Integer, const N: usize> PartialEq<BigInt> for Bvf<I1, N> {
     fn eq(&self, other: &BigInt) -> bool {
         for i in 0..self.len() {
             if self.get(i) != Bit::from(other.bit(i as u64)) {
@@ -47,7 +47,7 @@ impl<I1: Integer, const N: usize> PartialEq<BigInt> for BVF<I1, N> {
     }
 }
 
-impl PartialEq<BigInt> for BVD {
+impl PartialEq<BigInt> for Bvd {
     fn eq(&self, other: &BigInt) -> bool {
         for i in 0..self.len() {
             if self.get(i) != Bit::from(other.bit(i as u64)) {
@@ -58,7 +58,7 @@ impl PartialEq<BigInt> for BVD {
     }
 }
 
-impl PartialEq<BigInt> for BV {
+impl PartialEq<BigInt> for Bv {
     fn eq(&self, other: &BigInt) -> bool {
         for i in 0..self.len() {
             if self.get(i) != Bit::from(other.bit(i as u64)) {
@@ -90,7 +90,7 @@ macro_rules! bvf_inner_unroll_cap {
     };
     ($func:ident, $lhs:ty, {$($sl:literal),+}) => {
         $(
-            $func::<BVF<$lhs, $sl>>(BVF::<$lhs, $sl>::capacity());
+            $func::<Bvf<$lhs, $sl>>(Bvf::<$lhs, $sl>::capacity());
         )+
     };
 }
@@ -271,9 +271,9 @@ macro_rules! op_test_section {
             const N1: usize,
             const N2: usize,
         >() {
-            for size in 1..usize::min(BVF::<I1, N1>::capacity(), BVF::<I2, N2>::capacity()) {
+            for size in 1..usize::min(Bvf::<I1, N1>::capacity(), Bvf::<I2, N2>::capacity()) {
                 $(
-                    $block!(BVF<I1, N1>, BVF<I2, N2>, $op, $op_assign, size);
+                    $block!(Bvf<I1, N1>, Bvf<I2, N2>, $op, $op_assign, size);
                 )+
             }
         }
@@ -287,10 +287,10 @@ macro_rules! op_test_section {
         where
             u64: StaticCast<I>,
         {
-            for size in 1..BVF::<I, N>::capacity() {
+            for size in 1..Bvf::<I, N>::capacity() {
                 $(
-                    $block!(BVF<I, N>, BVD, $op, $op_assign, size);
-                    $block!(BVD, BVF<I, N>, $op, $op_assign, size);
+                    $block!(Bvf<I, N>, Bvd, $op, $op_assign, size);
+                    $block!(Bvd, Bvf<I, N>, $op, $op_assign, size);
                 )+
             }
         }
@@ -304,10 +304,10 @@ macro_rules! op_test_section {
         where
             u64: StaticCast<I>,
         {
-            for size in 1..BVF::<I, N>::capacity() {
+            for size in 1..Bvf::<I, N>::capacity() {
                 $(
-                    $block!(BVF<I, N>, BV, $op, $op_assign, size);
-                    $block!(BV, BVF<I, N>, $op, $op_assign, size);
+                    $block!(Bvf<I, N>, Bv, $op, $op_assign, size);
+                    $block!(Bv, Bvf<I, N>, $op, $op_assign, size);
                 )+
             }
         }
@@ -321,9 +321,9 @@ macro_rules! op_test_section {
         where
             u64: StaticCast<I>,
         {
-            for size in 1..BVF::<I, N>::capacity() {
+            for size in 1..Bvf::<I, N>::capacity() {
                 $(
-                    $block!(BVF<I, N>, {u8, u16, u32, u64, usize, u128}, $op, $op_assign, size);
+                    $block!(Bvf<I, N>, {u8, u16, u32, u64, usize, u128}, $op, $op_assign, size);
                 )+
             }
         }
@@ -337,7 +337,7 @@ macro_rules! op_test_section {
         fn bvd_bvd() {
             for size in 1..512 {
                 $(
-                    $block!(BVD, BVD, $op, $op_assign, size);
+                    $block!(Bvd, Bvd, $op, $op_assign, size);
                 )+
             }
         }
@@ -346,8 +346,8 @@ macro_rules! op_test_section {
         fn bvd_bv() {
             for size in 1..512 {
                 $(
-                    $block!(BVD, BV, $op, $op_assign, size);
-                    $block!(BV, BVD, $op, $op_assign, size);
+                    $block!(Bvd, Bv, $op, $op_assign, size);
+                    $block!(Bv, Bvd, $op, $op_assign, size);
                 )+
             }
         }
@@ -356,7 +356,7 @@ macro_rules! op_test_section {
         fn bvd_uint() {
             for size in 1..512 {
                 $(
-                    $block!(BVD, {u8, u16, u32, u64, usize, u128}, $op, $op_assign, size);
+                    $block!(Bvd, {u8, u16, u32, u64, usize, u128}, $op, $op_assign, size);
                 )+
             }
         }
@@ -365,7 +365,7 @@ macro_rules! op_test_section {
         fn bv_bv() {
             for size in 1..512 {
                 $(
-                    $block!(BV, BV, $op, $op_assign, size);
+                    $block!(Bv, Bv, $op, $op_assign, size);
                 )+
             }
         }
@@ -374,7 +374,7 @@ macro_rules! op_test_section {
         fn bv_uint() {
             for size in 1..512 {
                 $(
-                    $block!(BV, {u8, u16, u32, u64, usize, u128}, $op, $op_assign, size);
+                    $block!(Bv, {u8, u16, u32, u64, usize, u128}, $op, $op_assign, size);
                 )+
             }
         }

@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
-use crate::auto::BV;
-use crate::dynamic::BVD;
-use crate::fixed::BVF;
+use crate::auto::Bv;
+use crate::dynamic::Bvd;
+use crate::fixed::Bvf;
 use crate::tests::{bvf_bvf_inner_unroll, bvf_inner_unroll, random_bv, random_test_bv};
 use crate::utils::{IArray, Integer, StaticCast};
 use crate::{BitVector, ConvertionError};
@@ -60,66 +60,66 @@ fn try_from_bvf_uint_inner<I: Integer, const N: usize>()
 where
     I: StaticCast<usize>,
 {
-    try_from_uint_inner::<BVF<I, N>, u8>(usize::min(BVF::<I, N>::capacity(), u8::BITS as usize));
-    try_from_uint_inner::<BVF<I, N>, u16>(usize::min(BVF::<I, N>::capacity(), u16::BITS as usize));
-    try_from_uint_inner::<BVF<I, N>, u32>(usize::min(BVF::<I, N>::capacity(), u32::BITS as usize));
-    try_from_uint_inner::<BVF<I, N>, u64>(usize::min(BVF::<I, N>::capacity(), u64::BITS as usize));
-    try_from_uint_inner::<BVF<I, N>, u128>(usize::min(
-        BVF::<I, N>::capacity(),
+    try_from_uint_inner::<Bvf<I, N>, u8>(usize::min(Bvf::<I, N>::capacity(), u8::BITS as usize));
+    try_from_uint_inner::<Bvf<I, N>, u16>(usize::min(Bvf::<I, N>::capacity(), u16::BITS as usize));
+    try_from_uint_inner::<Bvf<I, N>, u32>(usize::min(Bvf::<I, N>::capacity(), u32::BITS as usize));
+    try_from_uint_inner::<Bvf<I, N>, u64>(usize::min(Bvf::<I, N>::capacity(), u64::BITS as usize));
+    try_from_uint_inner::<Bvf<I, N>, u128>(usize::min(
+        Bvf::<I, N>::capacity(),
         u128::BITS as usize,
     ));
-    if BVF::<I, N>::capacity() < u16::BITS as usize {
+    if Bvf::<I, N>::capacity() < u16::BITS as usize {
         assert_eq!(
-            BVF::<I, N>::try_from(u16::MAX),
+            Bvf::<I, N>::try_from(u16::MAX),
             Err(ConvertionError::NotEnoughCapacity)
         );
-    } else if BVF::<I, N>::capacity() > u16::BITS as usize {
+    } else if Bvf::<I, N>::capacity() > u16::BITS as usize {
         assert_eq!(
-            u16::try_from(BVF::<I, N>::ones(u16::BITS as usize + 1)),
-            Err(ConvertionError::NotEnoughCapacity)
-        );
-    }
-    if BVF::<I, N>::capacity() < u32::BITS as usize {
-        assert_eq!(
-            BVF::<I, N>::try_from(u32::MAX),
-            Err(ConvertionError::NotEnoughCapacity)
-        );
-    } else if BVF::<I, N>::capacity() > u32::BITS as usize {
-        assert_eq!(
-            u32::try_from(BVF::<I, N>::ones(u32::BITS as usize + 1)),
+            u16::try_from(Bvf::<I, N>::ones(u16::BITS as usize + 1)),
             Err(ConvertionError::NotEnoughCapacity)
         );
     }
-    if BVF::<I, N>::capacity() < u64::BITS as usize {
+    if Bvf::<I, N>::capacity() < u32::BITS as usize {
         assert_eq!(
-            BVF::<I, N>::try_from(u64::MAX),
+            Bvf::<I, N>::try_from(u32::MAX),
             Err(ConvertionError::NotEnoughCapacity)
         );
-    } else if BVF::<I, N>::capacity() > u64::BITS as usize {
+    } else if Bvf::<I, N>::capacity() > u32::BITS as usize {
         assert_eq!(
-            u64::try_from(BVF::<I, N>::ones(u64::BITS as usize + 1)),
-            Err(ConvertionError::NotEnoughCapacity)
-        );
-    }
-    if BVF::<I, N>::capacity() < usize::BITS as usize {
-        assert_eq!(
-            BVF::<I, N>::try_from(usize::MAX),
-            Err(ConvertionError::NotEnoughCapacity)
-        );
-    } else if BVF::<I, N>::capacity() > usize::BITS as usize {
-        assert_eq!(
-            usize::try_from(BVF::<I, N>::ones(usize::BITS as usize + 1)),
+            u32::try_from(Bvf::<I, N>::ones(u32::BITS as usize + 1)),
             Err(ConvertionError::NotEnoughCapacity)
         );
     }
-    if BVF::<I, N>::capacity() < u128::BITS as usize {
+    if Bvf::<I, N>::capacity() < u64::BITS as usize {
         assert_eq!(
-            BVF::<I, N>::try_from(u128::MAX),
+            Bvf::<I, N>::try_from(u64::MAX),
             Err(ConvertionError::NotEnoughCapacity)
         );
-    } else if BVF::<I, N>::capacity() > u128::BITS as usize {
+    } else if Bvf::<I, N>::capacity() > u64::BITS as usize {
         assert_eq!(
-            u128::try_from(BVF::<I, N>::ones(u128::BITS as usize + 1)),
+            u64::try_from(Bvf::<I, N>::ones(u64::BITS as usize + 1)),
+            Err(ConvertionError::NotEnoughCapacity)
+        );
+    }
+    if Bvf::<I, N>::capacity() < usize::BITS as usize {
+        assert_eq!(
+            Bvf::<I, N>::try_from(usize::MAX),
+            Err(ConvertionError::NotEnoughCapacity)
+        );
+    } else if Bvf::<I, N>::capacity() > usize::BITS as usize {
+        assert_eq!(
+            usize::try_from(Bvf::<I, N>::ones(usize::BITS as usize + 1)),
+            Err(ConvertionError::NotEnoughCapacity)
+        );
+    }
+    if Bvf::<I, N>::capacity() < u128::BITS as usize {
+        assert_eq!(
+            Bvf::<I, N>::try_from(u128::MAX),
+            Err(ConvertionError::NotEnoughCapacity)
+        );
+    } else if Bvf::<I, N>::capacity() > u128::BITS as usize {
+        assert_eq!(
+            u128::try_from(Bvf::<I, N>::ones(u128::BITS as usize + 1)),
             Err(ConvertionError::NotEnoughCapacity)
         );
     }
@@ -135,14 +135,14 @@ where
     I1: Integer + StaticCast<I2>,
     I2: Integer + StaticCast<I1>,
 {
-    for size in 1..usize::min(BVF::<I1, N1>::capacity(), BVF::<I2, N2>::capacity()) {
-        let (bv, bi) = random_test_bv::<BVF<I1, N1>>(size);
-        let cv1 = BVF::<I2, N2>::try_from(&bv).unwrap();
+    for size in 1..usize::min(Bvf::<I1, N1>::capacity(), Bvf::<I2, N2>::capacity()) {
+        let (bv, bi) = random_test_bv::<Bvf<I1, N1>>(size);
+        let cv1 = Bvf::<I2, N2>::try_from(&bv).unwrap();
         assert_eq!(cv1, bi);
     }
-    if BVF::<I1, N1>::capacity() > BVF::<I2, N2>::capacity() {
+    if Bvf::<I1, N1>::capacity() > Bvf::<I2, N2>::capacity() {
         assert_eq!(
-            BVF::<I2, N2>::try_from(&BVF::<I1, N1>::ones(BVF::<I1, N1>::capacity())),
+            Bvf::<I2, N2>::try_from(&Bvf::<I1, N1>::ones(Bvf::<I1, N1>::capacity())),
             Err(ConvertionError::NotEnoughCapacity)
         )
     }
@@ -157,9 +157,9 @@ fn try_from_bvf_bvd_inner<I: Integer, const N: usize>()
 where
     u64: StaticCast<I>,
 {
-    try_from_inner::<BVF<I, N>, BVD>(BVF::<I, N>::capacity());
+    try_from_inner::<Bvf<I, N>, Bvd>(Bvf::<I, N>::capacity());
     assert_eq!(
-        BVF::<I, N>::try_from(BVD::ones(BVF::<I, N>::capacity() + 1)),
+        Bvf::<I, N>::try_from(Bvd::ones(Bvf::<I, N>::capacity() + 1)),
         Err(ConvertionError::NotEnoughCapacity)
     );
 }
@@ -173,9 +173,9 @@ fn try_from_bvf_bv_inner<I: Integer, const N: usize>()
 where
     u64: StaticCast<I>,
 {
-    try_from_inner::<BVF<I, N>, BV>(BVF::<I, N>::capacity());
+    try_from_inner::<Bvf<I, N>, Bv>(Bvf::<I, N>::capacity());
     assert_eq!(
-        BVF::<I, N>::try_from(BV::ones(BVF::<I, N>::capacity() + 1)),
+        Bvf::<I, N>::try_from(Bv::ones(Bvf::<I, N>::capacity() + 1)),
         Err(ConvertionError::NotEnoughCapacity)
     );
 }
@@ -187,29 +187,29 @@ fn from_bvf_bv() {
 
 #[test]
 fn from_bvd_uint() {
-    try_from_uint_inner::<BVD, u8>(u8::BITS as usize);
-    try_from_uint_inner::<BVD, u16>(u16::BITS as usize);
-    try_from_uint_inner::<BVD, u32>(u32::BITS as usize);
-    try_from_uint_inner::<BVD, u64>(u64::BITS as usize);
-    try_from_uint_inner::<BVD, u128>(u128::BITS as usize);
+    try_from_uint_inner::<Bvd, u8>(u8::BITS as usize);
+    try_from_uint_inner::<Bvd, u16>(u16::BITS as usize);
+    try_from_uint_inner::<Bvd, u32>(u32::BITS as usize);
+    try_from_uint_inner::<Bvd, u64>(u64::BITS as usize);
+    try_from_uint_inner::<Bvd, u128>(u128::BITS as usize);
     assert_eq!(
-        u8::try_from(BVD::ones(9)),
+        u8::try_from(Bvd::ones(9)),
         Err(ConvertionError::NotEnoughCapacity)
     );
     assert_eq!(
-        u16::try_from(BVD::ones(17)),
+        u16::try_from(Bvd::ones(17)),
         Err(ConvertionError::NotEnoughCapacity)
     );
     assert_eq!(
-        u32::try_from(BVD::ones(33)),
+        u32::try_from(Bvd::ones(33)),
         Err(ConvertionError::NotEnoughCapacity)
     );
     assert_eq!(
-        u64::try_from(BVD::ones(65)),
+        u64::try_from(Bvd::ones(65)),
         Err(ConvertionError::NotEnoughCapacity)
     );
     assert_eq!(
-        u128::try_from(BVD::ones(129)),
+        u128::try_from(Bvd::ones(129)),
         Err(ConvertionError::NotEnoughCapacity)
     );
 }
@@ -218,7 +218,7 @@ fn try_from_bvd_bvf_inner<I: Integer, const N: usize>()
 where
     u64: StaticCast<I>,
 {
-    try_from_inner::<BVD, BVF<I, N>>(BVF::<I, N>::capacity());
+    try_from_inner::<Bvd, Bvf<I, N>>(Bvf::<I, N>::capacity());
 }
 
 #[test]
@@ -230,39 +230,39 @@ fn try_from_bv_bvf_inner<I: Integer, const N: usize>()
 where
     u64: StaticCast<I>,
 {
-    try_from_inner::<BV, BVF<I, N>>(BVF::<I, N>::capacity());
+    try_from_inner::<Bv, Bvf<I, N>>(Bvf::<I, N>::capacity());
 }
 
 #[test]
 fn from_bvd_bv() {
-    from_inner::<BVD, BV>(512);
+    from_inner::<Bvd, Bv>(512);
 }
 
 #[test]
 fn from_bv_uint() {
-    try_from_uint_inner::<BV, u8>(u8::BITS as usize);
-    try_from_uint_inner::<BV, u16>(u16::BITS as usize);
-    try_from_uint_inner::<BV, u32>(u32::BITS as usize);
-    try_from_uint_inner::<BV, u64>(u64::BITS as usize);
-    try_from_uint_inner::<BV, u128>(u128::BITS as usize);
+    try_from_uint_inner::<Bv, u8>(u8::BITS as usize);
+    try_from_uint_inner::<Bv, u16>(u16::BITS as usize);
+    try_from_uint_inner::<Bv, u32>(u32::BITS as usize);
+    try_from_uint_inner::<Bv, u64>(u64::BITS as usize);
+    try_from_uint_inner::<Bv, u128>(u128::BITS as usize);
     assert_eq!(
-        u8::try_from(BV::ones(9)),
+        u8::try_from(Bv::ones(9)),
         Err(ConvertionError::NotEnoughCapacity)
     );
     assert_eq!(
-        u16::try_from(BV::ones(17)),
+        u16::try_from(Bv::ones(17)),
         Err(ConvertionError::NotEnoughCapacity)
     );
     assert_eq!(
-        u32::try_from(BV::ones(33)),
+        u32::try_from(Bv::ones(33)),
         Err(ConvertionError::NotEnoughCapacity)
     );
     assert_eq!(
-        u64::try_from(BV::ones(65)),
+        u64::try_from(Bv::ones(65)),
         Err(ConvertionError::NotEnoughCapacity)
     );
     assert_eq!(
-        u128::try_from(BV::ones(129)),
+        u128::try_from(Bv::ones(129)),
         Err(ConvertionError::NotEnoughCapacity)
     );
 }
@@ -274,7 +274,7 @@ fn from_bv_bvf() {
 
 #[test]
 fn from_bv_bvd() {
-    from_inner::<BV, BVD>(512);
+    from_inner::<Bv, Bvd>(512);
 }
 
 fn from_array_inner<B, I>(max_capacity: usize)
@@ -294,48 +294,48 @@ where
 }
 
 fn from_bvf_array_inner<I: Integer, const N: usize>() {
-    from_array_inner::<BVF<I, N>, u8>(BVF::<I, N>::capacity());
-    from_array_inner::<BVF<I, N>, u16>(BVF::<I, N>::capacity());
-    from_array_inner::<BVF<I, N>, u32>(BVF::<I, N>::capacity());
-    from_array_inner::<BVF<I, N>, u64>(BVF::<I, N>::capacity());
-    from_array_inner::<BVF<I, N>, u128>(BVF::<I, N>::capacity());
+    from_array_inner::<Bvf<I, N>, u8>(Bvf::<I, N>::capacity());
+    from_array_inner::<Bvf<I, N>, u16>(Bvf::<I, N>::capacity());
+    from_array_inner::<Bvf<I, N>, u32>(Bvf::<I, N>::capacity());
+    from_array_inner::<Bvf<I, N>, u64>(Bvf::<I, N>::capacity());
+    from_array_inner::<Bvf<I, N>, u128>(Bvf::<I, N>::capacity());
 }
 
 #[test]
 fn from_bvf_array() {
     bvf_inner_unroll!(from_bvf_array_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
     assert_eq!(
-        BVF::<u8, 3>::try_from(&[1u16; 2][..]),
+        Bvf::<u8, 3>::try_from(&[1u16; 2][..]),
         Err(ConvertionError::NotEnoughCapacity)
     );
     assert_eq!(
-        BVF::<u16, 3>::try_from(&[1u32; 2][..]),
+        Bvf::<u16, 3>::try_from(&[1u32; 2][..]),
         Err(ConvertionError::NotEnoughCapacity)
     );
     assert_eq!(
-        BVF::<u32, 3>::try_from(&[1u64; 2][..]),
+        Bvf::<u32, 3>::try_from(&[1u64; 2][..]),
         Err(ConvertionError::NotEnoughCapacity)
     );
     assert_eq!(
-        BVF::<u64, 3>::try_from(&[1u128; 2][..]),
+        Bvf::<u64, 3>::try_from(&[1u128; 2][..]),
         Err(ConvertionError::NotEnoughCapacity)
     );
 }
 
 #[test]
 fn from_bvd_array() {
-    from_array_inner::<BVD, u8>(256);
-    from_array_inner::<BVD, u16>(256);
-    from_array_inner::<BVD, u32>(256);
-    from_array_inner::<BVD, u64>(256);
-    from_array_inner::<BVD, u128>(256);
+    from_array_inner::<Bvd, u8>(256);
+    from_array_inner::<Bvd, u16>(256);
+    from_array_inner::<Bvd, u32>(256);
+    from_array_inner::<Bvd, u64>(256);
+    from_array_inner::<Bvd, u128>(256);
 }
 
 #[test]
 fn from_bv_array() {
-    from_array_inner::<BV, u8>(256);
-    from_array_inner::<BV, u16>(256);
-    from_array_inner::<BV, u32>(256);
-    from_array_inner::<BV, u64>(256);
-    from_array_inner::<BV, u128>(256);
+    from_array_inner::<Bv, u8>(256);
+    from_array_inner::<Bv, u16>(256);
+    from_array_inner::<Bv, u32>(256);
+    from_array_inner::<Bv, u64>(256);
+    from_array_inner::<Bv, u128>(256);
 }

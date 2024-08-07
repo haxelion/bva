@@ -1,6 +1,6 @@
-use crate::auto::BV;
-use crate::dynamic::BVD;
-use crate::fixed::BVF;
+use crate::auto::Bv;
+use crate::dynamic::Bvd;
+use crate::fixed::Bvf;
 use crate::tests::bvf_inner_unroll_cap;
 use crate::{Bit, BitVector};
 
@@ -54,14 +54,14 @@ fn iter_fixed() {
 #[test]
 fn iter_dynamic() {
     for capacity in 1..512 {
-        iter_inner::<BVD>(capacity);
+        iter_inner::<Bvd>(capacity);
     }
 }
 
 #[test]
 fn iter_auto() {
     for capacity in 1..512 {
-        iter_inner::<BV>(capacity);
+        iter_inner::<Bv>(capacity);
     }
 }
 
@@ -83,13 +83,13 @@ fn from_iter_bvf() {
 
 #[test]
 fn from_iter_bvd() {
-    from_iter_inner::<BVD>(256);
+    from_iter_inner::<Bvd>(256);
 }
 
 #[test]
 fn from_iter_bv() {
-    from_iter_inner::<BV>(64);
-    from_iter_inner::<BV>(256);
+    from_iter_inner::<Bv>(64);
+    from_iter_inner::<Bv>(256);
 }
 
 fn extend_inner<B: BitVector + Extend<Bit>>(capacity: usize) {
@@ -111,11 +111,11 @@ fn extend_bvf() {
 
 #[test]
 fn extend_bvd() {
-    extend_inner::<BVD>(256);
+    extend_inner::<Bvd>(256);
 }
 
 #[test]
 fn extend_bv() {
-    extend_inner::<BV>(64);
-    extend_inner::<BV>(256);
+    extend_inner::<Bv>(64);
+    extend_inner::<Bv>(256);
 }
