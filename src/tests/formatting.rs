@@ -1,6 +1,6 @@
-use crate::auto::BV;
-use crate::dynamic::BVD;
-use crate::fixed::BVF;
+use crate::auto::Bv;
+use crate::dynamic::Bvd;
+use crate::fixed::Bvf;
 use crate::tests::{bvf_inner_unroll_cap, random_test_bv};
 use crate::{Bit, BitVector, ConvertionError};
 
@@ -37,12 +37,12 @@ fn display_bvf() {
 
 #[test]
 fn display_bvd() {
-    display_inner::<BVD>(512);
+    display_inner::<Bvd>(512);
 }
 
 #[test]
 fn display_bv() {
-    display_inner::<BV>(512);
+    display_inner::<Bv>(512);
 }
 
 fn from_string_inner<B: BitVector>(capacity: usize) {
@@ -67,21 +67,21 @@ fn from_string_inner<B: BitVector>(capacity: usize) {
 fn from_string_bvf() {
     bvf_inner_unroll_cap!(from_string_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
     assert_eq!(
-        BVF::<u8, 1>::from_binary("0000000001"),
+        Bvf::<u8, 1>::from_binary("0000000001"),
         Err(ConvertionError::NotEnoughCapacity)
     );
     assert_eq!(
-        BVF::<u16, 1>::from_hex("abcde"),
+        Bvf::<u16, 1>::from_hex("abcde"),
         Err(ConvertionError::NotEnoughCapacity)
     );
 }
 
 #[test]
 fn from_string_bvd() {
-    from_string_inner::<BVD>(512);
+    from_string_inner::<Bvd>(512);
 }
 
 #[test]
 fn from_string_bv() {
-    from_string_inner::<BV>(512);
+    from_string_inner::<Bv>(512);
 }

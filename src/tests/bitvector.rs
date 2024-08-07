@@ -4,10 +4,10 @@ use std::iter::repeat;
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng, RngCore};
 
-use crate::auto::BV;
+use crate::auto::Bv;
 use crate::bit::Bit;
-use crate::dynamic::BVD;
-use crate::fixed::BVF;
+use crate::dynamic::Bvd;
+use crate::fixed::Bvf;
 use crate::tests::{bvf_inner_unroll, bvf_inner_unroll_cap, random_bv};
 use crate::utils::{IArray, IArrayMut, Integer, StaticCast};
 use crate::{BitVector, ConvertionError, Endianness};
@@ -36,11 +36,11 @@ where
 }
 
 fn get_int_bvf_inner<I: Integer, const N: usize>() {
-    get_int_inner::<BVF<I, N>, u8>(BVF::<I, N>::capacity());
-    get_int_inner::<BVF<I, N>, u16>(BVF::<I, N>::capacity());
-    get_int_inner::<BVF<I, N>, u32>(BVF::<I, N>::capacity());
-    get_int_inner::<BVF<I, N>, u64>(BVF::<I, N>::capacity());
-    get_int_inner::<BVF<I, N>, u128>(BVF::<I, N>::capacity());
+    get_int_inner::<Bvf<I, N>, u8>(Bvf::<I, N>::capacity());
+    get_int_inner::<Bvf<I, N>, u16>(Bvf::<I, N>::capacity());
+    get_int_inner::<Bvf<I, N>, u32>(Bvf::<I, N>::capacity());
+    get_int_inner::<Bvf<I, N>, u64>(Bvf::<I, N>::capacity());
+    get_int_inner::<Bvf<I, N>, u128>(Bvf::<I, N>::capacity());
 }
 
 #[test]
@@ -50,22 +50,22 @@ fn get_int_bvf() {
 
 #[test]
 fn get_int_bvd() {
-    get_int_inner::<BVD, u8>(32);
-    get_int_inner::<BVD, u16>(64);
-    get_int_inner::<BVD, u32>(128);
-    get_int_inner::<BVD, u64>(256);
-    get_int_inner::<BVD, u128>(256);
-    get_int_inner::<BVD, usize>(256);
+    get_int_inner::<Bvd, u8>(32);
+    get_int_inner::<Bvd, u16>(64);
+    get_int_inner::<Bvd, u32>(128);
+    get_int_inner::<Bvd, u64>(256);
+    get_int_inner::<Bvd, u128>(256);
+    get_int_inner::<Bvd, usize>(256);
 }
 
 #[test]
 fn get_int_bv() {
-    get_int_inner::<BV, u8>(32);
-    get_int_inner::<BV, u16>(64);
-    get_int_inner::<BV, u32>(128);
-    get_int_inner::<BV, u64>(256);
-    get_int_inner::<BV, u128>(256);
-    get_int_inner::<BV, usize>(256);
+    get_int_inner::<Bv, u8>(32);
+    get_int_inner::<Bv, u16>(64);
+    get_int_inner::<Bv, u32>(128);
+    get_int_inner::<Bv, u64>(256);
+    get_int_inner::<Bv, u128>(256);
+    get_int_inner::<Bv, usize>(256);
 }
 
 fn set_int_inner<B, I>(max_capacity: usize)
@@ -92,11 +92,11 @@ where
 }
 
 fn set_int_bvf_inner<I: Integer, const N: usize>() {
-    set_int_inner::<BVF<I, N>, u8>(BVF::<I, N>::capacity());
-    set_int_inner::<BVF<I, N>, u16>(BVF::<I, N>::capacity());
-    set_int_inner::<BVF<I, N>, u32>(BVF::<I, N>::capacity());
-    set_int_inner::<BVF<I, N>, u64>(BVF::<I, N>::capacity());
-    set_int_inner::<BVF<I, N>, u128>(BVF::<I, N>::capacity());
+    set_int_inner::<Bvf<I, N>, u8>(Bvf::<I, N>::capacity());
+    set_int_inner::<Bvf<I, N>, u16>(Bvf::<I, N>::capacity());
+    set_int_inner::<Bvf<I, N>, u32>(Bvf::<I, N>::capacity());
+    set_int_inner::<Bvf<I, N>, u64>(Bvf::<I, N>::capacity());
+    set_int_inner::<Bvf<I, N>, u128>(Bvf::<I, N>::capacity());
 }
 
 #[test]
@@ -106,22 +106,22 @@ fn set_int_bvf() {
 
 #[test]
 fn set_int_bvd() {
-    set_int_inner::<BVD, u8>(32);
-    set_int_inner::<BVD, u16>(64);
-    set_int_inner::<BVD, u32>(128);
-    set_int_inner::<BVD, u64>(256);
-    set_int_inner::<BVD, u128>(256);
-    set_int_inner::<BVD, usize>(256);
+    set_int_inner::<Bvd, u8>(32);
+    set_int_inner::<Bvd, u16>(64);
+    set_int_inner::<Bvd, u32>(128);
+    set_int_inner::<Bvd, u64>(256);
+    set_int_inner::<Bvd, u128>(256);
+    set_int_inner::<Bvd, usize>(256);
 }
 
 #[test]
 fn set_int_bv() {
-    set_int_inner::<BV, u8>(32);
-    set_int_inner::<BV, u16>(64);
-    set_int_inner::<BV, u32>(128);
-    set_int_inner::<BV, u64>(256);
-    set_int_inner::<BV, u128>(256);
-    set_int_inner::<BV, usize>(256);
+    set_int_inner::<Bv, u8>(32);
+    set_int_inner::<Bv, u16>(64);
+    set_int_inner::<Bv, u32>(128);
+    set_int_inner::<Bv, u64>(256);
+    set_int_inner::<Bv, u128>(256);
+    set_int_inner::<Bv, usize>(256);
 }
 
 fn with_capacity_inner<B: BitVector>(max_capacity: usize) {
@@ -139,12 +139,12 @@ fn with_capacity_bvf() {
 
 #[test]
 fn with_capacity_bvd() {
-    with_capacity_inner::<BVD>(256);
+    with_capacity_inner::<Bvd>(256);
 }
 
 #[test]
 fn with_capacity_bv() {
-    with_capacity_inner::<BV>(256);
+    with_capacity_inner::<Bv>(256);
 }
 
 fn zeros_inner<B: BitVector>(max_capacity: usize) {
@@ -164,12 +164,12 @@ fn zeros_bvf() {
 
 #[test]
 fn zeros_bvd() {
-    zeros_inner::<BVD>(256);
+    zeros_inner::<Bvd>(256);
 }
 
 #[test]
 fn zeros_bv() {
-    zeros_inner::<BV>(256);
+    zeros_inner::<Bv>(256);
 }
 
 fn ones_inner<B: BitVector>(max_capacity: usize) {
@@ -189,12 +189,12 @@ fn ones_bvf() {
 
 #[test]
 fn ones_bvd() {
-    ones_inner::<BVD>(256);
+    ones_inner::<Bvd>(256);
 }
 
 #[test]
 fn ones_bv() {
-    ones_inner::<BV>(256);
+    ones_inner::<Bv>(256);
 }
 
 fn repeat_inner<B: BitVector>(max_capacity: usize) {
@@ -216,12 +216,12 @@ fn repeat_bvf() {
 
 #[test]
 fn repeat_bvd() {
-    repeat_inner::<BVD>(256);
+    repeat_inner::<Bvd>(256);
 }
 
 #[test]
 fn repeat_bv() {
-    repeat_inner::<BV>(256);
+    repeat_inner::<Bv>(256);
 }
 
 fn is_empty_inner<B: BitVector>() {
@@ -233,21 +233,21 @@ fn is_empty_inner<B: BitVector>() {
 
 #[test]
 fn is_empty_bvf() {
-    is_empty_inner::<BVF<u8, 1>>();
-    is_empty_inner::<BVF<u16, 1>>();
-    is_empty_inner::<BVF<u32, 1>>();
-    is_empty_inner::<BVF<u64, 1>>();
-    is_empty_inner::<BVF<u128, 1>>();
+    is_empty_inner::<Bvf<u8, 1>>();
+    is_empty_inner::<Bvf<u16, 1>>();
+    is_empty_inner::<Bvf<u32, 1>>();
+    is_empty_inner::<Bvf<u64, 1>>();
+    is_empty_inner::<Bvf<u128, 1>>();
 }
 
 #[test]
 fn is_empty_bvd() {
-    is_empty_inner::<BVD>();
+    is_empty_inner::<Bvd>();
 }
 
 #[test]
 fn is_empty_bv() {
-    is_empty_inner::<BV>();
+    is_empty_inner::<Bv>();
 }
 
 fn from_to_bytes_inner<B: BitVector>(max_capacity: usize) {
@@ -271,35 +271,35 @@ fn from_to_bytes_bvf() {
     let mut buffer: Vec<_> = repeat(0u8).take(64).collect();
     thread_rng().fill_bytes(&mut buffer);
     assert_eq!(
-        BVF::<u8, 2>::from_bytes(&buffer, Endianness::BE),
+        Bvf::<u8, 2>::from_bytes(&buffer, Endianness::BE),
         Err(ConvertionError::NotEnoughCapacity)
     );
     assert_eq!(
-        BVF::<u16, 2>::from_bytes(&buffer, Endianness::BE),
+        Bvf::<u16, 2>::from_bytes(&buffer, Endianness::BE),
         Err(ConvertionError::NotEnoughCapacity)
     );
     assert_eq!(
-        BVF::<u32, 2>::from_bytes(&buffer, Endianness::BE),
+        Bvf::<u32, 2>::from_bytes(&buffer, Endianness::BE),
         Err(ConvertionError::NotEnoughCapacity)
     );
     assert_eq!(
-        BVF::<u64, 2>::from_bytes(&buffer, Endianness::BE),
+        Bvf::<u64, 2>::from_bytes(&buffer, Endianness::BE),
         Err(ConvertionError::NotEnoughCapacity)
     );
     assert_eq!(
-        BVF::<u128, 2>::from_bytes(&buffer, Endianness::BE),
+        Bvf::<u128, 2>::from_bytes(&buffer, Endianness::BE),
         Err(ConvertionError::NotEnoughCapacity)
     );
 }
 
 #[test]
 fn from_to_bytes_bvd() {
-    from_to_bytes_inner::<BVD>(256);
+    from_to_bytes_inner::<Bvd>(256);
 }
 
 #[test]
 fn from_to_bytes_bv() {
-    from_to_bytes_inner::<BV>(256);
+    from_to_bytes_inner::<Bv>(256);
 }
 
 fn read_write_inner<B: BitVector>(max_capacity: usize) {
@@ -329,21 +329,21 @@ fn read_write_inner_bvf() {
 
     let mut buffer: Vec<_> = repeat(0u8).take(64).collect();
     thread_rng().fill_bytes(&mut buffer);
-    assert!(BVF::<u8, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::BE).is_err());
-    assert!(BVF::<u16, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::BE).is_err());
-    assert!(BVF::<u32, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::BE).is_err());
-    assert!(BVF::<u64, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::BE).is_err());
-    assert!(BVF::<u128, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::BE).is_err());
+    assert!(Bvf::<u8, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::BE).is_err());
+    assert!(Bvf::<u16, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::BE).is_err());
+    assert!(Bvf::<u32, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::BE).is_err());
+    assert!(Bvf::<u64, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::BE).is_err());
+    assert!(Bvf::<u128, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::BE).is_err());
 }
 
 #[test]
 fn read_write_inner_bvd() {
-    read_write_inner::<BVD>(256);
+    read_write_inner::<Bvd>(256);
 }
 
 #[test]
 fn read_write_inner_bv() {
-    read_write_inner::<BV>(256);
+    read_write_inner::<Bv>(256);
 }
 
 fn get_set_inner<B: BitVector>(capacity: usize) {
@@ -378,12 +378,12 @@ fn get_set_bvf() {
 
 #[test]
 fn get_set_bvd() {
-    get_set_inner::<BVD>(256);
+    get_set_inner::<Bvd>(256);
 }
 
 #[test]
 fn get_set_bv() {
-    get_set_inner::<BV>(256);
+    get_set_inner::<Bv>(256);
 }
 
 fn first_inner<B: BitVector>(max_capacity: usize) {
@@ -409,12 +409,12 @@ fn first_bvf() {
 
 #[test]
 fn first_bvd() {
-    first_inner::<BVD>(256);
+    first_inner::<Bvd>(256);
 }
 
 #[test]
 fn first_bv() {
-    first_inner::<BV>(256);
+    first_inner::<Bv>(256);
 }
 
 fn last_inner<B: BitVector>(max_capacity: usize) {
@@ -440,12 +440,12 @@ fn last_bvf() {
 
 #[test]
 fn last_bvd() {
-    last_inner::<BVD>(256);
+    last_inner::<Bvd>(256);
 }
 
 #[test]
 fn last_bv() {
-    last_inner::<BV>(256);
+    last_inner::<Bv>(256);
 }
 
 fn copy_range_inner<B: BitVector>(max_capacity: usize) {
@@ -479,12 +479,12 @@ fn copy_slice_bvf() {
 
 #[test]
 fn copy_slice_bvd() {
-    copy_range_inner::<BVD>(256);
+    copy_range_inner::<Bvd>(256);
 }
 
 #[test]
 fn copy_slice_bv() {
-    copy_range_inner::<BV>(256);
+    copy_range_inner::<Bv>(256);
 }
 
 fn push_pop_inner<B: BitVector>(max_capacity: usize) {
@@ -518,12 +518,12 @@ fn push_pop_bvf() {
 
 #[test]
 fn push_pop_bvd() {
-    push_pop_inner::<BVD>(256);
+    push_pop_inner::<Bvd>(256);
 }
 
 #[test]
 fn push_pop_bv() {
-    push_pop_inner::<BV>(256);
+    push_pop_inner::<Bv>(256);
 }
 
 fn resize_inner<B: BitVector>(max_capacity: usize) {
@@ -559,12 +559,12 @@ fn resize_bvf() {
 
 #[test]
 fn resize_bvd() {
-    resize_inner::<BVD>(256);
+    resize_inner::<Bvd>(256);
 }
 
 #[test]
 fn resize_bv() {
-    resize_inner::<BV>(256);
+    resize_inner::<Bv>(256);
 }
 
 fn sign_extend_inner<B: BitVector>(max_capacity: usize) {
@@ -591,12 +591,12 @@ fn sign_extend_bvf() {
 
 #[test]
 fn sign_extend_bvd() {
-    sign_extend_inner::<BVD>(256);
+    sign_extend_inner::<Bvd>(256);
 }
 
 #[test]
 fn sign_extend_bv() {
-    sign_extend_inner::<BV>(256);
+    sign_extend_inner::<Bv>(256);
 }
 
 fn append_inner<B: BitVector>(max_capacity: usize) {
@@ -623,12 +623,12 @@ fn append_bvf() {
 
 #[test]
 fn append_bvd() {
-    append_inner::<BVD>(256);
+    append_inner::<Bvd>(256);
 }
 
 #[test]
 fn append_bv() {
-    append_inner::<BV>(256);
+    append_inner::<Bv>(256);
 }
 
 fn prepend_inner<B: BitVector>(max_capacity: usize) {
@@ -655,12 +655,12 @@ fn prepend_bvf() {
 
 #[test]
 fn prepend_bvd() {
-    prepend_inner::<BVD>(256);
+    prepend_inner::<Bvd>(256);
 }
 
 #[test]
 fn prepend_bv() {
-    prepend_inner::<BV>(256);
+    prepend_inner::<Bv>(256);
 }
 
 fn shl_inner<B: BitVector>(max_capacity: usize) {
@@ -688,12 +688,12 @@ fn shl_bvf() {
 
 #[test]
 fn shl_bvd() {
-    shl_inner::<BVD>(256);
+    shl_inner::<Bvd>(256);
 }
 
 #[test]
 fn shl_bv() {
-    shl_inner::<BV>(256);
+    shl_inner::<Bv>(256);
 }
 
 fn shr_inner<B: BitVector>(max_capacity: usize) {
@@ -721,12 +721,12 @@ fn shr_bvf() {
 
 #[test]
 fn shr_bvd() {
-    shr_inner::<BVD>(256);
+    shr_inner::<Bvd>(256);
 }
 
 #[test]
 fn shr_bv() {
-    shr_inner::<BV>(256);
+    shr_inner::<Bv>(256);
 }
 
 fn rotl_inner<B: BitVector>(max_capacity: usize) {
@@ -750,12 +750,12 @@ fn rotl_bvf() {
 
 #[test]
 fn rotl_bvd() {
-    rotl_inner::<BVD>(256);
+    rotl_inner::<Bvd>(256);
 }
 
 #[test]
 fn rotl_bv() {
-    rotl_inner::<BV>(256);
+    rotl_inner::<Bv>(256);
 }
 
 fn rotr_inner<B: BitVector>(max_capacity: usize) {
@@ -779,12 +779,12 @@ fn rotr_bvf() {
 
 #[test]
 fn rotr_bvd() {
-    rotr_inner::<BVD>(256);
+    rotr_inner::<Bvd>(256);
 }
 
 #[test]
 fn rotr_bv() {
-    rotr_inner::<BV>(256);
+    rotr_inner::<Bv>(256);
 }
 
 fn leading_zeros_inner<B: BitVector>(max_capacity: usize) {
@@ -805,12 +805,12 @@ fn leading_zeros_bvf() {
 
 #[test]
 fn leading_zeros_bvd() {
-    leading_zeros_inner::<BVD>(256);
+    leading_zeros_inner::<Bvd>(256);
 }
 
 #[test]
 fn leading_zeros_bv() {
-    leading_zeros_inner::<BV>(256);
+    leading_zeros_inner::<Bv>(256);
 }
 
 fn leading_ones<B: BitVector>(max_capacity: usize) {
@@ -831,12 +831,12 @@ fn leading_ones_bvf() {
 
 #[test]
 fn leading_ones_bvd() {
-    leading_ones::<BVD>(256);
+    leading_ones::<Bvd>(256);
 }
 
 #[test]
 fn leading_ones_bv() {
-    leading_ones::<BV>(256);
+    leading_ones::<Bv>(256);
 }
 
 fn trailing_zeros_inner<B: BitVector>(max_capacity: usize) {
@@ -857,12 +857,12 @@ fn trailing_zeros_bvf() {
 
 #[test]
 fn trailing_zeros_bvd() {
-    trailing_zeros_inner::<BVD>(256);
+    trailing_zeros_inner::<Bvd>(256);
 }
 
 #[test]
 fn trailing_zeros_bv() {
-    trailing_zeros_inner::<BV>(256);
+    trailing_zeros_inner::<Bv>(256);
 }
 
 fn trailing_ones<B: BitVector>(max_capacity: usize) {
@@ -883,12 +883,12 @@ fn trailing_ones_bvf() {
 
 #[test]
 fn trailing_ones_bvd() {
-    trailing_ones::<BVD>(256);
+    trailing_ones::<Bvd>(256);
 }
 
 #[test]
 fn trailing_ones_bv() {
-    trailing_ones::<BV>(256);
+    trailing_ones::<Bv>(256);
 }
 
 fn significant_bits_inner<B: BitVector>(max_capacity: usize) {
@@ -914,12 +914,12 @@ fn significant_bits_bvf() {
 
 #[test]
 fn significant_bits_bvd() {
-    significant_bits_inner::<BVD>(256);
+    significant_bits_inner::<Bvd>(256);
 }
 
 #[test]
 fn significant_bits_bv() {
-    significant_bits_inner::<BV>(256);
+    significant_bits_inner::<Bv>(256);
 }
 
 fn is_zero_inner<B: BitVector>(max_capacity: usize) {
@@ -938,12 +938,12 @@ fn is_zero_bvf() {
 
 #[test]
 fn is_zero_bvd() {
-    is_zero_inner::<BVD>(256);
+    is_zero_inner::<Bvd>(256);
 }
 
 #[test]
 fn is_zero_bv() {
-    is_zero_inner::<BV>(256);
+    is_zero_inner::<Bv>(256);
 }
 
 fn div_rem_inner<B: BitVector>(max_capacity: usize)
@@ -972,10 +972,10 @@ fn div_rem_bvf() {
 
 #[test]
 fn div_rem_bvd() {
-    div_rem_inner::<BVD>(256);
+    div_rem_inner::<Bvd>(256);
 }
 
 #[test]
 fn div_rem_bv() {
-    div_rem_inner::<BV>(256);
+    div_rem_inner::<Bv>(256);
 }
