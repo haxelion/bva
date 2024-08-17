@@ -32,7 +32,7 @@ The result will always have the type and the length of the left hand side operan
 hand side operand will be zero extended if needed. Operations will wrap-around in the case of
 overflows. This should match the behavior of unsigned integer arithmetics on CPU registers.
 
-# Examples
+## Examples
 
 Bit vectors expose an API similar to Rust `std::collections::Vec`:
 ```rust
@@ -106,26 +106,33 @@ assert_eq!(fibonnaci::<Bv>(19), Bv::from(4181u32));
 
 ## Changelog
 
+* 2024/08/18 - 0.4.0
+  * 100% function test coverage, 98% line test coverage
+    * Some bug were fixed in the process
+  * Better API and proper documentation
+  * extend, append, prepend, repeat, first, last and sign_extend functions
+  * Constructing bit vectors from array of integers
+  * Operation with unsigned integers as right hand side
 * 2024/07/07 - 0.3.0
-    * Multiplication, division and modulo operations
-    * Various helper functions
-    * Much more rigorous testing reaching high code coverage.
+  * Multiplication, division and modulo operations
+  * Various helper functions
+  * Much more rigorous testing reaching high code coverage.
 * 2023/07/04 - 0.2.0
-    * Major rewrite using const generics
-    * Iterator support
+  * Major rewrite using const generics
+  * Iterator support
 * 2020/12/20 - 0.1.0
-    * BitVector trait with fixed, dynamic and auto implementations.
-    * Conversion between all the implementations
-    * Basic arithmetic operations between the different implementations.
-    * Reading and writing bit vector in various format.
+  * BitVector trait with fixed, dynamic and auto implementations.
+  * Conversion between all the implementations
+  * Basic arithmetic operations between the different implementations.
+  * Reading and writing bit vector in various format.
 
 ## Roadmap
 
-* Aiming for 100% code coverage.
+* no-std support
+* More convenience BitVector functions
 * Signed operation support.
 * Borrowing of bits and bit slice inside a bit vector.
 * Numerical algorithms such as gcd, modular exponentiation, ...
-* no-std support
 
 ## Why
 
