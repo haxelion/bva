@@ -62,6 +62,7 @@ macro_rules! impl_constants {
 
 impl_constants!(u8, u16, u32, u64, u128, usize);
 
+/// A trait for integer types over which [`Bvf`] can be implemented.
 pub trait Integer:
     Add<Output = Self>
     + AddAssign

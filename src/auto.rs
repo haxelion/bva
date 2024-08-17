@@ -1,13 +1,3 @@
-//! This module contains an automatically managed bit vector type. Depending on the required
-//! capacity, it might use a fixed capacity implementation to avoid unnecessary dynamic memory
-//! allocations, or it might use a dynamic capacity implementation if the capacity of fixed
-//! implementations is exceeded.
-//!
-//! While avoiding memory allocation might improve performance, there is a slight performance cost
-//! due to the dynamic dispatch and extra capacity checks. The net effect will depend on the exact
-//! application. It is designed for the case where most bit vector are expected to fit inside
-//! fixed capacity implementations but some outliers might not.
-
 use std::cmp::Ordering;
 use std::fmt::{Binary, Display, LowerHex, Octal, UpperHex};
 
@@ -36,10 +26,37 @@ pub(crate) type Bvp = Bv128;
 // Bit Vector automatic allocation implementation
 // ------------------------------------------------------------------------------------------------
 
-/// A bit vector with automatic capacity management.
+/// A bit vector with an automatically managed memory allocation type.
+///
+/// Depending on the required capacity, it might use a fixed capacity implementation to avoid
+/// unnecessary dynamic memory allocations, or it might use a dynamic capacity implementation
+/// when needed.
+///
+/// While avoiding memory allocation might improve performances, there is a slight performance cost
+/// due to the dynamic dispatch and extra capacity checks. The net effect will depend on the exact
+/// workload.
+///
+/// # Examples
+///
+/// ```
+/// use bva::{BitVector, Bv};
+///
+/// // This bit vector will be stack allocated.
+/// let a = Bv::from(27u8);
+/// assert_eq!(a.len(), 8);
+/// // This bit vector will be heap allocated.
+/// let b = Bv::ones(256);
+/// assert_eq!(b.len(), 256);
+/// // The result of this operation will also be heap allocated.
+/// let c = b + a;
+/// assert_eq!(c.len(), 256);
+/// assert_eq!(c.to_string(), "26");
+/// ```
 #[derive(Clone, Debug)]
 pub enum Bv {
+    #[doc(hidden)]
     Fixed(Bvp),
+    #[doc(hidden)]
     Dynamic(Bvd),
 }
 
@@ -49,6 +66,15 @@ impl Bv {
     /// length of the bit vector.
     ///
     /// Calling this method might cause the storage to become dynamically allocated.
+    ///
+    /// ```
+    /// use bva::{BitVector, Bv};
+    ///
+    /// let mut bv = Bv::ones(128);
+    /// assert_eq!(bv.capacity(), 128);
+    /// bv.reserve(128);
+    /// assert_eq!(bv.capacity(), 256);
+    /// ```
     pub fn reserve(&mut self, additional: usize) {
         match self {
             &mut Bv::Fixed(ref b) => {
@@ -66,6 +92,16 @@ impl Bv {
     ///
     /// Calling this method might cause the implementation to drop unnecessary dynamically
     /// allocated memory.
+    ///
+    /// ```
+    /// use bva::{BitVector, Bv};
+    ///
+    /// let mut bv = Bv::ones(128);
+    /// bv.reserve(128);
+    /// assert_eq!(bv.capacity(), 256);
+    /// bv.shrink_to_fit();
+    /// assert_eq!(bv.capacity(), 128);
+    /// ```
     pub fn shrink_to_fit(&mut self) {
         if let Bv::Dynamic(b) = self {
             if b.len() <= Bvp::capacity() {
