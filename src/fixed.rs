@@ -13,23 +13,40 @@ use crate::iter::BitIterator;
 use crate::utils::{IArray, IArrayMut, Integer, StaticCast};
 use crate::{Bit, BitVector, ConvertionError, Endianness};
 
+/// Type alias for a 8 bits capacity [`Bvf`].
 pub type Bv8 = Bvf<u8, 1>;
+/// Type alias for a 16 bits capacity [`Bvf`].
 pub type Bv16 = Bvf<u16, 1>;
+/// Type alias for a 32 bits capacity [`Bvf`].
 pub type Bv32 = Bvf<u32, 1>;
+/// Type alias for a 64 bits capacity [`Bvf`].
 pub type Bv64 = Bvf<u64, 1>;
+/// Type alias for a 128 bits capacity [`Bvf`].
 pub type Bv128 = Bvf<u64, 2>;
+/// Type alias for a 192 bits capacity [`Bvf`].
 pub type Bv192 = Bvf<u64, 3>;
+/// Type alias for a 256 bits capacity [`Bvf`].
 pub type Bv256 = Bvf<u64, 4>;
+/// Type alias for a 320 bits capacity [`Bvf`].
 pub type Bv320 = Bvf<u64, 5>;
+/// Type alias for a 384 bits capacity [`Bvf`].
 pub type Bv384 = Bvf<u64, 6>;
+/// Type alias for a 448 bits capacity [`Bvf`].
 pub type Bv448 = Bvf<u64, 7>;
+/// Type alias for a 512 bits capacity [`Bvf`].
 pub type Bv512 = Bvf<u64, 8>;
 
 // ------------------------------------------------------------------------------------------------
 // Bit Vector Fixed allocation implementation
 // ------------------------------------------------------------------------------------------------
 
-/// A bit vector with fixed capacity.
+/// A bit vector using a statically allocated (stack allocated) memory implementation.
+///
+/// As the capacity is static, performing operations exceeding the capacity will result in
+/// an error or panic.
+///
+/// The integer types over which [`Bvf`] can be instantiated are as follow:
+/// `u8`, `u16`, `u32`, `u64`, `u128`, `usize`.
 #[derive(Copy, Clone, Debug)]
 pub struct Bvf<I: Integer, const N: usize> {
     data: [I; N],
@@ -41,14 +58,29 @@ impl<I: Integer, const N: usize> Bvf<I, N> {
     const NIBBLE_UNIT: usize = size_of::<I>() * 2;
     const BIT_UNIT: usize = size_of::<I>() * 8;
 
+    /// Construct a new [`Bvf`] with the given data and length.
+    /// The least significant bit will be the least significant bit of the first integer
+    /// and the most significant bit will be the most significant bit of the last integer.
+    /// This is a low level function and should be used with care, prefer using the
+    /// functions of the [`BitVector`] trait.
+    ///
+    /// ```
+    /// use bva::Bvf;
+    ///
+    /// let data = [0x0001u16, 0x7000u16];
+    /// let bv = Bvf::new(data, 32);
+    /// assert_eq!(bv, Bvf::<u16, 2>::try_from(0x7000_0001u32).unwrap());
+    /// ```
     pub const fn new(data: [I; N], length: usize) -> Self {
         Self { data, length }
     }
 
+    /// Deconstruct a [`Bvf`] into its inner data and length.
     pub const fn into_inner(self) -> ([I; N], usize) {
         (self.data, self.length)
     }
 
+    /// Return this [`Bvf`] capacity. As the capacity is fixed, this is a constant static function.
     pub const fn capacity() -> usize {
         size_of::<I>() * 8 * N
     }
@@ -201,7 +233,7 @@ where
         let mut data = [I::ZERO; N];
 
         match endianness {
-            Endianness::LE => {
+            Endianness::Little => {
                 if size_of::<I>() == 1 {
                     for (i, b) in bytes.as_ref().iter().enumerate().rev() {
                         data[i] = I::cast_from(*b);
@@ -213,7 +245,7 @@ where
                     }
                 }
             }
-            Endianness::BE => {
+            Endianness::Big => {
                 if size_of::<I>() == 1 {
                     for (i, b) in bytes.as_ref().iter().enumerate() {
                         data[byte_length - 1 - i] = I::cast_from(*b);
@@ -236,13 +268,13 @@ where
         let num_bytes = (self.length + 7) / 8;
         let mut buf: Vec<u8> = repeat(0u8).take(num_bytes).collect();
         match endianness {
-            Endianness::LE => {
+            Endianness::Little => {
                 for i in 0..num_bytes {
                     buf[i] =
                         (self.data[i / Self::BYTE_UNIT] >> ((i % Self::BYTE_UNIT) * 8)).cast_to();
                 }
             }
-            Endianness::BE => {
+            Endianness::Big => {
                 for i in 0..num_bytes {
                     buf[num_bytes - i - 1] =
                         (self.data[i / Self::BYTE_UNIT] >> ((i % Self::BYTE_UNIT) * 8)).cast_to();

@@ -2,13 +2,14 @@ use std::ops::Range;
 
 use crate::{Bit, BitVector};
 
+/// An iterator over the bits of a [`BitVector`].
 pub struct BitIterator<'a, B: BitVector> {
     bv: &'a B,
     range: Range<usize>,
 }
 
 impl<'a, B: BitVector> BitIterator<'a, B> {
-    pub fn new(bv: &'a B) -> Self {
+    pub(crate) fn new(bv: &'a B) -> Self {
         Self {
             bv,
             range: 0..bv.len(),

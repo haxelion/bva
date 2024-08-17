@@ -1,9 +1,3 @@
-//! This module contains a dynamic capacity bit vector implementation using a dynamically allocated
-//! integer array as storage.
-//!
-//! As the capacity is dynamic, performing operations exceeding the current capacity will result in
-//! a reallocation of the internal array.
-
 use std::cmp::Ordering;
 use std::fmt;
 use std::io::{Read, Write};
@@ -24,7 +18,10 @@ use crate::{Bit, BitVector, ConvertionError, Endianness};
 // Bit Vector Dynamic allocation implementation
 // ------------------------------------------------------------------------------------------------
 
-/// A bit vector with dynamic capacity.
+/// A bit vector using a dynamically allocated (heap allocated) memory implementation.
+///
+/// As the capacity is dynamic, performing operations exceeding the current capacity will result in
+/// a reallocation of the internal array.
 #[derive(Clone, Debug)]
 pub struct Bvd {
     data: Box<[u64]>,
@@ -36,10 +33,25 @@ impl Bvd {
     const NIBBLE_UNIT: usize = size_of::<u64>() * 2;
     const BIT_UNIT: usize = u64::BITS as usize;
 
+    /// Construct a new [`Bvd`] with the given data and length.
+    /// The least significant bit will be the least significant bit of the first `u64`
+    /// and the most significant bit will be the most significant bit of the last `u64`.
+    /// This is a low level function and should be used with care, prefer using the
+    /// functions of the [`BitVector`] trait.
+    ///
+    /// ```
+    /// use bva::Bvd;
+    ///
+    /// let data = vec![0x0000_0000_0000_0001, 0x7000_0000_0000_0000];
+    /// let bv = Bvd::new(data.into_boxed_slice(), 128);
+    /// assert_eq!(bv, Bvd::from(0x7000_0000_0000_0000_0000_0000_0000_0001u128));
+    /// ```
     pub const fn new(data: Box<[u64]>, length: usize) -> Self {
+        assert!(length <= data.len() * Self::BIT_UNIT);
         Self { data, length }
     }
 
+    /// Deconstruct a [`Bvd`] into its inner data and length.
     pub fn into_inner(self) -> (Box<[u64]>, usize) {
         (self.data, self.length)
     }
@@ -57,6 +69,15 @@ impl Bvd {
     /// length of the bit vector.
     ///
     /// The underlying allocator might reserve additional capacity.
+    ///
+    /// ```
+    /// use bva::{BitVector, Bvd};
+    ///
+    /// let mut bv = Bvd::zeros(64);
+    /// assert_eq!(bv.capacity(), 64);
+    /// bv.reserve(64);
+    /// assert!(bv.capacity() == 128);
+    /// ```
     pub fn reserve(&mut self, additional: usize) {
         let new_capacity = self.length + additional;
         if Self::capacity_from_bit_len(new_capacity) > self.data.len() {
@@ -231,14 +252,14 @@ impl BitVector for Bvd {
             .take(Self::capacity_from_byte_len(byte_length))
             .collect();
         match endianness {
-            Endianness::LE => {
+            Endianness::Little => {
                 let offset = (Self::BYTE_UNIT - byte_length % Self::BYTE_UNIT) % Self::BYTE_UNIT;
                 for (i, b) in bytes.as_ref().iter().rev().enumerate() {
                     let j = data.len() - 1 - (i + offset) / Self::BYTE_UNIT;
                     data[j] = (data[j] << 8) | *b as u64;
                 }
             }
-            Endianness::BE => {
+            Endianness::Big => {
                 let offset = (Self::BYTE_UNIT - byte_length % Self::BYTE_UNIT) % Self::BYTE_UNIT;
                 for (i, b) in bytes.as_ref().iter().enumerate() {
                     let j = data.len() - 1 - (i + offset) / Self::BYTE_UNIT;
@@ -256,13 +277,13 @@ impl BitVector for Bvd {
         let num_bytes = (self.length + 7) / 8;
         let mut buf: Vec<u8> = repeat(0u8).take(num_bytes).collect();
         match endianness {
-            Endianness::LE => {
+            Endianness::Little => {
                 for i in 0..num_bytes {
                     buf[i] = (self.data[i / Self::BYTE_UNIT] >> ((i % Self::BYTE_UNIT) * 8) & 0xff)
                         as u8;
                 }
             }
-            Endianness::BE => {
+            Endianness::Big => {
                 for i in 0..num_bytes {
                     buf[num_bytes - i - 1] = (self.data[i / Self::BYTE_UNIT]
                         >> ((i % Self::BYTE_UNIT) * 8)

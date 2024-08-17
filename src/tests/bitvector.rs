@@ -254,12 +254,12 @@ fn from_to_bytes_inner<B: BitVector>(max_capacity: usize) {
     for length in (8..=max_capacity).step_by(8) {
         let bv = random_bv::<B>(length);
 
-        let buf1 = bv.to_vec(Endianness::LE);
-        let bv1 = B::from_bytes(&buf1, Endianness::LE).unwrap();
+        let buf1 = bv.to_vec(Endianness::Little);
+        let bv1 = B::from_bytes(&buf1, Endianness::Little).unwrap();
         assert_eq!(bv, bv1);
 
-        let buf2 = bv.to_vec(Endianness::BE);
-        let bv2 = B::from_bytes(&buf2, Endianness::BE).unwrap();
+        let buf2 = bv.to_vec(Endianness::Big);
+        let bv2 = B::from_bytes(&buf2, Endianness::Big).unwrap();
         assert_eq!(bv, bv2);
     }
 }
@@ -271,23 +271,23 @@ fn from_to_bytes_bvf() {
     let mut buffer: Vec<_> = repeat(0u8).take(64).collect();
     thread_rng().fill_bytes(&mut buffer);
     assert_eq!(
-        Bvf::<u8, 2>::from_bytes(&buffer, Endianness::BE),
+        Bvf::<u8, 2>::from_bytes(&buffer, Endianness::Big),
         Err(ConvertionError::NotEnoughCapacity)
     );
     assert_eq!(
-        Bvf::<u16, 2>::from_bytes(&buffer, Endianness::BE),
+        Bvf::<u16, 2>::from_bytes(&buffer, Endianness::Big),
         Err(ConvertionError::NotEnoughCapacity)
     );
     assert_eq!(
-        Bvf::<u32, 2>::from_bytes(&buffer, Endianness::BE),
+        Bvf::<u32, 2>::from_bytes(&buffer, Endianness::Big),
         Err(ConvertionError::NotEnoughCapacity)
     );
     assert_eq!(
-        Bvf::<u64, 2>::from_bytes(&buffer, Endianness::BE),
+        Bvf::<u64, 2>::from_bytes(&buffer, Endianness::Big),
         Err(ConvertionError::NotEnoughCapacity)
     );
     assert_eq!(
-        Bvf::<u128, 2>::from_bytes(&buffer, Endianness::BE),
+        Bvf::<u128, 2>::from_bytes(&buffer, Endianness::Big),
         Err(ConvertionError::NotEnoughCapacity)
     );
 }
@@ -310,15 +310,15 @@ fn read_write_inner<B: BitVector>(max_capacity: usize) {
         let bv = random_bv::<B>(length);
 
         buf.set_position(0);
-        bv.write(&mut buf, Endianness::LE).unwrap();
+        bv.write(&mut buf, Endianness::Little).unwrap();
         buf.set_position(0);
-        let bv1 = B::read(&mut buf, length, Endianness::LE).unwrap();
+        let bv1 = B::read(&mut buf, length, Endianness::Little).unwrap();
         assert_eq!(bv, bv1);
 
         buf.set_position(0);
-        bv.write(&mut buf, Endianness::BE).unwrap();
+        bv.write(&mut buf, Endianness::Big).unwrap();
         buf.set_position(0);
-        let bv2 = B::read(&mut buf, length, Endianness::BE).unwrap();
+        let bv2 = B::read(&mut buf, length, Endianness::Big).unwrap();
         assert_eq!(bv, bv2);
     }
 }
@@ -329,11 +329,11 @@ fn read_write_inner_bvf() {
 
     let mut buffer: Vec<_> = repeat(0u8).take(64).collect();
     thread_rng().fill_bytes(&mut buffer);
-    assert!(Bvf::<u8, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::BE).is_err());
-    assert!(Bvf::<u16, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::BE).is_err());
-    assert!(Bvf::<u32, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::BE).is_err());
-    assert!(Bvf::<u64, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::BE).is_err());
-    assert!(Bvf::<u128, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::BE).is_err());
+    assert!(Bvf::<u8, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::Big).is_err());
+    assert!(Bvf::<u16, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::Big).is_err());
+    assert!(Bvf::<u32, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::Big).is_err());
+    assert!(Bvf::<u64, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::Big).is_err());
+    assert!(Bvf::<u128, 2>::read(&mut Cursor::new(&buffer), 512, Endianness::Big).is_err());
 }
 
 #[test]
