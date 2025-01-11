@@ -280,14 +280,14 @@ impl BitVector for Bvd {
         match endianness {
             Endianness::Little => {
                 for i in 0..num_bytes {
-                    buf[i] = (self.data[i / Self::BYTE_UNIT] >> ((i % Self::BYTE_UNIT) * 8) & 0xff)
-                        as u8;
+                    buf[i] = ((self.data[i / Self::BYTE_UNIT] >> ((i % Self::BYTE_UNIT) * 8))
+                        & 0xff) as u8;
                 }
             }
             Endianness::Big => {
                 for i in 0..num_bytes {
-                    buf[num_bytes - i - 1] = (self.data[i / Self::BYTE_UNIT]
-                        >> ((i % Self::BYTE_UNIT) * 8)
+                    buf[num_bytes - i - 1] = ((self.data[i / Self::BYTE_UNIT]
+                        >> ((i % Self::BYTE_UNIT) * 8))
                         & 0xff) as u8;
                 }
             }
@@ -313,12 +313,12 @@ impl BitVector for Bvd {
     }
 
     fn write<W: Write>(&self, writer: &mut W, endianness: Endianness) -> std::io::Result<()> {
-        return writer.write_all(self.to_vec(endianness).as_slice());
+        writer.write_all(self.to_vec(endianness).as_slice())
     }
 
     fn get(&self, index: usize) -> Bit {
         debug_assert!(index < self.length);
-        (self.data[index / Self::BIT_UNIT] >> (index % Self::BIT_UNIT) & 1).into()
+        ((self.data[index / Self::BIT_UNIT] >> (index % Self::BIT_UNIT)) & 1).into()
     }
 
     fn set(&mut self, index: usize, bit: Bit) {
@@ -446,15 +446,15 @@ impl BitVector for Bvd {
     fn shl_in(&mut self, bit: Bit) -> Bit {
         let mut carry = bit;
         for i in 0..(self.length / Self::BIT_UNIT) {
-            let b = self.data[i] >> (Self::BIT_UNIT - 1) & 1;
-            self.data[i] = self.data[i] << 1 | carry as u64;
+            let b = (self.data[i] >> (Self::BIT_UNIT - 1)) & 1;
+            self.data[i] = (self.data[i] << 1) | carry as u64;
             carry = b.into();
         }
         if self.length % Self::BIT_UNIT != 0 {
             let i = self.length / Self::BIT_UNIT;
-            let b = self.data[i] >> (self.length % Self::BIT_UNIT - 1) & 1;
+            let b = (self.data[i] >> (self.length % Self::BIT_UNIT - 1)) & 1;
             self.data[i] =
-                (self.data[i] << 1 | carry as u64) & u64::mask(self.length % Self::BIT_UNIT);
+                ((self.data[i] << 1) | carry as u64) & u64::mask(self.length % Self::BIT_UNIT);
             carry = b.into();
         }
         carry
@@ -465,12 +465,13 @@ impl BitVector for Bvd {
         if self.length % Self::BIT_UNIT != 0 {
             let i = self.length / Self::BIT_UNIT;
             let b = self.data[i] & 1;
-            self.data[i] = self.data[i] >> 1 | (carry as u64) << (self.length % Self::BIT_UNIT - 1);
+            self.data[i] =
+                (self.data[i] >> 1) | ((carry as u64) << (self.length % Self::BIT_UNIT - 1));
             carry = b.into();
         }
         for i in (0..(self.length / Self::BIT_UNIT)).rev() {
             let b = self.data[i] & 1;
-            self.data[i] = self.data[i] >> 1 | (carry as u64) << (Self::BIT_UNIT - 1);
+            self.data[i] = (self.data[i] >> 1) | ((carry as u64) << (Self::BIT_UNIT - 1));
             carry = b.into();
         }
         carry
@@ -725,7 +726,7 @@ impl fmt::Octal for Bvd {
         while let Some(b0) = it.next() {
             let b1 = it.next().unwrap_or(Bit::Zero);
             let b2 = it.next().unwrap_or(Bit::Zero);
-            let octet = (b2 as u8) << 2 | (b1 as u8) << 1 | b0 as u8;
+            let octet = ((b2 as u8) << 2) | ((b1 as u8) << 1) | b0 as u8;
             if octet != 0 {
                 last_nz = s.len();
             }

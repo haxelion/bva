@@ -17,7 +17,7 @@ impl<'a, B: BitVector> BitIterator<'a, B> {
     }
 }
 
-impl<'a, B: BitVector> Iterator for BitIterator<'a, B> {
+impl<B: BitVector> Iterator for BitIterator<'_, B> {
     type Item = Bit;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -59,7 +59,7 @@ impl<'a, B: BitVector> Iterator for BitIterator<'a, B> {
     }
 }
 
-impl<'a, B: BitVector> DoubleEndedIterator for BitIterator<'a, B> {
+impl<B: BitVector> DoubleEndedIterator for BitIterator<'_, B> {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.range.start < self.range.end {
             self.range.end -= 1;
