@@ -1,4 +1,5 @@
 use std::fmt::{Debug, Display};
+use std::hash::Hash;
 use std::mem::{align_of, size_of, size_of_val};
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
@@ -80,6 +81,7 @@ pub trait Integer:
     + Display
     + Eq
     + From<Bit>
+    + Hash
     + Into<Bit>
     + Mul<Output = Self>
     + MulAssign

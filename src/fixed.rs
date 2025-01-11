@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::iter::repeat;
 use std::mem::size_of;
 use std::ops::{
@@ -616,6 +617,19 @@ where
 
     fn iter(&self) -> BitIterator<'_, Self> {
         self.into_iter()
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+// Bvf - Hasher Implementation
+// ------------------------------------------------------------------------------------------------
+
+impl<I: Integer, const N: usize> Hash for Bvf<I, N> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.length.hash(state);
+        for i in 0..Self::capacity_from_bit_len(self.length) {
+            self.data[i].hash(state);
+        }
     }
 }
 
