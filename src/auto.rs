@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 use std::fmt::{Binary, Display, LowerHex, Octal, UpperHex};
+use std::hash::{Hash, Hasher};
 
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
@@ -435,6 +436,15 @@ impl BitVector for Bv {
 
     fn iter(&self) -> BitIterator<'_, Self> {
         self.into_iter()
+    }
+}
+
+impl Hash for Bv {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.len().hash(state);
+        for i in 0..Self::int_len::<u64>(self) {
+            self.get_int::<u64>(i).unwrap().hash(state);
+        }
     }
 }
 

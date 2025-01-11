@@ -104,6 +104,7 @@
 )]
 
 use std::fmt::{Binary, Debug, Display, LowerHex, Octal, UpperHex};
+use std::hash::Hash;
 use std::io::{Read, Write};
 use std::ops::Range;
 
@@ -164,6 +165,7 @@ pub trait BitVector:
     + Debug
     + Display
     + Eq
+    + Hash
     + IArray
     + IArrayMut
     + LowerHex
