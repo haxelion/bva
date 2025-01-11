@@ -313,12 +313,12 @@ where
         writer: &mut W,
         endianness: Endianness,
     ) -> std::io::Result<()> {
-        return writer.write_all(self.to_vec(endianness).as_slice());
+        writer.write_all(self.to_vec(endianness).as_slice())
     }
 
     fn get(&self, index: usize) -> Bit {
         debug_assert!(index < self.length);
-        (self.data[index / Self::BIT_UNIT] >> (index % Self::BIT_UNIT) & I::ONE).into()
+        ((self.data[index / Self::BIT_UNIT] >> (index % Self::BIT_UNIT)) & I::ONE).into()
     }
 
     fn set(&mut self, index: usize, bit: Bit) {
@@ -448,15 +448,15 @@ where
     fn shl_in(&mut self, bit: Bit) -> Bit {
         let mut carry = bit;
         for i in 0..(self.length / Self::BIT_UNIT) {
-            let b = self.data[i] >> (Self::BIT_UNIT - 1) & I::ONE;
-            self.data[i] = self.data[i] << 1 | carry.into();
+            let b = (self.data[i] >> (Self::BIT_UNIT - 1)) & I::ONE;
+            self.data[i] = (self.data[i] << 1) | carry.into();
             carry = b.into();
         }
         if self.length % Self::BIT_UNIT != 0 {
             let i = self.length / Self::BIT_UNIT;
-            let b = self.data[i] >> (self.length % Self::BIT_UNIT - 1) & I::ONE;
+            let b = (self.data[i] >> (self.length % Self::BIT_UNIT - 1)) & I::ONE;
             self.data[i] =
-                (self.data[i] << 1 | carry.into()) & I::mask(self.length % Self::BIT_UNIT);
+                ((self.data[i] << 1) | carry.into()) & I::mask(self.length % Self::BIT_UNIT);
             carry = b.into();
         }
         carry
@@ -467,12 +467,13 @@ where
         if self.length % Self::BIT_UNIT != 0 {
             let i = self.length / Self::BIT_UNIT;
             let b = self.data[i] & I::ONE;
-            self.data[i] = self.data[i] >> 1 | I::from(carry) << (self.length % Self::BIT_UNIT - 1);
+            self.data[i] =
+                (self.data[i] >> 1) | (I::from(carry) << (self.length % Self::BIT_UNIT - 1));
             carry = b.into();
         }
         for i in (0..(self.length / Self::BIT_UNIT)).rev() {
             let b = self.data[i] & I::ONE;
-            self.data[i] = self.data[i] >> 1 | I::from(carry) << (Self::BIT_UNIT - 1);
+            self.data[i] = (self.data[i] >> 1) | (I::from(carry) << (Self::BIT_UNIT - 1));
             carry = b.into();
         }
         carry
@@ -725,7 +726,7 @@ impl<I: Integer, const N: usize> fmt::Octal for Bvf<I, N> {
         while let Some(b0) = it.next() {
             let b1 = it.next().unwrap_or(Bit::Zero);
             let b2 = it.next().unwrap_or(Bit::Zero);
-            let octet = (b2 as u8) << 2 | (b1 as u8) << 1 | b0 as u8;
+            let octet = ((b2 as u8) << 2) | ((b1 as u8) << 1) | b0 as u8;
             if octet != 0 {
                 last_nz = s.len();
             }
