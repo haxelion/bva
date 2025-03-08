@@ -300,13 +300,13 @@ impl BitVector for Bv {
         }
     }
 
-    fn resize(&mut self, new_length: usize, bit: Bit) {
-        if new_length > self.len() {
-            self.reserve(new_length - self.len());
+    fn resize(&mut self, new_len: usize, bit: Bit) {
+        if new_len > self.len() {
+            self.reserve(new_len - self.len());
         }
         match self {
-            Bv::Fixed(b) => b.resize(new_length, bit),
-            Bv::Dynamic(b) => b.resize(new_length, bit),
+            Bv::Fixed(b) => b.resize(new_len, bit),
+            Bv::Dynamic(b) => b.resize(new_len, bit),
         }
     }
 

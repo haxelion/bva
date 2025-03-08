@@ -372,17 +372,17 @@ where
         b
     }
 
-    fn resize(&mut self, new_length: usize, bit: Bit) {
-        if new_length < self.length {
-            for i in (new_length / Self::BIT_UNIT + 1)..Self::capacity_from_bit_len(self.length) {
+    fn resize(&mut self, new_len: usize, bit: Bit) {
+        if new_len < self.length {
+            for i in (new_len / Self::BIT_UNIT + 1)..Self::capacity_from_bit_len(self.length) {
                 self.data[i] = I::ZERO;
             }
-            if let Some(l) = self.data.get_mut(new_length / Self::BIT_UNIT) {
-                *l &= I::mask(new_length % Self::BIT_UNIT);
+            if let Some(l) = self.data.get_mut(new_len / Self::BIT_UNIT) {
+                *l &= I::mask(new_len % Self::BIT_UNIT);
             }
-            self.length = new_length;
-        } else if new_length > self.length {
-            debug_assert!(new_length <= Self::capacity());
+            self.length = new_len;
+        } else if new_len > self.length {
+            debug_assert!(new_len <= Self::capacity());
             let sign_pattern = match bit {
                 Bit::Zero => I::MIN,
                 Bit::One => I::MAX,
@@ -390,13 +390,13 @@ where
             if let Some(l) = self.data.get_mut(self.length / Self::BIT_UNIT) {
                 *l |= sign_pattern & !I::mask(self.length % Self::BIT_UNIT);
             }
-            for i in (self.length / Self::BIT_UNIT + 1)..Self::capacity_from_bit_len(new_length) {
+            for i in (self.length / Self::BIT_UNIT + 1)..Self::capacity_from_bit_len(new_len) {
                 self.data[i] = sign_pattern;
             }
-            if let Some(l) = self.data.get_mut(new_length / Self::BIT_UNIT) {
-                *l &= I::mask(new_length % Self::BIT_UNIT);
+            if let Some(l) = self.data.get_mut(new_len / Self::BIT_UNIT) {
+                *l &= I::mask(new_len % Self::BIT_UNIT);
             }
-            self.length = new_length;
+            self.length = new_len;
         }
     }
 

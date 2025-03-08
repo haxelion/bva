@@ -632,6 +632,33 @@ fn resize_bv() {
     resize_inner::<Bv>(256);
 }
 
+fn truncate_inner<B: BitVector>(max_capacity: usize) {
+    let bv: B = random_bv(max_capacity);
+
+    for len in (0..bv.len()).rev() {
+        let mut bv2 = bv.clone();
+        bv2.truncate(len);
+        for i in 0..bv2.len() {
+            assert_eq!(bv.get(i), bv2.get(i));
+        }
+    }
+}
+
+#[test]
+fn truncate_bvf() {
+    bvf_inner_unroll_cap!(truncate_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
+}
+
+#[test]
+fn truncate_bvd() {
+    truncate_inner::<Bvd>(256);
+}
+
+#[test]
+fn truncate_bv() {
+    truncate_inner::<Bv>(256);
+}
+
 fn sign_extend_inner<B: BitVector>(max_capacity: usize) {
     for capacity in 0..max_capacity {
         let bv = random_bv::<B>(capacity);

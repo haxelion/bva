@@ -459,7 +459,7 @@ pub trait BitVector:
     /// ```
     fn pop(&mut self) -> Option<Bit>;
 
-    /// Resize the bit vector in place so that its length is equal to `new_length`.
+    /// Resize the bit vector in place so that its length is equal to `new_len`.
     /// This will either truncate or extend the bit vector. If it is extended, new bits are filled
     /// with `bit`.
     /// Will panic if there is not enough capacity and it is a fixed variant.
@@ -471,7 +471,23 @@ pub trait BitVector:
     /// a.resize(10, Bit::One);
     /// assert_eq!(a, Bv::from(0b1100000000u16));
     /// ```
-    fn resize(&mut self, new_length: usize, bit: Bit);
+    fn resize(&mut self, new_len: usize, bit: Bit);
+
+    /// Truncate the bit vector in place, keeping the first `new_len` bits.
+    /// If `new_len` is greater or equal to the bit vector’s current length, this has no effect.
+    ///
+    /// ```
+    /// use bva::{Bit, BitVector, Bv};
+    ///
+    /// let mut a = Bv::from(0b111000110010u16);
+    /// a.truncate(8);
+    /// assert_eq!(a, Bv::from(0b00110010u16));
+    /// ```
+    fn truncate(&mut self, new_len: usize) {
+        if new_len < self.len() {
+            self.resize(new_len, Bit::Zero);
+        }
+    }
 
     /// Resize this bit vector using the most significant bit as a sign bit so that its length
     /// is equal to `new_length`. If `new_length` is smaller than the current length, this method
