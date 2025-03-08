@@ -418,6 +418,22 @@ pub trait BitVector:
         high
     }
 
+    /// Split the bit vector at the specified index and return a tuple of bit vectors
+    /// containing the higher and lower bits.
+    ///
+    /// ```
+    /// use bva::{BitVector, Bv};
+    ///
+    /// let a = Bv::from(0b101010101u64);
+    /// let (hi, lo) = a.split(4);
+    /// assert_eq!(lo, Bv::from(0b0101u64));
+    /// assert_eq!(hi, Bv::from(0b10101u64));
+    /// ```
+    fn split(mut self, index: usize) -> (Self, Self) {
+        let high = self.split_off(index);
+        (high, self)
+    }
+
     /// Push a bit at the end of the bit vector as the most significant bit.
     /// Will panic if there is not enough capacity and it is a fixed variant.
     ///
