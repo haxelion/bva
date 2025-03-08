@@ -520,6 +520,38 @@ fn split_off_bv() {
     split_off_inner::<Bv>(256);
 }
 
+fn split_inner<B: BitVector>(max_capacity: usize) {
+    for capacity in 0..max_capacity {
+        let bv: B = random_bv(capacity);
+        for split in 0..capacity {
+            let (hi, lo) = bv.clone().split(split);
+            assert_eq!(hi.len() + lo.len(), bv.len());
+            for i in 0..split {
+                assert_eq!(lo.get(i), bv.get(i));
+            }
+            for i in split..bv.len() {
+                assert_eq!(hi.get(i - split), bv.get(i));
+            }
+        }
+    }
+}
+
+#[test]
+fn split_bvf() {
+    bvf_inner_unroll_cap!(split_inner, {u8, u16, u32, u64}, {1, 2, 3, 4});
+    bvf_inner_unroll_cap!(split_inner, {u128}, {1, 2});
+}
+
+#[test]
+fn split_bvd() {
+    split_inner::<Bvd>(256);
+}
+
+#[test]
+fn split_bv() {
+    split_inner::<Bv>(256);
+}
+
 fn push_pop_inner<B: BitVector>(max_capacity: usize) {
     let mut rng = thread_rng();
     for capacity in 0..max_capacity {
