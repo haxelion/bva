@@ -401,6 +401,23 @@ pub trait BitVector:
     /// ```
     fn copy_range(&self, range: Range<usize>) -> Self;
 
+    /// Split the bit vector at the specified index, return the higher bits
+    /// and keep the lower bits in place. Will panic if `index` is out of bound.
+    ///
+    /// ```
+    /// use bva::{BitVector, Bv};
+    ///
+    /// let mut a = Bv::from(0b101010101u64);
+    /// let b = a.split_off(4);
+    /// assert_eq!(a, Bv::from(0b0101u64));
+    /// assert_eq!(b, Bv::from(0b10101u64));
+    /// ```
+    fn split_off(&mut self, index: usize) -> Self {
+        let high = self.copy_range(index..self.len());
+        self.resize(index, Bit::Zero);
+        high
+    }
+
     /// Push a bit at the end of the bit vector as the most significant bit.
     /// Will panic if there is not enough capacity and it is a fixed variant.
     ///
