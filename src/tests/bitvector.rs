@@ -755,6 +755,42 @@ fn prepend_bv() {
     prepend_inner::<Bv>(256);
 }
 
+fn insert_inner<B: BitVector>(max_capacity: usize) {
+    let mut rng = thread_rng();
+    for capacity in 0..max_capacity {
+        let infix_len = rng.gen_range(0..=max_capacity - capacity);
+        let insert_pos = rng.gen_range(0..=capacity);
+        let bv = random_bv::<B>(capacity);
+        let infix = random_bv::<B>(infix_len);
+        let mut bv2 = bv.clone();
+        bv2.insert(insert_pos, &infix);
+        for i in 0..insert_pos {
+            assert_eq!(bv.get(i), bv2.get(i));
+        }
+        for i in 0..infix_len {
+            assert_eq!(infix.get(i), bv2.get(insert_pos + i));
+        }
+        for i in 0..bv.len() - insert_pos {
+            assert_eq!(bv.get(insert_pos + i), bv2.get(insert_pos + infix_len + i));
+        }
+    }
+}
+
+#[test]
+fn insert_bvf() {
+    bvf_inner_unroll_cap!(insert_inner, {u8, u16, u32, u64, u128}, {1, 2, 3, 4, 5});
+}
+
+#[test]
+fn insert_bvd() {
+    insert_inner::<Bvd>(256);
+}
+
+#[test]
+fn insert_bv() {
+    insert_inner::<Bv>(256);
+}
+
 fn shl_inner<B: BitVector>(max_capacity: usize) {
     let mut rng = thread_rng();
     for capacity in 0..max_capacity {

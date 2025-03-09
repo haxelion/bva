@@ -536,6 +536,23 @@ pub trait BitVector:
     /// ```
     fn prepend<B: BitVector>(&mut self, prefix: &B);
 
+    /// Insert all the bits of the `infix` bit vector at the specified `index`.
+    /// Will panic if there is not enough capacity and this is a fixed variant.
+    ///
+    /// ```
+    /// use bva::{BitVector, Bv};
+    ///
+    /// let mut a = Bv::from(0b1010u8);
+    /// a.insert(2, &Bv::ones(2));
+    /// assert_eq!(a, Bv::from(0b101110u16));
+    /// ```
+    fn insert<B: BitVector>(&mut self, index: usize, infix: &B) {
+        // TODO: could be optimized to avoid multiple allocations
+        let tmp = self.split_off(index);
+        self.append(infix);
+        self.append(&tmp);
+    }
+
     /// Shift the bits by one to the left.
     /// The rightmost bit is set to `bit` and the leftmost bit is returned.
     ///
